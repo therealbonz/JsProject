@@ -39,14 +39,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API routers
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(crm.router, prefix="/api/v1")
-app.include_router(agent.router, prefix="/api/v1")
-app.include_router(hitl.router, prefix="/api/v1")
-app.include_router(conversations.router, prefix="/api/v1")
+# Register API routers (support root and /JsProject sub-directory path)
+for prefix in ["/api/v1", "/JsProject/api/v1"]:
+    app.include_router(auth.router, prefix=prefix)
+    app.include_router(crm.router, prefix=prefix)
+    app.include_router(agent.router, prefix=prefix)
+    app.include_router(hitl.router, prefix=prefix)
+    app.include_router(conversations.router, prefix=prefix)
 
 @app.get("/health")
+@app.get("/JsProject/health")
 async def health_check():
     return {
         "status": "online",
@@ -61,6 +63,8 @@ async def health_check():
     }
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/JsProject", response_class=HTMLResponse)
+@app.get("/JsProject/", response_class=HTMLResponse)
 async def dashboard_home():
     """
     Local-First Interactive Web Dashboard
@@ -264,6 +268,9 @@ Select a lead from the left to trigger autonomous research or outreach email dra
         </main>
 
         <script>
+            const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
+            const API_BASE = BASE_PREFIX + "/api/v1";
+
             let authToken = "";
             let currentOrgId = "";
             let selectedLead = null;
@@ -272,14 +279,14 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             async function seedAndLogin() {
                 try {
                     // Try login first
-                    let res = await fetch("/api/v1/auth/login", {
+                    let res = await fetch(API_BASE + "/auth/login", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ email: "admin@acme.com", password: "Password123!" })
                     });
                     if (!res.ok) {
                         // Register if not exists
-                        res = await fetch("/api/v1/auth/register", {
+                        res = await fetch(API_BASE + "/auth/register", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
@@ -306,7 +313,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
             async function fetchLeads() {
                 if (!authToken) return;
-                const res = await fetch("/api/v1/crm/leads", {
+                const res = await fetch(API_BASE + "/crm/leads", {
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
                 const leads = await res.json();
@@ -345,14 +352,11 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             }
 
             async function fetchConversation(leadId) {
-                // Find or list messages
-                const res = await fetch("/api/v1/crm/leads/" + leadId, {
+                const res = await fetch(API_BASE + "/crm/leads/" + leadId, {
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
                 const leadData = await res.json();
-                // Find conversation
-                // For now, let's look up messages
-                currentConvId = leadId; // using leadId to track primary conversation
+                currentConvId = leadId;
                 document.getElementById("ai-output").innerText = leadData.research_summary || "Lead ready. Click 'AI Lead Research' or 'Draft Cold Outreach'.";
             }
 
@@ -367,7 +371,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     contact_last_name: document.getElementById("in-lname").value,
                     contact_email: document.getElementById("in-email").value,
                 };
-                const res = await fetch("/api/v1/crm/leads", {
+                const res = await fetch(API_BASE + "/crm/leads", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
                     body: JSON.stringify(payload)
@@ -383,7 +387,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             async function triggerResearch() {
                 if (!selectedLead) return;
                 document.getElementById("ai-output").innerText = "Analyzing prospect via Google Gemini AI...";
-                const res = await fetch("/api/v1/agent/leads/" + selectedLead.id + "/research", {
+                const res = await fetch(API_BASE + "/agent/leads/" + selectedLead.id + "/research", {
                     method: "POST",
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
@@ -400,7 +404,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             async function triggerDraftOutreach() {
                 if (!selectedLead) return;
                 document.getElementById("ai-output").innerText = "Drafting grounded cold email via Google Gemini...";
-                const res = await fetch("/api/v1/agent/leads/" + selectedLead.id + "/draft-outreach", {
+                const res = await fetch(API_BASE + "/agent/leads/" + selectedLead.id + "/draft-outreach", {
                     method: "POST",
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
@@ -410,7 +414,6 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     data.body_text + "\\n\\n" +
                     "[Grounded Call to Action: " + data.call_to_action + "]";
                 
-                // Add to conversation thread
                 const thread = document.getElementById("conversation-thread");
                 thread.innerHTML = `
                     <div class="p-2.5 rounded bg-indigo-950/70 border border-indigo-700/50">
@@ -432,13 +435,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     </div>
                 `;
 
-                // Send to backend
-                // First get lead's conversation
-                const leadRes = await fetch("/api/v1/crm/leads/" + selectedLead.id, {
-                    headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
-                });
-                
-                const res = await fetch("/api/v1/agent/conversations/" + selectedLead.id + "/inbound-simulate?incoming_text=" + encodeURIComponent(text), {
+                const res = await fetch(API_BASE + "/agent/conversations/" + selectedLead.id + "/inbound-simulate?incoming_text=" + encodeURIComponent(text), {
                     method: "POST",
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
@@ -468,7 +465,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
             async function fetchHitlRequests() {
                 if (!authToken) return;
-                const res = await fetch("/api/v1/hitl/requests?status_filter=pending", {
+                const res = await fetch(API_BASE + "/hitl/requests?status_filter=pending", {
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
                 const requests = await res.json();
@@ -510,7 +507,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             }
 
             async function resolveHitl(requestId, action) {
-                const res = await fetch("/api/v1/hitl/requests/" + requestId + "/action", {
+                const res = await fetch(API_BASE + "/hitl/requests/" + requestId + "/action", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
                     body: JSON.stringify({ action: action, instructions: "Action triggered from web console" })
@@ -523,7 +520,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
             async function fetchAuditLogs() {
                 if (!authToken) return;
-                const res = await fetch("/api/v1/hitl/audit-logs?limit=15", {
+                const res = await fetch(API_BASE + "/hitl/audit-logs?limit=15", {
                     headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                 });
                 const logs = await res.json();
