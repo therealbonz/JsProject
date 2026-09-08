@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, JSON, desc
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.base import CommonMixin, TenantMixin
@@ -19,6 +19,7 @@ class Company(Base, CommonMixin, TenantMixin):
     organization = relationship("Organization", back_populates="companies")
     contacts = relationship("Contact", back_populates="company", cascade="all, delete-orphan")
     leads = relationship("Lead", back_populates="company", cascade="all, delete-orphan")
+    call_logs = relationship("CallLog", back_populates="company")
 
 class Contact(Base, CommonMixin, TenantMixin):
     __tablename__ = "contacts"
@@ -52,6 +53,10 @@ class Lead(Base, CommonMixin, TenantMixin):
     next_action_at = Column(DateTime(timezone=True), nullable=True)
     next_action_type = Column(String(100), nullable=True)
     research_summary = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    last_call_at = Column(DateTime(timezone=True), nullable=True)
+    last_call_notes = Column(Text, nullable=True)
+    last_call_outcome = Column(String(100), nullable=True)
 
     # Relationships
     organization = relationship("Organization", back_populates="leads")
@@ -59,6 +64,25 @@ class Lead(Base, CommonMixin, TenantMixin):
     contact = relationship("Contact", back_populates="leads")
     conversations = relationship("Conversation", back_populates="lead", cascade="all, delete-orphan")
     opportunities = relationship("Opportunity", back_populates="lead", cascade="all, delete-orphan")
+    call_logs = relationship("CallLog", back_populates="lead", cascade="all, delete-orphan", order_by=lambda: desc(CallLog.called_at))
+
+class CallLog(Base, CommonMixin, TenantMixin):
+    __tablename__ = "call_logs"
+
+    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True)
+    contact_id = Column(String(36), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
+    caller_name = Column(String(100), nullable=True)
+    called_at = Column(DateTime(timezone=True), nullable=False)
+    duration_minutes = Column(Integer, default=0, nullable=True)
+    outcome = Column(String(100), default="connected", nullable=False)  # connected, left_voicemail, gatekeeper, busy, wrong_number, interested, scheduled_demo
+    notes = Column(Text, nullable=False)  # What was said / discussion notes
+    next_steps = Column(Text, nullable=True)
+
+    # Relationships
+    lead = relationship("Lead", back_populates="call_logs")
+    company = relationship("Company", back_populates="call_logs")
+    contact = relationship("Contact")
 
 class Opportunity(Base, CommonMixin, TenantMixin):
     __tablename__ = "opportunities"
@@ -98,3 +122,43 @@ class KnowledgeDocument(Base, CommonMixin, TenantMixin):
 
     # Relationships
     organization = relationship("Organization", back_populates="knowledge_docs")
+
+class ClientAccount(Base, CommonMixin, TenantMixin):
+    __tablename__ = "client_accounts"
+
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    primary_contact_id = Column(String(36), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
+    account_name = Column(String(255), nullable=False, index=True)
+    account_tier = Column(String(50), default="standard", nullable=False)  # standard, premium, enterprise, vip
+    status = Column(String(50), default="active", nullable=False)  # active, at_risk, churned, paused
+    total_revenue = Column(Float, default=0.0, nullable=False)
+    order_count = Column(Integer, default=0, nullable=False)
+    contract_start_date = Column(DateTime(timezone=True), nullable=True)
+    renewal_date = Column(DateTime(timezone=True), nullable=True)
+    reorder_cadence_days = Column(Integer, default=30, nullable=False)
+    next_reorder_date = Column(DateTime(timezone=True), nullable=True)
+    account_manager = Column(String(100), default="Primary Sales Manager", nullable=False)
+    notes = Column(Text, nullable=True)
+
+    # Relationships
+    company = relationship("Company")
+    primary_contact = relationship("Contact")
+    sales = relationship("ClientSale", back_populates="client", cascade="all, delete-orphan", order_by=lambda: desc(ClientSale.sale_date))
+
+class ClientSale(Base, CommonMixin, TenantMixin):
+    __tablename__ = "client_sales"
+
+    client_id = Column(String(36), ForeignKey("client_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="SET NULL"), nullable=True, index=True)
+    order_number = Column(String(100), nullable=False, index=True)
+    amount = Column(Float, default=0.0, nullable=False)
+    sale_date = Column(DateTime(timezone=True), nullable=False)
+    status = Column(String(50), default="completed", nullable=False)  # completed, pending, invoiced, delivered, cancelled
+    payment_method = Column(String(50), default="credit_terms_30", nullable=False)  # credit_terms_30, credit_card, ach_wire, check
+    items_summary = Column(Text, nullable=False)
+    sales_rep_name = Column(String(100), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Relationships
+    client = relationship("ClientAccount", back_populates="sales")
+    lead = relationship("Lead")
