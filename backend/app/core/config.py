@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     HITL_AUTO_ESCALATE_ON_LOW_CONFIDENCE: bool = True
     CONFIDENCE_THRESHOLD: float = 0.75
 
+    # Telephony & Gemini Voice Configuration
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None
+    GEMINI_VOICE_NAME: str = "Puck"  # Puck, Charon, Kore, Fenrir, Aoede
+    VOICE_SIMULATION_MODE: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

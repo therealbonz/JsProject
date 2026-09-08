@@ -20,6 +20,7 @@ class Company(Base, CommonMixin, TenantMixin):
     contacts = relationship("Contact", back_populates="company", cascade="all, delete-orphan")
     leads = relationship("Lead", back_populates="company", cascade="all, delete-orphan")
     call_logs = relationship("CallLog", back_populates="company")
+    appointments = relationship("Appointment", back_populates="company", cascade="all, delete-orphan")
 
 class Contact(Base, CommonMixin, TenantMixin):
     __tablename__ = "contacts"
@@ -36,6 +37,7 @@ class Contact(Base, CommonMixin, TenantMixin):
     # Relationships
     company = relationship("Company", back_populates="contacts")
     leads = relationship("Lead", back_populates="contact")
+    appointments = relationship("Appointment", back_populates="contact")
 
 class Lead(Base, CommonMixin, TenantMixin):
     __tablename__ = "leads"
@@ -65,6 +67,7 @@ class Lead(Base, CommonMixin, TenantMixin):
     conversations = relationship("Conversation", back_populates="lead", cascade="all, delete-orphan")
     opportunities = relationship("Opportunity", back_populates="lead", cascade="all, delete-orphan")
     call_logs = relationship("CallLog", back_populates="lead", cascade="all, delete-orphan", order_by=lambda: desc(CallLog.called_at))
+    appointments = relationship("Appointment", back_populates="lead", cascade="all, delete-orphan", order_by=lambda: desc(Appointment.scheduled_at))
 
 class CallLog(Base, CommonMixin, TenantMixin):
     __tablename__ = "call_logs"
@@ -162,3 +165,28 @@ class ClientSale(Base, CommonMixin, TenantMixin):
     # Relationships
     client = relationship("ClientAccount", back_populates="sales")
     lead = relationship("Lead")
+
+class Appointment(Base, CommonMixin, TenantMixin):
+    __tablename__ = "appointments"
+
+    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True)
+    contact_id = Column(String(36), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    title = Column(String(255), nullable=False, default="Executive Procurement Consultation")
+    scheduled_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    duration_minutes = Column(Integer, default=30, nullable=False)
+    status = Column(String(50), default="scheduled", nullable=False, index=True)  # scheduled, completed, cancelled, no_show, rescheduled
+    meeting_url = Column(String(255), nullable=True)
+
+    closer_name = Column(String(100), default="Senior Sales Executive", nullable=False)
+    closer_email = Column(String(255), nullable=True)
+    executive_briefing = Column(JSON, default=dict, nullable=False)
+    notes = Column(Text, nullable=True)
+    booked_by_agent = Column(Boolean, default=True, nullable=False)
+
+    # Relationships
+    lead = relationship("Lead", back_populates="appointments")
+    company = relationship("Company", back_populates="appointments")
+    contact = relationship("Contact", back_populates="appointments")
+

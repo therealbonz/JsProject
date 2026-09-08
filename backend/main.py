@@ -185,11 +185,17 @@ async def dashboard_home():
                             </p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2.5 w-full md:w-auto shrink-0">
-                        <button id="btn-action-fast-convert" onclick="executeFastConversion()" class="flex-1 md:flex-none px-5 py-2.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] border border-amber-300/40">
-                            <i class="fa-solid fa-bolt text-slate-950"></i> 1-Click Transfer to Client CRM
+                    <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
+                        <button onclick="triggerGatherIntelligence()" class="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-purple-400/40">
+                            <i class="fa-solid fa-sitemap"></i> Gather BI &amp; Owners
                         </button>
-                        <button onclick="openConvertModal()" class="px-3.5 py-2.5 bg-slate-800/90 hover:bg-slate-700 border border-amber-500/40 text-amber-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <button onclick="triggerBookAppointment()" class="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-teal-400/40">
+                            <i class="fa-solid fa-calendar-check"></i> AI Book Closer Call
+                        </button>
+                        <button id="btn-action-fast-convert" onclick="executeFastConversion()" class="flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] border border-amber-300/40">
+                            <i class="fa-solid fa-bolt text-slate-950"></i> Transfer to Client CRM
+                        </button>
+                        <button onclick="openConvertModal()" class="px-3 py-2.5 bg-slate-800/90 hover:bg-slate-700 border border-amber-500/40 text-amber-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer">
                             <i class="fa-solid fa-sliders"></i> Customize Order
                         </button>
                     </div>
@@ -447,13 +453,19 @@ Select an account from the active leads list to inspect call tracking details.
 
                     <div class="space-y-3">
                         <div class="grid grid-cols-2 gap-2">
-                            <button id="btn-research" onclick="triggerResearch()" disabled class="py-2 px-3 bg-slate-700 text-slate-400 rounded text-xs font-semibold transition flex items-center justify-center gap-2">
+                            <button id="btn-research" onclick="triggerResearch()" disabled class="py-2 px-3 bg-slate-700 text-slate-400 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-magnifying-glass"></i> AI Lead Research
                             </button>
-                            <button id="btn-draft" onclick="triggerDraftOutreach()" disabled class="py-2 px-3 bg-slate-700 text-slate-400 rounded text-xs font-semibold transition flex items-center justify-center gap-2">
+                            <button id="btn-draft" onclick="triggerDraftOutreach()" disabled class="py-2 px-3 bg-slate-700 text-slate-400 rounded text-xs font-semibold transition flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-envelope-open-text"></i> Draft Cold Outreach
                             </button>
-                            <button id="btn-convert" onclick="executeFastConversion()" class="col-span-2 py-2.5 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40">
+                            <button id="btn-gather-bi" onclick="triggerGatherIntelligence()" class="py-2.5 px-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow border border-purple-400/40">
+                                <i class="fa-solid fa-sitemap text-purple-200"></i> Gather BI &amp; Owners
+                            </button>
+                            <button id="btn-book-appointment" onclick="triggerBookAppointment()" class="py-2.5 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow border border-teal-400/40">
+                                <i class="fa-solid fa-calendar-check text-teal-200"></i> AI Book Closer Call
+                            </button>
+                            <button id="btn-convert" onclick="executeFastConversion()" class="col-span-2 py-2 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40">
                                 <i class="fa-solid fa-trophy text-amber-200"></i> 🏆 Convert Won Lead to Client Account (CRM 2)
                             </button>
                         </div>
@@ -494,8 +506,21 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 </div>
             </div>
 
-            <!-- Right Column: Human-in-the-Loop (HITL) Queue & Audit Logs -->
+            <!-- Right Column: Closer Appointments, Human-in-the-Loop (HITL) Queue & Audit Logs -->
             <div class="space-y-6">
+                <!-- Scheduled Closer Appointments Card -->
+                <div class="bg-slate-800/80 border border-emerald-600/40 rounded-xl p-5 shadow-xl">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="font-semibold text-sm uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-check"></i> Closer Appointments & Briefings
+                        </h2>
+                        <span id="appointments-count" class="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600/50">0 Booked</span>
+                    </div>
+                    <div id="appointments-list" class="space-y-2.5 max-h-72 overflow-y-auto">
+                        <p class="text-xs text-slate-500 italic">No appointments scheduled yet. The AI SDR books qualified meetings here.</p>
+                    </div>
+                </div>
+
                 <!-- HITL Approval Inbox -->
                 <div class="bg-slate-800/80 border border-amber-600/40 rounded-xl p-5 shadow-xl">
                     <div class="flex justify-between items-center mb-3">
@@ -879,6 +904,24 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             </div>
         </div>
 
+        <!-- Executive Closer Briefing Modal -->
+        <div id="modal-closer-briefing" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                    <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-file-signature text-emerald-400"></i> Executive Closer Briefing Dossier
+                    </h3>
+                    <button onclick="closeBriefingModal()" class="text-slate-400 hover:text-slate-200 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div id="briefing-modal-content" class="space-y-3 text-xs text-slate-300 max-h-[70vh] overflow-y-auto pr-1">
+                    <!-- Populated via JS -->
+                </div>
+                <div class="flex justify-end pt-2 border-t border-slate-800">
+                    <button onclick="closeBriefingModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -919,6 +962,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     document.getElementById("user-email").innerText = data.email;
                     
                     fetchLeads();
+                    fetchAppointments();
                     fetchHitlRequests();
                     fetchAuditLogs();
                     fetchClientStats();
@@ -1104,16 +1148,26 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
                 // Buttons activation
                 document.getElementById("btn-research").disabled = false;
-                document.getElementById("btn-research").className = "py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer";
+                document.getElementById("btn-research").className = "py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer";
                 document.getElementById("btn-draft").disabled = false;
-                document.getElementById("btn-draft").className = "py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer";
+                document.getElementById("btn-draft").className = "py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer";
+                const btnBi = document.getElementById("btn-gather-bi");
+                if (btnBi) {
+                    btnBi.disabled = false;
+                    btnBi.className = "py-2 px-3 bg-indigo-700 hover:bg-indigo-600 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer";
+                }
+                const btnApt = document.getElementById("btn-book-appointment");
+                if (btnApt) {
+                    btnApt.disabled = false;
+                    btnApt.className = "py-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer";
+                }
                 document.getElementById("btn-simulate").disabled = false;
                 document.getElementById("btn-save-notes").disabled = false;
                 document.getElementById("btn-toggle-log-call").disabled = false;
                 const btnConvert = document.getElementById("btn-convert");
                 if (btnConvert) {
                     btnConvert.disabled = false;
-                    btnConvert.className = "col-span-2 py-2.5 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40";
+                    btnConvert.className = "col-span-2 py-2 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40";
                 }
 
                 // Populate Account Notes
@@ -1337,6 +1391,193 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     </div>
                 `;
                 fetchAuditLogs();
+            }
+
+            async function triggerGatherIntelligence() {
+                if (!selectedLead) return;
+                document.getElementById("ai-output").innerText = "Uncovering corporate ownership & key decision-makers via Google Gemini BI...";
+                try {
+                    const res = await fetch(API_BASE + "/agent/leads/" + selectedLead.id + "/gather-intelligence", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || res.statusText);
+                    }
+                    const data = await res.json();
+                    let dmText = (data.key_decision_makers || []).map(d => `  • ${d.first_name} ${d.last_name} — ${d.job_title} [Role: ${d.decision_maker_role.toUpperCase()}]\n    Email: ${d.email || 'N/A'} | Phone: ${d.phone || 'N/A'} (Confidence: ${Math.round(d.confidence_score * 100)}%)`).join("\n");
+                    
+                    document.getElementById("ai-output").innerText =
+                        "=== BUSINESS INTELLIGENCE & DECISION MAKERS ===\n\n" +
+                        "COMPANY: " + data.company_name + " (" + (data.estimated_employee_count || 'Regional Business') + ")\n" +
+                        "OWNERSHIP: " + data.ownership_structure + "\n\n" +
+                        "IDENTIFIED DECISION-MAKERS (Auto-Created in CRM Contacts):\n" + dmText + "\n\n" +
+                        "PROCUREMENT SIGNALS:\n" + (data.procurement_signals || []).map(s => "  • " + s).join("\n") + "\n\n" +
+                        "SUGGESTED ANGLE:\n" + data.suggested_angle;
+                    
+                    fetchLeads();
+                    fetchAuditLogs();
+                } catch(e) {
+                    document.getElementById("ai-output").innerText = "Error gathering intelligence: " + e.message;
+                }
+            }
+
+            async function triggerBookAppointment() {
+                if (!selectedLead) return;
+                document.getElementById("ai-output").innerText = "Scheduling calendar consultation & generating executive closer briefing dossier...";
+                try {
+                    const res = await fetch(API_BASE + "/agent/leads/" + selectedLead.id + "/book-appointment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({})
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || res.statusText);
+                    }
+                    const data = await res.json();
+                    const briefing = data.executive_briefing || {};
+                    
+                    document.getElementById("ai-output").innerText =
+                        "=== APPOINTMENT BOOKED & CLOSER HANDOFF DOSSIER ===\n\n" +
+                        "STATUS: " + data.status.toUpperCase() + " | TIME: " + new Date(data.scheduled_at).toLocaleString() + "\n" +
+                        "ASSIGNED CLOSER: " + data.closer_name + "\n" +
+                        "MEETING URL: " + data.meeting_url + "\n\n" +
+                        "--- EXECUTIVE CLOSER BRIEFING DOSSIER ---\n" +
+                        "SUMMARY: " + (briefing.company_summary || 'Ready for closing call') + "\n\n" +
+                        "PROSPECT INFLUENCE: " + (briefing.target_prospect ? briefing.target_prospect.influence : 'Key Decision Maker') + "\n\n" +
+                        "KEY PAIN POINTS:\n" + (briefing.key_pain_points || []).map(p => "  • " + p).join("\n") + "\n\n" +
+                        "RECOMMENDED CLOSING STRATEGY:\n" + (briefing.recommended_closing_strategy || 'Present volume catalog pricing with net-30 terms.') + "\n\n" +
+                        "DEAL POTENTIAL: " + (briefing.estimated_deal_potential || '$10k - $25k ACV');
+
+                    fetchAppointments();
+                    fetchLeads();
+                    fetchConversation(selectedLead.id);
+                    fetchAuditLogs();
+                } catch(e) {
+                    document.getElementById("ai-output").innerText = "Error booking appointment: " + e.message;
+                }
+            }
+
+            async function fetchAppointments() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/crm/appointments", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const appointments = await res.json();
+                    const badge = document.getElementById("appointments-count");
+                    if (badge) badge.innerText = appointments.length + " Booked";
+                    const container = document.getElementById("appointments-list");
+                    if (!container) return;
+                    container.innerHTML = "";
+                    if (!appointments.length) {
+                        container.innerHTML = "<p class='text-xs text-slate-500 italic'>No appointments scheduled yet. The AI SDR books qualified meetings here.</p>";
+                        return;
+                    }
+                    window._appointmentsCache = appointments;
+                    appointments.forEach(apt => {
+                        const dt = new Date(apt.scheduled_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                        const compName = apt.company ? apt.company.name : 'Account';
+                        const contactName = apt.contact ? (apt.contact.first_name + ' ' + apt.contact.last_name) : 'Executive Lead';
+                        const statusColor = apt.status === 'completed' ? 'bg-emerald-950 text-emerald-300 border-emerald-700/60' : 'bg-indigo-950 text-indigo-300 border-indigo-700/60';
+                        const div = document.createElement("div");
+                        div.className = "p-2.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs space-y-1.5 shadow";
+                        div.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-bold text-slate-100">${escapeHtml(compName)}</div>
+                                    <div class="text-[11px] text-slate-400"><i class="fa-solid fa-user-tie mr-1 text-slate-500"></i>${escapeHtml(contactName)} • <span class="text-indigo-400 font-mono">${escapeHtml(apt.closer_name)}</span></div>
+                                </div>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border ${statusColor}">${apt.status.toUpperCase()}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-emerald-400 font-mono pt-1 border-t border-slate-800">
+                                <span><i class="fa-regular fa-clock mr-1"></i>${dt} (${apt.duration_minutes}m)</span>
+                                <a href="${apt.meeting_url}" target="_blank" class="text-indigo-300 hover:text-indigo-200 underline flex items-center gap-1"><i class="fa-solid fa-video text-[10px]"></i> Join Call</a>
+                            </div>
+                            <div class="flex gap-1.5 pt-1">
+                                <button onclick="viewBriefingDossier('${apt.id}')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded text-[10px] font-semibold flex items-center justify-center gap-1 border border-slate-700 cursor-pointer">
+                                    <i class="fa-solid fa-file-invoice"></i> Closer Dossier
+                                </button>
+                                ${apt.status !== 'completed' ? `
+                                <button onclick="completeAppointment('${apt.id}')" class="px-2 py-1 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 rounded text-[10px] font-semibold border border-emerald-700/60 cursor-pointer">
+                                    <i class="fa-solid fa-check"></i> Done
+                                </button>` : ''}
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                } catch(e) {
+                    console.error("Failed to fetch appointments:", e);
+                }
+            }
+
+            function viewBriefingDossier(aptId) {
+                const apt = (window._appointmentsCache || []).find(a => a.id === aptId);
+                if (!apt) return;
+                const modal = document.getElementById("modal-closer-briefing");
+                const content = document.getElementById("briefing-modal-content");
+                const b = apt.executive_briefing || {};
+
+                content.innerHTML = `
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                        <div class="text-[11px] text-slate-400 uppercase font-bold tracking-wider">Account & Closer Assignment</div>
+                        <div class="text-sm font-bold text-white">${escapeHtml(apt.company ? apt.company.name : 'Account')}</div>
+                        <div class="text-xs text-indigo-300">Scheduled: ${new Date(apt.scheduled_at).toLocaleString()} • Closer: ${escapeHtml(apt.closer_name)}</div>
+                        <div class="text-xs text-emerald-400">Meeting Link: <a href="${apt.meeting_url}" target="_blank" class="underline">${apt.meeting_url}</a></div>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                        <div class="text-[11px] text-amber-400 font-bold uppercase tracking-wider">Executive Summary</div>
+                        <div class="text-xs text-slate-300">${escapeHtml(b.company_summary || 'No summary')}</div>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                        <div class="text-[11px] text-red-400 font-bold uppercase tracking-wider">Key Pain Points Uncovered by AI</div>
+                        <ul class="list-disc list-inside text-xs text-slate-300 space-y-0.5">
+                            ${(b.key_pain_points || []).map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                        <div class="text-[11px] text-emerald-400 font-bold uppercase tracking-wider">Recommended Closer Strategy</div>
+                        <div class="text-xs text-slate-200 bg-emerald-950/40 p-2 rounded border border-emerald-700/40 font-semibold">${escapeHtml(b.recommended_closing_strategy || 'Proceed with standard consultation')}</div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px]">
+                            <span class="text-slate-400 font-bold">Deal Potential:</span>
+                            <div class="font-mono text-emerald-400 font-bold text-xs mt-0.5">${escapeHtml(b.estimated_deal_potential || '$10,000+')}</div>
+                        </div>
+                        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px]">
+                            <span class="text-slate-400 font-bold">Target Products:</span>
+                            <div class="text-slate-300 truncate mt-0.5">${escapeHtml((b.target_products || []).join(', ') || 'Wholesale Supplies')}</div>
+                        </div>
+                    </div>
+                `;
+                modal.classList.remove("hidden");
+            }
+
+            function closeBriefingModal() {
+                document.getElementById("modal-closer-briefing").classList.add("hidden");
+            }
+
+            async function completeAppointment(aptId) {
+                try {
+                    const res = await fetch(API_BASE + "/crm/appointments/" + aptId, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({ status: "completed" })
+                    });
+                    if (res.ok) {
+                        fetchAppointments();
+                        fetchAuditLogs();
+                    }
+                } catch(e) {
+                    alert("Error updating appointment: " + e.message);
+                }
             }
 
             async function simulateInbound() {

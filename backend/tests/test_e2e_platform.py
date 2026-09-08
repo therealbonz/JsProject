@@ -443,3 +443,125 @@ async def test_client_sales_crm_and_lead_conversion():
         assert err_access.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_appointment_setting_and_business_intelligence_pipeline():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # 1. Register Tenant A
+        reg = await client.post("/api/v1/auth/register", json={
+            "email": "closer_director@summitprocurement.com",
+            "password": "Password123!",
+            "full_name": "Diana Vance (Closer)",
+            "organization_name": "Summit Procurement Solutions"
+        })
+        assert reg.status_code == 200
+        token_a = reg.json()["access_token"]
+        org_a_id = reg.json()["organization_id"]
+        headers_a = {"Authorization": f"Bearer {token_a}", "X-Organization-Id": org_a_id}
+
+        # 2. Create Lead
+        lead_payload = {
+            "company_name": "Pacific Cold Storage & Distribution",
+            "company_domain": "pacificcoldstorage.com",
+            "industry": "Commercial Refrigerated Logistics",
+            "contact_first_name": "Robert",
+            "contact_last_name": "Hayes",
+            "contact_email": "rhayes@pacificcoldstorage.com",
+            "contact_title": "Facility Operations",
+            "notes": "Regional warehouse chain with 6 cold storage facilities. Initial outreach."
+        }
+        create_res = await client.post("/api/v1/crm/leads", json=lead_payload, headers=headers_a)
+        assert create_res.status_code == 200
+        lead = create_res.json()
+        lead_id = lead["id"]
+        assert lead["pipeline_stage"] == "new"
+
+        # 3. Autonomous Business Intelligence (BI) & Decision Maker Discovery
+        bi_res = await client.post(f"/api/v1/agent/leads/{lead_id}/gather-intelligence", headers=headers_a)
+        assert bi_res.status_code == 200
+        bi_data = bi_res.json()
+        assert bi_data["company_name"] == "Pacific Cold Storage & Distribution"
+        assert "ownership_structure" in bi_data
+        assert len(bi_data["key_decision_makers"]) >= 2
+
+        # Verify decision makers were extracted with roles
+        roles = [dm["decision_maker_role"] for dm in bi_data["key_decision_makers"]]
+        assert "owner" in roles or "purchasing" in roles
+
+        # Verify Lead in CRM has updated research summary
+        check_lead = await client.get(f"/api/v1/crm/leads/{lead_id}", headers=headers_a)
+        assert "Business Intelligence & Ownership" in check_lead.json()["research_summary"]
+
+        # 4. Autonomous Appointment Booking for Closer with Executive Briefing Dossier
+        book_res = await client.post(f"/api/v1/agent/leads/{lead_id}/book-appointment", json={
+            "closer_name": "Diana Vance (Senior Closer)",
+            "closer_email": "diana@summitprocurement.com",
+            "notes": "Qualified prospect open to wholesale invoice consolidation."
+        }, headers=headers_a)
+        assert book_res.status_code == 200
+        booking = book_res.json()
+        apt_id = booking["appointment_id"]
+        assert booking["status"] == "scheduled"
+        assert booking["closer_name"] == "Diana Vance (Senior Closer)"
+        assert "meeting_url" in booking
+
+        # Verify executive briefing dossier contents
+        briefing = booking["executive_briefing"]
+        assert "company_summary" in briefing
+        assert "key_pain_points" in briefing
+        assert len(briefing["key_pain_points"]) > 0
+        assert "recommended_closing_strategy" in briefing
+
+        # Verify lead pipeline stage was advanced to "qualified"
+        lead_after_booking = await client.get(f"/api/v1/crm/leads/{lead_id}", headers=headers_a)
+        assert lead_after_booking.json()["pipeline_stage"] == "qualified"
+        assert len(lead_after_booking.json()["appointments"]) == 1
+
+        # 5. Verify Appointment in CRM endpoint
+        apt_get = await client.get(f"/api/v1/crm/appointments/{apt_id}", headers=headers_a)
+        assert apt_get.status_code == 200
+        assert apt_get.json()["id"] == apt_id
+        assert apt_get.json()["lead_id"] == lead_id
+
+        # Update appointment status to completed
+        apt_patch = await client.patch(f"/api/v1/crm/appointments/{apt_id}", json={
+            "status": "completed",
+            "notes": "Excellent closing call. Customer approved Tier 1 volume contract."
+        }, headers=headers_a)
+        assert apt_patch.status_code == 200
+        assert apt_patch.json()["status"] == "completed"
+
+        # 6. Test Inbound Gatekeeper Referral auto-extracting decision-maker contact
+        gatekeeper_msg = "I do not handle vendor supply contracts. Please reach out to Sarah Connor at sconnor@pacificcoldstorage.com"
+        inbound_res = await client.post(
+            f"/api/v1/agent/conversations/{lead_id}/inbound-simulate?incoming_text={gatekeeper_msg}",
+            headers=headers_a
+        )
+        assert inbound_res.status_code == 200
+        inbound_data = inbound_res.json()
+        assert inbound_data["intent"] == "gatekeeper_referral"
+        assert inbound_data["referred_contact"] is not None
+        assert "sconnor@pacificcoldstorage.com" in (inbound_data["referred_contact"]["email"] or "")
+
+        # 7. Multi-Tenant Isolation for Appointments
+        reg_b = await client.post("/api/v1/auth/register", json={
+            "email": "outsider@otherbroker.com",
+            "password": "Password123!",
+            "full_name": "Oscar Outsider",
+            "organization_name": "Unrelated Broker LLC"
+        })
+        headers_b = {
+            "Authorization": f"Bearer {reg_b.json()['access_token']}",
+            "X-Organization-Id": reg_b.json()["organization_id"]
+        }
+
+        # Tenant B must see 0 appointments
+        apts_b = await client.get("/api/v1/crm/appointments", headers=headers_b)
+        assert len(apts_b.json()) == 0
+
+        # Tenant B must not access Tenant A's appointment
+        err_apt = await client.get(f"/api/v1/crm/appointments/{apt_id}", headers=headers_b)
+        assert err_apt.status_code == 404
+
+
+

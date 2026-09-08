@@ -75,6 +75,54 @@ class CallLogResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class AppointmentCreate(BaseModel):
+    lead_id: str
+    contact_id: Optional[str] = None
+    company_id: Optional[str] = None
+    title: Optional[str] = "Executive Procurement Consultation"
+    scheduled_at: datetime
+    duration_minutes: Optional[int] = 30
+    status: Optional[str] = "scheduled"
+    meeting_url: Optional[str] = None
+    closer_name: Optional[str] = "Senior Sales Executive"
+    closer_email: Optional[str] = None
+    executive_briefing: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    booked_by_agent: Optional[bool] = True
+
+class AppointmentUpdate(BaseModel):
+    title: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    duration_minutes: Optional[int] = None
+    status: Optional[str] = None
+    meeting_url: Optional[str] = None
+    closer_name: Optional[str] = None
+    closer_email: Optional[str] = None
+    executive_briefing: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+
+class AppointmentResponse(BaseModel):
+    id: str
+    organization_id: str
+    lead_id: str
+    company_id: Optional[str] = None
+    contact_id: Optional[str] = None
+    title: str
+    scheduled_at: datetime
+    duration_minutes: int
+    status: str
+    meeting_url: Optional[str] = None
+    closer_name: str
+    closer_email: Optional[str] = None
+    executive_briefing: Dict[str, Any] = {}
+    notes: Optional[str] = None
+    booked_by_agent: bool
+    created_at: datetime
+    company: Optional[CompanyResponse] = None
+    contact: Optional[ContactResponse] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 class LeadCreate(BaseModel):
     company_name: str
     company_domain: Optional[str] = None
@@ -120,6 +168,7 @@ class LeadResponse(BaseModel):
     company: Optional[CompanyResponse] = None
     contact: Optional[ContactResponse] = None
     call_logs: List[CallLogResponse] = []
+    appointments: List[AppointmentResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 

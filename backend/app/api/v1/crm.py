@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.api.deps import get_current_tenant
 from app.models.tenant import User, Organization
-from app.models.crm import Company, Contact, Lead, Product, KnowledgeDocument, CallLog, ClientAccount, ClientSale
+from app.models.crm import Company, Contact, Lead, Product, KnowledgeDocument, CallLog, ClientAccount, ClientSale, Appointment
 from app.models.conversation import Conversation
 from app.models.hitl import AuditLog
 from app.schemas.crm import (
@@ -19,7 +19,8 @@ from app.schemas.crm import (
     KnowledgeDocCreate, KnowledgeDocResponse,
     ClientAccountCreate, ClientAccountUpdate, ClientAccountResponse,
     ClientSaleCreate, ClientSaleResponse, ClientSalesOverviewStats,
-    LeadConversionPayload
+    LeadConversionPayload,
+    AppointmentCreate, AppointmentUpdate, AppointmentResponse
 )
 
 router = APIRouter(prefix="/crm", tags=["CRM & Pipeline"])
@@ -35,7 +36,8 @@ async def list_leads(
     stmt = select(Lead).options(
         selectinload(Lead.company),
         selectinload(Lead.contact),
-        selectinload(Lead.call_logs)
+        selectinload(Lead.call_logs),
+        selectinload(Lead.appointments)
     ).where(Lead.organization_id == org.id)
 
     if stage:
@@ -169,7 +171,8 @@ async def create_lead(
     stmt = select(Lead).options(
         selectinload(Lead.company),
         selectinload(Lead.contact),
-        selectinload(Lead.call_logs)
+        selectinload(Lead.call_logs),
+        selectinload(Lead.appointments)
     ).where(Lead.id == lead.id)
     res = await db.execute(stmt)
     return res.scalar_one()
@@ -184,7 +187,8 @@ async def get_lead(
     stmt = select(Lead).options(
         selectinload(Lead.company),
         selectinload(Lead.contact),
-        selectinload(Lead.call_logs)
+        selectinload(Lead.call_logs),
+        selectinload(Lead.appointments)
     ).where(Lead.id == lead_id, Lead.organization_id == org.id)
     result = await db.execute(stmt)
     lead = result.scalar_one_or_none()
@@ -203,7 +207,8 @@ async def update_lead(
     stmt = select(Lead).options(
         selectinload(Lead.company),
         selectinload(Lead.contact),
-        selectinload(Lead.call_logs)
+        selectinload(Lead.call_logs),
+        selectinload(Lead.appointments)
     ).where(Lead.id == lead_id, Lead.organization_id == org.id)
     result = await db.execute(stmt)
     lead = result.scalar_one_or_none()
@@ -753,3 +758,187 @@ async def convert_lead_to_client(
     ).where(ClientAccount.id == client.id)
     out = await db.execute(stmt)
     return out.scalar_one()
+
+# -------------------------------------------------------------
+# Appointments & Closer Scheduling
+# -------------------------------------------------------------
+@router.get("/appointments", response_model=List[AppointmentResponse])
+async def list_appointments(
+    lead_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    _, org, _ = tenant_context
+    stmt = select(Appointment).options(
+        selectinload(Appointment.company),
+        selectinload(Appointment.contact)
+    ).where(Appointment.organization_id == org.id)
+
+    if lead_id:
+        stmt = stmt.where(Appointment.lead_id == lead_id)
+    if status:
+        stmt = stmt.where(Appointment.status == status)
+
+    stmt = stmt.order_by(Appointment.scheduled_at.asc())
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+@router.post("/appointments", response_model=AppointmentResponse)
+async def create_appointment(
+    payload: AppointmentCreate,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    user, org, _ = tenant_context
+
+    # Verify lead exists in this organization
+    lead_stmt = select(Lead).where(Lead.id == payload.lead_id, Lead.organization_id == org.id)
+    lead_res = await db.execute(lead_stmt)
+    lead = lead_res.scalar_one_or_none()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    meeting_url = payload.meeting_url or f"https://meet.google.com/agy-{str(uuid.uuid4())[:8]}"
+
+    appointment = Appointment(
+        organization_id=org.id,
+        lead_id=lead.id,
+        company_id=payload.company_id or lead.company_id,
+        contact_id=payload.contact_id or lead.contact_id,
+        title=payload.title or "Executive Procurement Consultation",
+        scheduled_at=payload.scheduled_at,
+        duration_minutes=payload.duration_minutes or 30,
+        status=payload.status or "scheduled",
+        meeting_url=meeting_url,
+        closer_name=payload.closer_name or user.full_name or "Senior Sales Executive",
+        closer_email=payload.closer_email or user.email,
+        executive_briefing=payload.executive_briefing or {},
+        notes=payload.notes,
+        booked_by_agent=payload.booked_by_agent if payload.booked_by_agent is not None else False
+    )
+    db.add(appointment)
+
+    # Automatically advance lead pipeline stage if active
+    if lead.pipeline_stage in ["new", "researching", "ready_contact", "contacted", "connected"]:
+        lead.pipeline_stage = "qualified"
+        lead.next_action_at = payload.scheduled_at
+        lead.next_action_type = "scheduled_closer_call"
+
+    audit = AuditLog(
+        organization_id=org.id,
+        actor_type="human_rep" if not payload.booked_by_agent else "ai_agent",
+        actor_id=user.id,
+        action="appointment_created",
+        target_entity="appointment",
+        target_id=appointment.id,
+        payload={
+            "lead_id": lead.id,
+            "scheduled_at": payload.scheduled_at.isoformat(),
+            "closer_name": appointment.closer_name
+        }
+    )
+    db.add(audit)
+    await db.commit()
+
+    # Reload with relationships
+    stmt = select(Appointment).options(
+        selectinload(Appointment.company),
+        selectinload(Appointment.contact)
+    ).where(Appointment.id == appointment.id)
+    res = await db.execute(stmt)
+    return res.scalar_one()
+
+@router.get("/appointments/{appointment_id}", response_model=AppointmentResponse)
+async def get_appointment(
+    appointment_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    _, org, _ = tenant_context
+    stmt = select(Appointment).options(
+        selectinload(Appointment.company),
+        selectinload(Appointment.contact)
+    ).where(Appointment.id == appointment_id, Appointment.organization_id == org.id)
+    result = await db.execute(stmt)
+    appointment = result.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    return appointment
+
+@router.patch("/appointments/{appointment_id}", response_model=AppointmentResponse)
+async def update_appointment(
+    appointment_id: str,
+    payload: AppointmentUpdate,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    user, org, _ = tenant_context
+    stmt = select(Appointment).options(
+        selectinload(Appointment.company),
+        selectinload(Appointment.contact)
+    ).where(Appointment.id == appointment_id, Appointment.organization_id == org.id)
+    result = await db.execute(stmt)
+    appointment = result.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    if payload.title is not None:
+        appointment.title = payload.title
+    if payload.scheduled_at is not None:
+        appointment.scheduled_at = payload.scheduled_at
+    if payload.duration_minutes is not None:
+        appointment.duration_minutes = payload.duration_minutes
+    if payload.status is not None:
+        appointment.status = payload.status
+    if payload.meeting_url is not None:
+        appointment.meeting_url = payload.meeting_url
+    if payload.closer_name is not None:
+        appointment.closer_name = payload.closer_name
+    if payload.closer_email is not None:
+        appointment.closer_email = payload.closer_email
+    if payload.executive_briefing is not None:
+        appointment.executive_briefing = payload.executive_briefing
+    if payload.notes is not None:
+        appointment.notes = payload.notes
+
+    audit = AuditLog(
+        organization_id=org.id,
+        actor_type="human_rep",
+        actor_id=user.id,
+        action="appointment_updated",
+        target_entity="appointment",
+        target_id=appointment.id,
+        payload={"status": appointment.status, "scheduled_at": appointment.scheduled_at.isoformat()}
+    )
+    db.add(audit)
+    await db.commit()
+
+    return appointment
+
+@router.delete("/appointments/{appointment_id}")
+async def delete_appointment(
+    appointment_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    user, org, _ = tenant_context
+    stmt = select(Appointment).where(Appointment.id == appointment_id, Appointment.organization_id == org.id)
+    result = await db.execute(stmt)
+    appointment = result.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    audit = AuditLog(
+        organization_id=org.id,
+        actor_type="human_rep",
+        actor_id=user.id,
+        action="appointment_deleted",
+        target_entity="appointment",
+        target_id=appointment.id,
+        payload={"title": appointment.title, "lead_id": appointment.lead_id}
+    )
+    db.add(audit)
+    await db.delete(appointment)
+    await db.commit()
+    return {"status": "deleted", "id": appointment_id}
