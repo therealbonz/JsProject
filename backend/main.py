@@ -192,6 +192,9 @@ async def dashboard_home():
                         <button onclick="triggerBookAppointment()" class="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-teal-400/40">
                             <i class="fa-solid fa-calendar-check"></i> AI Book Closer Call
                         </button>
+                        <button onclick="triggerExecutiveSalesProgram()" class="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-blue-400/40">
+                            <i class="fa-solid fa-briefcase"></i> Executive Sales Program
+                        </button>
                         <button id="btn-action-fast-convert" onclick="executeFastConversion()" class="flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] border border-amber-300/40">
                             <i class="fa-solid fa-bolt text-slate-950"></i> Transfer to Client CRM
                         </button>
@@ -464,6 +467,9 @@ Select an account from the active leads list to inspect call tracking details.
                             </button>
                             <button id="btn-book-appointment" onclick="triggerBookAppointment()" class="py-2.5 px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow border border-teal-400/40">
                                 <i class="fa-solid fa-calendar-check text-teal-200"></i> AI Book Closer Call
+                            </button>
+                            <button id="btn-executive-sales" onclick="triggerExecutiveSalesProgram()" class="col-span-2 py-2.5 px-3 bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 hover:from-blue-600 hover:to-violet-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow border border-blue-400/40 cursor-pointer">
+                                <i class="fa-solid fa-briefcase text-blue-200"></i> Executive Sales Program (C-Suite Pitch &amp; Proposal)
                             </button>
                             <button id="btn-convert" onclick="executeFastConversion()" class="col-span-2 py-2 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40">
                                 <i class="fa-solid fa-trophy text-amber-200"></i> 🏆 Convert Won Lead to Client Account (CRM 2)
@@ -1161,6 +1167,11 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     btnApt.disabled = false;
                     btnApt.className = "py-2 px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer";
                 }
+                const btnExec = document.getElementById("btn-executive-sales");
+                if (btnExec) {
+                    btnExec.disabled = false;
+                    btnExec.className = "col-span-2 py-2.5 px-3 bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 hover:from-blue-600 hover:to-violet-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow border border-blue-400/40 cursor-pointer";
+                }
                 document.getElementById("btn-simulate").disabled = false;
                 document.getElementById("btn-save-notes").disabled = false;
                 document.getElementById("btn-toggle-log-call").disabled = false;
@@ -1457,6 +1468,69 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchAuditLogs();
                 } catch(e) {
                     document.getElementById("ai-output").innerText = "Error booking appointment: " + e.message;
+                }
+            }
+
+            async function triggerExecutiveSalesProgram() {
+                if (!selectedLead) {
+                    await fetchLeads();
+                }
+                if (!selectedLead) {
+                    alert("Please select or create an account from the leads list first!");
+                    return;
+                }
+                const companyName = selectedLead.company ? selectedLead.company.name : "Target Account";
+                document.getElementById("ai-output").innerText = "Formulating C-Suite Executive Sales Program & Commercial Pitch for " + companyName + " via Google Gemini AI...";
+                try {
+                    const res = await fetch(API_BASE + "/agent/leads/" + selectedLead.id + "/executive-sales-program", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || res.statusText);
+                    }
+                    const data = await res.json();
+
+                    let objectionsText = (data.executive_objection_matrix || []).map(o =>
+                        `  • Executive Pushback: "${o.objection}"\n    Tactical Rebuttal: ${o.rebuttal}`
+                    ).join("\n\n");
+
+                    let roadmapText = (data.implementation_roadmap || []).map((step, idx) =>
+                        `  ${idx + 1}. ${step}`
+                    ).join("\n");
+
+                    document.getElementById("ai-output").innerText =
+                        `=== EXECUTIVE SALES PROGRAM ===\n` +
+                        `PROGRAM: ${data.program_title.toUpperCase()}\n` +
+                        `TARGET ACCOUNT: ${data.company_name}\n` +
+                        `EXECUTIVE SPONSOR: ${data.executive_sponsor || 'C-Suite Decision Maker'}\n` +
+                        `CONFIDENCE: ${Math.round((data.confidence_score || 0.95) * 100)}%\n\n` +
+                        `--- C-SUITE VALUE PROPOSITION & ROI ---\n` +
+                        `${data.c_suite_value_proposition}\n\n` +
+                        `ANNUAL FINANCIAL IMPACT:\n${data.annual_financial_impact}\n\n` +
+                        `--- STRATEGIC COMMERCIAL PRICING & TERMS ---\n` +
+                        `${data.pricing_proposal}\n\n` +
+                        `--- EXECUTIVE CLOSER TALKING SCRIPT ---\n` +
+                        `${data.executive_pitch_script}\n\n` +
+                        `--- EXECUTIVE OBJECTION HANDLING MATRIX ---\n` +
+                        `${objectionsText}\n\n` +
+                        `--- ONBOARDING & IMPLEMENTATION ROADMAP ---\n` +
+                        `${roadmapText}\n\n` +
+                        `RECOMMENDED CLOSING ACTION:\n${data.recommended_closing_action}`;
+
+                    showToast(
+                        "Executive Sales Program Formulated!",
+                        `Formulated C-suite commercial proposal and closer pitch for "${data.company_name}". Pipeline moved to Proposal.`,
+                        "fa-briefcase",
+                        "success"
+                    );
+
+                    fetchLeads();
+                    fetchConversation(selectedLead.id);
+                    fetchAuditLogs();
+                } catch(e) {
+                    document.getElementById("ai-output").innerText = "Error formulating executive sales program: " + e.message;
                 }
             }
 

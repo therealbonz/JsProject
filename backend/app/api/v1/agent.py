@@ -14,7 +14,7 @@ from app.models.hitl import HumanAssistanceRequest, AuditLog
 from app.schemas.ai import (
     LeadResearchResult, OutreachDraftResult, InboundReplyAnalysis,
     MessageResponse, BusinessIntelligenceResult, AppointmentBookingRequest,
-    AppointmentBookingResult, ExtractedDecisionMaker
+    AppointmentBookingResult, ExtractedDecisionMaker, ExecutiveSalesProgramResult
 )
 from app.services.gemini_service import gemini_service
 
@@ -332,6 +332,125 @@ async def book_lead_appointment(
         meeting_url=meeting_url,
         executive_briefing=briefing,
         status="scheduled"
+    )
+
+@router.post("/leads/{lead_id}/executive-sales-program", response_model=ExecutiveSalesProgramResult)
+async def create_executive_sales_program(
+    lead_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Formulates a comprehensive Executive Sales Program and Commercial Proposal for C-suite decision-makers.
+    Advances pipeline stage to 'proposal', logs strategic memo to conversation, and creates an audit entry.
+    """
+    current_user, org, _ = tenant_context
+
+    # 1. Fetch Lead with company, contact, and conversations
+    stmt = select(Lead).options(
+        selectinload(Lead.company),
+        selectinload(Lead.contact),
+        selectinload(Lead.conversations).selectinload(Conversation.messages)
+    ).where(Lead.id == lead_id, Lead.organization_id == org.id)
+    result = await db.execute(stmt)
+    lead = result.scalar_one_or_none()
+
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    # 2. Fetch Catalog
+    prod_stmt = select(Product).where(Product.organization_id == org.id, Product.is_active == True)
+    prod_res = await db.execute(prod_stmt)
+    products = prod_res.scalars().all()
+    catalog_str = "\n".join([f"- {p.name}: ${p.unit_price:.2f} — {p.description or ''}" for p in products]) or "Commercial Wholesale Supplies"
+
+    # 3. Compile conversation summary
+    conv_history = ""
+    target_conv = None
+    if lead.conversations:
+        target_conv = lead.conversations[0]
+        conv_history = "\n".join([f"[{m.direction.upper()}] {m.body_text}" for m in target_conv.messages[-6:]])
+
+    contact_name = f"{lead.contact.first_name} {lead.contact.last_name}" if lead.contact else "Executive Decision Maker"
+    job_title = lead.contact.job_title if lead.contact else "C-Level Executive"
+
+    # 4. Generate Executive Sales Program via Gemini
+    program_data = await gemini_service.generate_executive_sales_program(
+        company_name=lead.company.name,
+        contact_name=contact_name,
+        job_title=job_title,
+        industry=lead.company.industry,
+        product_summary=catalog_str,
+        research_summary=lead.research_summary,
+        conversation_summary=conv_history,
+        notes=lead.notes
+    )
+
+    # 5. Advance Pipeline Stage to Proposal
+    lead.pipeline_stage = "proposal"
+    executive_note = (
+        f"[EXECUTIVE SALES PROGRAM GENERATED]\n"
+        f"Program: {program_data.get('program_title')}\n"
+        f"Financial Impact: {program_data.get('annual_financial_impact')}\n"
+        f"Closing Action: {program_data.get('recommended_closing_action')}"
+    )
+    lead.notes = f"{lead.notes}\n\n{executive_note}" if lead.notes else executive_note
+
+    # 6. Post Executive Strategy Memo into Conversation Thread if exists
+    if target_conv:
+        memo_msg = Message(
+            conversation_id=target_conv.id,
+            sender_type="ai_agent",
+            sender_name="Executive Sales Strategist AI",
+            direction="internal",
+            subject=f"Executive Program: {program_data.get('program_title')}",
+            body_text=(
+                f"=== EXECUTIVE SALES PROGRAM STRATEGY MEMO ===\n"
+                f"Sponsor: {program_data.get('executive_sponsor')}\n"
+                f"Impact: {program_data.get('annual_financial_impact')}\n\n"
+                f"Pitch Talking Points:\n{program_data.get('executive_pitch_script')}\n\n"
+                f"Terms & Pricing:\n{program_data.get('pricing_proposal')}"
+            ),
+            ai_reasoning={
+                "action": "executive_sales_program_generated",
+                "program_title": program_data.get("program_title"),
+                "confidence": program_data.get("confidence_score", 0.95)
+            },
+            ai_confidence=program_data.get("confidence_score", 0.95)
+        )
+        db.add(memo_msg)
+
+    # 7. Audit Log
+    audit = AuditLog(
+        organization_id=org.id,
+        actor_type="ai_agent",
+        actor_id="gemini-executive-sales-strategist",
+        action="executive_sales_program_generated",
+        target_entity="lead",
+        target_id=lead.id,
+        payload={
+            "lead_id": lead.id,
+            "company_name": lead.company.name,
+            "program_title": program_data.get("program_title"),
+            "confidence": program_data.get("confidence_score", 0.95)
+        }
+    )
+    db.add(audit)
+    await db.commit()
+
+    return ExecutiveSalesProgramResult(
+        lead_id=lead.id,
+        company_name=lead.company.name,
+        program_title=program_data.get("program_title", f"Executive Strategic Program - {lead.company.name}"),
+        executive_sponsor=program_data.get("executive_sponsor"),
+        c_suite_value_proposition=program_data.get("c_suite_value_proposition", ""),
+        annual_financial_impact=program_data.get("annual_financial_impact", ""),
+        pricing_proposal=program_data.get("pricing_proposal", ""),
+        executive_pitch_script=program_data.get("executive_pitch_script", ""),
+        executive_objection_matrix=program_data.get("executive_objection_matrix", []),
+        implementation_roadmap=program_data.get("implementation_roadmap", []),
+        recommended_closing_action=program_data.get("recommended_closing_action", ""),
+        confidence_score=program_data.get("confidence_score", 0.95)
     )
 
 @router.post("/leads/{lead_id}/draft-outreach", response_model=OutreachDraftResult)

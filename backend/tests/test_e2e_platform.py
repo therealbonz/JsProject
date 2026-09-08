@@ -563,5 +563,24 @@ async def test_appointment_setting_and_business_intelligence_pipeline():
         err_apt = await client.get(f"/api/v1/crm/appointments/{apt_id}", headers=headers_b)
         assert err_apt.status_code == 404
 
+        # 8. Executive Sales Program Formulation
+        exec_res = await client.post(f"/api/v1/agent/leads/{lead_id}/executive-sales-program", headers=headers_a)
+        assert exec_res.status_code == 200
+        exec_data = exec_res.json()
+        assert exec_data["lead_id"] == lead_id
+        assert exec_data["company_name"] == "Pacific Cold Storage & Distribution"
+        assert "Enterprise" in exec_data["program_title"] or "Strategic" in exec_data["program_title"]
+        assert len(exec_data["c_suite_value_proposition"]) > 10
+        assert len(exec_data["annual_financial_impact"]) > 5
+        assert len(exec_data["executive_pitch_script"]) > 10
+        assert len(exec_data["executive_objection_matrix"]) > 0
+        assert len(exec_data["implementation_roadmap"]) > 0
+        assert exec_data["confidence_score"] >= 0.85
+
+        # Verify Lead Pipeline stage advanced to "proposal"
+        lead_after_exec = await client.get(f"/api/v1/crm/leads/{lead_id}", headers=headers_a)
+        assert lead_after_exec.json()["pipeline_stage"] == "proposal"
+        assert "[EXECUTIVE SALES PROGRAM GENERATED]" in lead_after_exec.json()["notes"]
+
 
 

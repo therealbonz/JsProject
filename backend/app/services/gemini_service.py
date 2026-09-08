@@ -5,7 +5,8 @@ from typing import Optional, List, Dict, Any
 from app.core.config import settings
 from app.schemas.ai import (
     LeadResearchResult, OutreachDraftResult, InboundReplyAnalysis,
-    ExtractedDecisionMaker, BusinessIntelligenceResult, CloserBriefingDossier
+    ExtractedDecisionMaker, BusinessIntelligenceResult, CloserBriefingDossier,
+    ExecutiveSalesProgramResult
 )
 
 logger = logging.getLogger(__name__)
@@ -284,6 +285,102 @@ class GeminiService:
                 "High-capacity restocking subscription"
             ],
             "estimated_deal_potential": "$8,500 - $15,000 Annual Contract Value (ACV)"
+        }
+
+    async def generate_executive_sales_program(
+        self,
+        company_name: str,
+        contact_name: str,
+        job_title: str,
+        industry: Optional[str],
+        product_summary: str,
+        research_summary: Optional[str] = None,
+        conversation_summary: Optional[str] = None,
+        notes: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Formulates an authoritative C-suite Executive Sales Program and Strategic Commercial Proposal.
+        Includes ROI metrics, strategic catalog alignment, executive closing script, and an objection matrix.
+        """
+        system_instruction = (
+            "You are a Chief Commercial Officer and Executive Sales Strategist.\n"
+            "Prepare a tailored Executive Sales Program & Commercial Proposal for high-level decision makers.\n"
+            "Return valid JSON matching this schema:\n"
+            "{\n"
+            '  "program_title": string,\n'
+            '  "executive_sponsor": string,\n'
+            '  "c_suite_value_proposition": string,\n'
+            '  "annual_financial_impact": string,\n'
+            '  "pricing_proposal": string,\n'
+            '  "executive_pitch_script": string,\n'
+            '  "executive_objection_matrix": [\n'
+            '    {"objection": string, "rebuttal": string}\n'
+            '  ],\n'
+            '  "implementation_roadmap": [string],\n'
+            '  "recommended_closing_action": string,\n'
+            '  "confidence_score": float\n'
+            "}\n"
+            "Do NOT include markdown backticks or commentary, only raw JSON."
+        )
+
+        prompt = (
+            f"Company: {company_name}\n"
+            f"Industry: {industry or 'B2B Enterprise'}\n"
+            f"Executive Contact: {contact_name} ({job_title or 'Executive Decision Maker'})\n"
+            f"Catalog Offerings:\n{product_summary}\n"
+            f"Research Context:\n{research_summary or 'Commercial expansion and vendor review'}\n"
+            f"Discussion Context:\n{conversation_summary or 'Interested in volume commercial efficiencies'}\n"
+            f"Notes: {notes or 'None'}\n"
+        )
+
+        if self.is_live():
+            try:
+                raw = await self._call_gemini(system_instruction, prompt)
+                cleaned = self._clean_json(raw)
+                return json.loads(cleaned)
+            except Exception as e:
+                logger.error(f"Gemini live executive sales error: {e}. Falling back to simulation logic.")
+
+        # Local simulation fallback
+        return {
+            "program_title": f"Enterprise Tier-1 Strategic Supply Partnership — {company_name}",
+            "executive_sponsor": f"{contact_name} ({job_title or 'Executive Sponsor'})",
+            "c_suite_value_proposition": (
+                f"Consolidate {company_name}'s multi-vendor supply chain into a single centralized procurement channel. "
+                "Eliminate middleman markups, guarantee next-day fulfillment SLA, and gain complete invoice predictability."
+            ),
+            "annual_financial_impact": "Estimated $28,400 to $42,000 annual operational savings with 14.5% overall invoice margin reduction.",
+            "pricing_proposal": (
+                "Guaranteed wholesale volume tier pricing across primary catalog lines. "
+                "Net-30 payment terms with 0% penalty flexible delivery buffer on recurring orders over $2,500/mo."
+            ),
+            "executive_pitch_script": (
+                f"'{contact_name.split()[0] if contact_name else 'Executive'}, our analysis shows that {company_name} is currently balancing multiple vendor contracts with unpredictable replenishment lag. "
+                "Our Executive Sales Program locks in guaranteed wholesale tier rates, assigns a dedicated enterprise account director, and guarantees same-day logistics dispatch. "
+                "We can transition your initial order this week with zero workflow disruption.'"
+            ),
+            "executive_objection_matrix": [
+                {
+                    "objection": "We already have an existing vendor and switching causes friction.",
+                    "rebuttal": "Our white-glove onboarding team handles SKU mapping and parallel inventory staging for 14 days, guaranteeing 100% supply continuity."
+                },
+                {
+                    "objection": "Our procurement budget for this quarter is already committed.",
+                    "rebuttal": "We offer structured Net-60 terms for qualifying enterprise partners so you capture operational savings immediately with deferred capital allocation."
+                },
+                {
+                    "objection": "We need board or CFO sign-off on new supplier agreements.",
+                    "rebuttal": "We provide a 1-page C-suite Financial Impact Briefing with verified unit cost comparisons that your finance committee can approve in one reading."
+                }
+            ],
+            "implementation_roadmap": [
+                "Day 1-2: Commercial terms agreement & credit setup",
+                "Day 3-5: SKU catalog matching & inventory threshold reservation",
+                "Day 7: Initial recurring delivery launch with assigned account director",
+                "Day 30: Executive Review & Volume Pricing Rebate Assessment"
+            ],
+            "recommended_closing_action": "Issue Master Enterprise Supply Agreement (MSA) with 30-day price lock guarantee.",
+            "confidence_score": 0.95
         }
 
     async def generate_outreach_email(

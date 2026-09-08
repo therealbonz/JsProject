@@ -98,3 +98,18 @@ class MessageResponse(BaseModel):
     ai_confidence: Optional[float]
 
     model_config = ConfigDict(from_attributes=True)
+
+class ExecutiveSalesProgramResult(BaseModel):
+    lead_id: str
+    company_name: str
+    program_title: str
+    executive_sponsor: Optional[str] = None
+    c_suite_value_proposition: str
+    annual_financial_impact: str
+    pricing_proposal: str
+    executive_pitch_script: str
+    executive_objection_matrix: List[Dict[str, str]] = []
+    implementation_roadmap: List[str] = []
+    recommended_closing_action: str
+    confidence_score: float = 0.94
+
