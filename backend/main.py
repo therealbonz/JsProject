@@ -101,6 +101,9 @@ async def dashboard_home():
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     </head>
     <body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+        <!-- Global Notification Toast Container -->
+        <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-md pointer-events-none"></div>
+
         <nav class="border-b border-slate-800 bg-slate-950 px-6 py-4 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
@@ -113,10 +116,9 @@ async def dashboard_home():
             </div>
             <div class="flex items-center space-x-4">
                 <span id="gemini-badge" class="px-3 py-1 text-xs rounded-full bg-emerald-950 border border-emerald-700/50 text-emerald-400 flex items-center gap-2">
-                    <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Gemini AI Ready
+                    <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Gemini 1.5 Pro Active
                 </span>
-                <a href="/docs" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1">
+                <a href="/docs" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-semibold text-slate-300 transition flex items-center gap-1.5 border border-slate-700">
                     <i class="fa-solid fa-code"></i> OpenAPI Docs
                 </a>
             </div>
@@ -165,6 +167,34 @@ async def dashboard_home():
 
         <!-- View 1: Prospects & Pipeline CRM -->
         <div id="view-prospects">
+            <!-- Active Convert Won Lead Action Bar -->
+            <div class="max-w-7xl mx-auto px-6 pt-6">
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-emerald-950/80 border-2 border-amber-500/70 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 ring-1 ring-amber-400/20">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/50 flex items-center justify-center text-2xl shadow-inner shrink-0">
+                            <i class="fa-solid fa-trophy animate-pulse"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-700/50">Deal Closer Action Bar</span>
+                                <h3 class="font-bold text-sm md:text-base text-white">Convert Won Lead &amp; Transfer to Client CRM (CRM 2)</h3>
+                            </div>
+                            <p class="text-xs text-slate-300 mt-0.5">
+                                Target Account: <strong id="action-bar-lead-name" class="text-amber-300 font-mono font-bold">Titan Logistics &amp; Distribution</strong>
+                                <span class="text-slate-400 text-[11px] ml-1.5">• 1-click transfers company, contact details, notes, and records initial sales order in Client CRM.</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5 w-full md:w-auto shrink-0">
+                        <button id="btn-action-fast-convert" onclick="executeFastConversion()" class="flex-1 md:flex-none px-5 py-2.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] border border-amber-300/40">
+                            <i class="fa-solid fa-bolt text-slate-950"></i> 1-Click Transfer to Client CRM
+                        </button>
+                        <button onclick="openConvertModal()" class="px-3.5 py-2.5 bg-slate-800/90 hover:bg-slate-700 border border-amber-500/40 text-amber-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-sliders"></i> Customize Order
+                        </button>
+                    </div>
+                </div>
+            </div>
         <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left Column: Tenant Auth & CRM Leads -->
             <div class="space-y-6">
@@ -423,8 +453,8 @@ Select an account from the active leads list to inspect call tracking details.
                             <button id="btn-draft" onclick="triggerDraftOutreach()" disabled class="py-2 px-3 bg-slate-700 text-slate-400 rounded text-xs font-semibold transition flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-envelope-open-text"></i> Draft Cold Outreach
                             </button>
-                            <button id="btn-convert" onclick="openConvertModal()" disabled class="col-span-2 py-2 px-3 bg-slate-700 text-slate-500 rounded text-xs font-semibold transition flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-trophy text-amber-400"></i> 🏆 Convert Won Lead to Client Account (CRM 2)
+                            <button id="btn-convert" onclick="executeFastConversion()" class="col-span-2 py-2.5 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40">
+                                <i class="fa-solid fa-trophy text-amber-200"></i> 🏆 Convert Won Lead to Client Account (CRM 2)
                             </button>
                         </div>
 
@@ -937,53 +967,130 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     .replace(/'/g, "&#039;");
             }
 
+            function showToast(title, message, icon = "fa-circle-check", type = "success") {
+                const container = document.getElementById("toast-container");
+                if (!container) return;
+                const toast = document.createElement("div");
+                const bgClass = type === "success" ? "bg-emerald-950/95 border-emerald-500 text-emerald-100" : "bg-indigo-950/95 border-indigo-500 text-indigo-100";
+                toast.className = `p-4 rounded-xl border ${bgClass} shadow-2xl backdrop-blur-md flex items-start gap-3 pointer-events-auto transform transition-all duration-300 translate-y-2 opacity-0`;
+                toast.innerHTML = `
+                    <div class="text-xl ${type === 'success' ? 'text-emerald-400' : 'text-indigo-400'} pt-0.5">
+                        <i class="fa-solid ${icon}"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-bold text-xs text-white">${escapeHtml(title)}</div>
+                        <div class="text-[11px] opacity-90 mt-0.5 leading-relaxed">${escapeHtml(message)}</div>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white text-xs cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+                `;
+                container.appendChild(toast);
+                requestAnimationFrame(() => {
+                    toast.classList.remove("translate-y-2", "opacity-0");
+                });
+                setTimeout(() => {
+                    toast.classList.add("opacity-0", "translate-y-2");
+                    setTimeout(() => toast.remove(), 400);
+                }, 6000);
+            }
+
+            async function autoSeedDemoLead() {
+                try {
+                    const payload = {
+                        company_name: "Titan Logistics & Distribution",
+                        industry: "Warehousing & Logistics",
+                        company_domain: "titanlogistics.com",
+                        contact_first_name: "Marcus",
+                        contact_last_name: "Vance",
+                        contact_email: "mvance@titanlogistics.com",
+                        contact_title: "VP of Supply Chain",
+                        notes: "Spoke with Marcus regarding 3 regional fulfillment centers. Confirmed budget $120k for commercial supplies. Ready for client onboarding and initial supply order.",
+                        last_call_at: new Date().toISOString(),
+                        last_call_outcome: "scheduled_demo",
+                        last_call_notes: "Marcus confirmed pricing approval from executive board. Requested contract to be finalized today.",
+                        call_duration_minutes: 15
+                    };
+                    const createRes = await fetch(API_BASE + "/crm/leads", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify(payload)
+                    });
+                    if (createRes.ok) {
+                        const res = await fetch(API_BASE + "/crm/leads", {
+                            headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                        });
+                        if (res.ok) return await res.json();
+                    }
+                } catch(e) {
+                    console.error("Error auto-seeding demo lead:", e);
+                }
+                return [];
+            }
+
             async function fetchLeads() {
                 if (!authToken) return;
-                const res = await fetch(API_BASE + "/crm/leads", {
-                    headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
-                });
-                const leads = await res.json();
-                const container = document.getElementById("leads-list");
-                container.innerHTML = "";
-                if (!leads.length) {
-                    container.innerHTML = "<p class='text-xs text-slate-500 italic'>No leads yet. Create one above!</p>";
-                    return;
-                }
-                leads.forEach(l => {
-                    const div = document.createElement("div");
-                    div.className = "p-2.5 rounded-lg bg-slate-900/80 border border-slate-700/60 hover:border-indigo-500/60 cursor-pointer transition space-y-1";
-                    div.onclick = () => selectLead(l);
+                try {
+                    const res = await fetch(API_BASE + "/crm/leads", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    let leads = await res.json();
+                    const container = document.getElementById("leads-list");
+                    container.innerHTML = "";
 
-                    let callBadgeHtml = "";
-                    if (l.last_call_at) {
-                        const callDate = new Date(l.last_call_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-                        const outcomeLabel = (l.last_call_outcome || 'connected').replace(/_/g, ' ');
-                        callBadgeHtml = `
-                            <div class="mt-1.5 p-1.5 rounded bg-slate-950/80 border border-slate-800 text-[10px]">
-                                <div class="flex justify-between items-center text-emerald-400 font-mono">
-                                    <span><i class="fa-solid fa-phone text-[9px] mr-1"></i>Last call: ${callDate}</span>
-                                    <span class="text-[9px] text-indigo-300 font-sans uppercase">${escapeHtml(outcomeLabel)}</span>
-                                </div>
-                                ${l.last_call_notes ? `<div class="text-slate-400 italic truncate mt-0.5 font-sans">"${escapeHtml(l.last_call_notes)}"</div>` : ''}
-                            </div>
-                        `;
-                    } else {
-                        callBadgeHtml = `<div class="mt-1 text-[10px] text-slate-500 italic"><i class="fa-solid fa-phone-slash mr-1"></i>No calls logged</div>`;
+                    if (!leads || !leads.length) {
+                        leads = await autoSeedDemoLead();
                     }
 
-                    div.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="font-semibold text-slate-200 text-xs">${escapeHtml(l.company ? l.company.name : 'Account')}</div>
-                                <div class="text-[11px] text-slate-400">${escapeHtml(l.contact ? l.contact.first_name + ' ' + l.contact.last_name : '')} • <span class="text-indigo-400 font-mono">${escapeHtml(l.pipeline_stage)}</span></div>
+                    if (!leads || !leads.length) {
+                        container.innerHTML = "<p class='text-xs text-slate-500 italic'>No leads yet. Create one above!</p>";
+                        return;
+                    }
+                    leads.forEach(l => {
+                        const div = document.createElement("div");
+                        const isSelected = selectedLead && selectedLead.id === l.id;
+                        div.className = `p-2.5 rounded-lg bg-slate-900/80 border ${isSelected ? 'border-amber-500/80 bg-slate-900' : 'border-slate-700/60 hover:border-indigo-500/60'} cursor-pointer transition space-y-1`;
+                        div.onclick = () => selectLead(l);
+
+                        let callBadgeHtml = "";
+                        if (l.last_call_at) {
+                            const callDate = new Date(l.last_call_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                            const outcomeLabel = (l.last_call_outcome || 'connected').replace(/_/g, ' ');
+                            callBadgeHtml = `
+                                <div class="mt-1.5 p-1.5 rounded bg-slate-950/80 border border-slate-800 text-[10px]">
+                                    <div class="flex justify-between items-center text-emerald-400 font-mono">
+                                        <span><i class="fa-solid fa-phone text-[9px] mr-1"></i>Last call: ${callDate}</span>
+                                        <span class="text-[9px] text-indigo-300 font-sans uppercase">${escapeHtml(outcomeLabel)}</span>
+                                    </div>
+                                    ${l.last_call_notes ? `<div class="text-slate-400 italic truncate mt-0.5 font-sans">"${escapeHtml(l.last_call_notes)}"</div>` : ''}
+                                </div>
+                            `;
+                        } else {
+                            callBadgeHtml = `<div class="mt-1 text-[10px] text-slate-500 italic"><i class="fa-solid fa-phone-slash mr-1"></i>No calls logged</div>`;
+                        }
+
+                        div.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="font-semibold text-slate-200 text-xs">${escapeHtml(l.company ? l.company.name : 'Account')}</div>
+                                    <div class="text-[11px] text-slate-400">${escapeHtml(l.contact ? l.contact.first_name + ' ' + l.contact.last_name : '')} • <span class="text-indigo-400 font-mono">${escapeHtml(l.pipeline_stage)}</span></div>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">${l.lead_score} pts</span>
                             </div>
-                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">${l.lead_score} pts</span>
-                        </div>
-                        ${l.notes ? `<div class="text-[10px] text-amber-300/90 truncate flex items-center gap-1"><i class="fa-regular fa-note-sticky text-amber-400"></i> ${escapeHtml(l.notes)}</div>` : ''}
-                        ${callBadgeHtml}
-                    `;
-                    container.appendChild(div);
-                });
+                            ${l.notes ? `<div class="text-[10px] text-amber-300/90 truncate flex items-center gap-1"><i class="fa-regular fa-note-sticky text-amber-400"></i> ${escapeHtml(l.notes)}</div>` : ''}
+                            ${callBadgeHtml}
+                        `;
+                        container.appendChild(div);
+                    });
+
+                    // Auto-select lead so selectedLead is never null on load
+                    if (!selectedLead || !leads.some(l => l.id === selectedLead.id)) {
+                        selectLead(leads[0]);
+                    } else {
+                        const refreshed = leads.find(l => l.id === selectedLead.id);
+                        selectLead(refreshed || leads[0]);
+                    }
+                } catch(e) {
+                    console.error("Failed to fetch leads:", e);
+                }
             }
 
             async function selectLead(lead) {
@@ -992,19 +1099,21 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 document.getElementById("selected-lead-name").innerText = companyName + " (" + lead.pipeline_stage + ")";
                 document.getElementById("account-lead-pill").innerText = companyName + " • " + lead.pipeline_stage.toUpperCase();
                 document.getElementById("log-call-target-name").innerText = companyName;
+                const barLeadName = document.getElementById("action-bar-lead-name");
+                if (barLeadName) barLeadName.innerText = companyName + " (" + lead.pipeline_stage.toUpperCase() + ")";
 
                 // Buttons activation
                 document.getElementById("btn-research").disabled = false;
-                document.getElementById("btn-research").className = "py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2";
+                document.getElementById("btn-research").className = "py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer";
                 document.getElementById("btn-draft").disabled = false;
-                document.getElementById("btn-draft").className = "py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2";
+                document.getElementById("btn-draft").className = "py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer";
                 document.getElementById("btn-simulate").disabled = false;
                 document.getElementById("btn-save-notes").disabled = false;
                 document.getElementById("btn-toggle-log-call").disabled = false;
                 const btnConvert = document.getElementById("btn-convert");
                 if (btnConvert) {
                     btnConvert.disabled = false;
-                    btnConvert.className = "col-span-2 py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm";
+                    btnConvert.className = "col-span-2 py-2.5 px-3 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer border border-amber-400/40";
                 }
 
                 // Populate Account Notes
@@ -1667,8 +1776,14 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 }
             }
 
-            function openConvertModal() {
-                if (!selectedLead) return;
+            async function openConvertModal() {
+                if (!selectedLead) {
+                    await fetchLeads();
+                }
+                if (!selectedLead) {
+                    alert("Please create or select an active prospect first!");
+                    return;
+                }
                 const company = selectedLead.company ? selectedLead.company.name : "Company";
                 const contact = selectedLead.contact ? (selectedLead.contact.first_name + " " + selectedLead.contact.last_name + " (" + selectedLead.contact.email + ")") : "Contact";
                 document.getElementById("modal-convert-lead-name").innerText = company;
@@ -1681,18 +1796,85 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 document.getElementById("convert-modal").classList.add("hidden");
             }
 
+            async function executeFastConversion() {
+                if (!selectedLead) {
+                    await fetchLeads();
+                }
+                if (!selectedLead) {
+                    alert("Please select or create an account in the prospect pipeline to convert!");
+                    return;
+                }
+
+                const btn = document.getElementById("btn-action-fast-convert");
+                const origHtml = btn ? btn.innerHTML : "";
+                if (btn) {
+                    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Transferring Data to Client CRM...`;
+                    btn.disabled = true;
+                }
+
+                const companyName = selectedLead.company ? selectedLead.company.name : "Prospect";
+                const payload = {
+                    account_tier: "enterprise",
+                    reorder_cadence_days: 30,
+                    initial_order_amount: 7500.00,
+                    initial_order_items: "Initial Commercial B2B Supply Agreement (Tier 1)",
+                    notes: (selectedLead.notes ? selectedLead.notes + " — " : "") + "Won and transferred from Prospect Pipeline."
+                };
+
+                try {
+                    const res = await fetch(API_BASE + "/crm/leads/" + selectedLead.id + "/convert-to-client", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        const convertedClient = await res.json();
+                        // Automatically switch to the Client CRM view!
+                        switchCrmMode('clients');
+                        await fetchClients();
+                        await fetchClientStats();
+                        selectClient(convertedClient);
+                        fetchAuditLogs();
+                        fetchLeads();
+
+                        showToast(
+                            "Lead Transferred to Client CRM!",
+                            `Successfully transferred "${companyName}" to Client CRM (CRM 2) with initial $7,500.00 order recorded.`,
+                            "fa-trophy",
+                            "success"
+                        );
+                    } else {
+                        const err = await res.json();
+                        alert("Error converting lead: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error during lead conversion: " + e.message);
+                } finally {
+                    if (btn) {
+                        btn.innerHTML = origHtml;
+                        btn.disabled = false;
+                    }
+                }
+            }
+
             async function handleConvertLead(e) {
                 e.preventDefault();
-                if (!selectedLead) return;
+                if (!selectedLead) {
+                    await fetchLeads();
+                    if (!selectedLead) return;
+                }
 
                 const initialAmount = parseFloat(document.getElementById("modal-convert-sale-amount").value) || 0;
+                const itemsSummary = document.getElementById("modal-convert-sale-items").value || "Initial Supply Agreement";
                 const payload = {
                     account_tier: document.getElementById("modal-convert-tier").value,
                     reorder_cadence_days: parseInt(document.getElementById("modal-convert-cadence").value) || 30,
                     initial_order_amount: initialAmount,
-                    initial_order_items: document.getElementById("modal-convert-sale-items").value,
+                    initial_order_items: itemsSummary,
                     notes: document.getElementById("modal-convert-notes").value
                 };
+
+                const companyName = selectedLead.company ? selectedLead.company.name : "Prospect";
 
                 try {
                     const res = await fetch(API_BASE + "/crm/leads/" + selectedLead.id + "/convert-to-client", {
@@ -1709,6 +1891,14 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                         await fetchClientStats();
                         selectClient(convertedClient);
                         fetchAuditLogs();
+                        fetchLeads();
+
+                        showToast(
+                            "Lead Transferred to Client CRM!",
+                            `Successfully transferred "${companyName}" to Client CRM (CRM 2) with initial $${initialAmount.toLocaleString(undefined, {minimumFractionDigits: 2})} order recorded.`,
+                            "fa-trophy",
+                            "success"
+                        );
                     } else {
                         const err = await res.json();
                         alert("Error converting lead: " + (err.detail || res.statusText));

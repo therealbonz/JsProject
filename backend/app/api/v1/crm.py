@@ -713,7 +713,7 @@ async def convert_lead_to_client(
 
     # Log initial deal / order if provided
     if payload.initial_order_amount and payload.initial_order_amount > 0:
-        order_num = f"SO-{now.strftime('%Y%m%d')}-001"
+        order_num = f"SO-{now.strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
         init_sale = ClientSale(
             organization_id=org.id,
             client_id=client.id,
