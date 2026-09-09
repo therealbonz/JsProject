@@ -4,6 +4,7 @@ from app.models.tenant import Organization, User, OrganizationMembership, AIConf
 from app.models.crm import Company, Contact, Lead, Opportunity, Product, KnowledgeDocument, CallLog, ClientAccount, ClientSale, Appointment
 from app.models.conversation import Conversation, Message
 from app.models.hitl import HumanAssistanceRequest, AgentTask, AuditLog, ComplianceDNC
+from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, InventoryItem
 
 __all__ = [
     "Base",
@@ -29,4 +30,9 @@ __all__ = [
     "AgentTask",
     "AuditLog",
     "ComplianceDNC",
+    "Supplier",
+    "PurchaseOrder",
+    "ShipmentTracking",
+    "InventoryItem",
 ]
+

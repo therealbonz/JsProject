@@ -235,6 +235,13 @@ class ClientSaleResponse(BaseModel):
     items_summary: str
     sales_rep_name: Optional[str] = None
     notes: Optional[str] = None
+    purchase_order_id: Optional[str] = None
+    po_number: Optional[str] = None
+    carrier: Optional[str] = None
+    tracking_number: Optional[str] = None
+    tracking_url: Optional[str] = None
+    shipping_status: Optional[str] = None
+    destination_type: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

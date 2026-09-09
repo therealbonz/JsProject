@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.api.deps import get_current_tenant
 from app.models.tenant import User, Organization
 from app.models.crm import Company, Contact, Lead, Product, KnowledgeDocument, CallLog, ClientAccount, ClientSale, Appointment
+from app.models.procurement import PurchaseOrder
 from app.models.conversation import Conversation
 from app.models.hitl import AuditLog
 from app.schemas.crm import (
@@ -641,6 +642,49 @@ async def log_client_sale(
     await db.refresh(sale)
     return sale
 
+@router.get("/sales", response_model=List[ClientSaleResponse])
+@router.get("/clients/all-sales", response_model=List[ClientSaleResponse])
+async def list_all_tenant_sales(
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    _, org, _ = tenant_context
+    sales_stmt = select(ClientSale).options(
+        selectinload(ClientSale.purchase_orders).selectinload(PurchaseOrder.shipments)
+    ).where(
+        ClientSale.organization_id == org.id
+    ).order_by(ClientSale.sale_date.desc())
+    res = await db.execute(sales_stmt)
+    sales = res.scalars().all()
+
+    output = []
+    for s in sales:
+        po = s.purchase_orders[0] if s.purchase_orders else None
+        ship = po.shipments[0] if (po and po.shipments) else None
+        output.append({
+            "id": s.id,
+            "organization_id": s.organization_id,
+            "client_id": s.client_id,
+            "lead_id": s.lead_id,
+            "order_number": s.order_number,
+            "amount": s.amount,
+            "sale_date": s.sale_date,
+            "status": s.status,
+            "payment_method": s.payment_method,
+            "items_summary": s.items_summary,
+            "sales_rep_name": s.sales_rep_name,
+            "notes": s.notes,
+            "purchase_order_id": po.id if po else None,
+            "po_number": po.po_number if po else None,
+            "carrier": ship.carrier if ship else None,
+            "tracking_number": ship.tracking_number if ship else None,
+            "tracking_url": ship.tracking_url if ship else None,
+            "shipping_status": ship.current_status if ship else (po.status if po else None),
+            "destination_type": po.destination_type if po else None,
+            "created_at": s.created_at
+        })
+    return output
+
 @router.get("/clients/{client_id}/sales", response_model=List[ClientSaleResponse])
 async def list_client_sales(
     client_id: str,
@@ -656,12 +700,42 @@ async def list_client_sales(
     if not client_res.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client account not found")
 
-    sales_stmt = select(ClientSale).where(
+    sales_stmt = select(ClientSale).options(
+        selectinload(ClientSale.purchase_orders).selectinload(PurchaseOrder.shipments)
+    ).where(
         ClientSale.client_id == client_id,
         ClientSale.organization_id == org.id
     ).order_by(ClientSale.sale_date.desc())
     res = await db.execute(sales_stmt)
-    return res.scalars().all()
+    sales = res.scalars().all()
+
+    output = []
+    for s in sales:
+        po = s.purchase_orders[0] if s.purchase_orders else None
+        ship = po.shipments[0] if (po and po.shipments) else None
+        output.append({
+            "id": s.id,
+            "organization_id": s.organization_id,
+            "client_id": s.client_id,
+            "lead_id": s.lead_id,
+            "order_number": s.order_number,
+            "amount": s.amount,
+            "sale_date": s.sale_date,
+            "status": s.status,
+            "payment_method": s.payment_method,
+            "items_summary": s.items_summary,
+            "sales_rep_name": s.sales_rep_name,
+            "notes": s.notes,
+            "purchase_order_id": po.id if po else None,
+            "po_number": po.po_number if po else None,
+            "carrier": ship.carrier if ship else None,
+            "tracking_number": ship.tracking_number if ship else None,
+            "tracking_url": ship.tracking_url if ship else None,
+            "shipping_status": ship.current_status if ship else (po.status if po else None),
+            "destination_type": po.destination_type if po else None,
+            "created_at": s.created_at
+        })
+    return output
 
 @router.post("/leads/{lead_id}/convert-to-client", response_model=ClientAccountResponse)
 async def convert_lead_to_client(

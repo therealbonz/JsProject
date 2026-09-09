@@ -26,10 +26,16 @@ The platform automates the B2B sales lifecycle across account research, lead qua
    - Companies, Contacts, Leads, Products, and Opportunities.
    - Visual Kanban pipeline stages: `new` ➔ `researching` ➔ `ready_contact` ➔ `contacted` ➔ `connected` ➔ `qualified` ➔ `proposal` ➔ `negotiation` ➔ `won` / `lost`.
 
-5. **Local-First & Production-Ready**:
+5. **AI Order Filler & Supply Chain Logistics Engine (CRM 3)**:
+   - Autonomous procurement agent connecting to **Amazon Business**, **W.W. Grainger**, **DigiKey**, **McMaster-Carr**, and extensible third-party supply websites.
+   - Automated purchase order execution, spend guardrail enforcement (\$500 default auto-approval limit), and HITL manager approval queue.
+   - Real-time carrier tracking (UPS, FedEx, USPS, Freight) with interactive 5-stage milestone timeline and outbound customer delivery dispatching.
+
+6. **Local-First & Production-Ready**:
    - Works immediately out-of-the-box with an embedded local database and simulation fallbacks.
    - Plugs directly into PostgreSQL via `docker compose up -d` or native Postgres.
    - Includes a built-in interactive Web Console at `http://127.0.0.1:8000/`.
+
 
 ---
 

@@ -165,6 +165,7 @@ class ClientSale(Base, CommonMixin, TenantMixin):
     # Relationships
     client = relationship("ClientAccount", back_populates="sales")
     lead = relationship("Lead")
+    purchase_orders = relationship("PurchaseOrder", back_populates="client_sale", cascade="all, delete-orphan", order_by="desc(PurchaseOrder.created_at)")
 
 class Appointment(Base, CommonMixin, TenantMixin):
     __tablename__ = "appointments"

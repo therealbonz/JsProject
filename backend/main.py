@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -66,6 +66,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(agent.router, prefix=prefix)
     app.include_router(hitl.router, prefix=prefix)
     app.include_router(conversations.router, prefix=prefix)
+    app.include_router(fulfillment.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -127,7 +128,7 @@ async def dashboard_home():
         <!-- Dual CRM Switcher Header Bar -->
         <div class="border-b border-slate-800 bg-slate-950/80 px-6 py-3 sticky top-0 z-30 backdrop-blur">
             <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-                <!-- Dual Switcher Tabs -->
+                <!-- Switcher Tabs (3 Modes) -->
                 <div class="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
                     <button id="tab-prospects" onclick="switchCrmMode('prospects')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-md">
                         <i class="fa-solid fa-crosshairs text-indigo-200"></i>
@@ -137,6 +138,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-briefcase text-emerald-400"></i>
                         <span>💼 CRM 2: Client Accounts & Sales</span>
                         <span id="nav-badge-clients" class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">0</span>
+                    </button>
+                    <button id="tab-fulfillment" onclick="switchCrmMode('fulfillment')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-truck-fast text-amber-400"></i>
+                        <span>⚡ CRM 3: AI Order Filler &amp; Logistics</span>
+                        <span id="nav-badge-shipments" class="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/80 text-amber-300 font-mono border border-amber-700/50">0</span>
                     </button>
                 </div>
 
@@ -160,6 +166,11 @@ async def dashboard_home():
                     <div class="flex items-center gap-2">
                         <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-receipt text-amber-400 mr-1"></i>Avg Order:</span>
                         <span id="kpi-nav-aov" class="font-bold text-amber-300 font-mono">$0.00</span>
+                    </div>
+                    <div class="h-4 w-px bg-slate-800"></div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-truck-ramp-box text-cyan-400 mr-1"></i>Bot Shipping Success:</span>
+                        <span id="kpi-nav-bot-success" class="font-bold text-emerald-400 font-mono text-sm">100.0%</span>
                     </div>
                 </div>
             </div>
@@ -824,19 +835,386 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                         <th class="p-2.5">Items Summary</th>
                                         <th class="p-2.5">Terms</th>
                                         <th class="p-2.5">Sales Rep</th>
+                                        <th class="p-2.5">Bot Fulfillment &amp; Tracking</th>
                                         <th class="p-2.5">Status</th>
                                         <th class="p-2.5 text-right">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sales-ledger-body" class="divide-y divide-slate-800 font-sans">
                                     <tr>
-                                        <td colspan="7" class="p-4 text-center text-slate-500 italic">Select a client account to inspect sales history.</td>
+                                        <td colspan="8" class="p-4 text-center text-slate-500 italic">Select a client account to inspect sales history.</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- View 3: AI Order Filler & Supply Chain Logistics Hub -->
+        <div id="view-fulfillment" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Order Bot Complete Shipping & Fulfillment Lifecycle Hub Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/40 rounded-2xl p-5 shadow-2xl space-y-5 ring-1 ring-indigo-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-indigo-600 text-white flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20 shrink-0">
+                            <i class="fa-solid fa-truck-ramp-box"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-950 border border-emerald-600/50 text-emerald-300">Order Bot Telemetry</span>
+                                <h2 class="font-bold text-base text-slate-100">Order Bot: Complete Shipping &amp; Fulfillment Success Hub</h2>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                End-to-end telemetry correlating customer sales, supplier purchasing, carrier tracking milestones, and drop shipping delivery success.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950 border border-indigo-700/50 text-indigo-300 flex items-center gap-1.5">
+                            <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Gemini Logistics Engine Active
+                        </span>
+                        <button onclick="fetchPurchaseOrders(); fetchProcurementStats();" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate text-amber-400"></i> Sync Bot Telemetry
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 6 Telemetry KPI Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <!-- 1. Bot Shipping Success Rate -->
+                    <div class="bg-slate-900/90 border border-emerald-500/40 rounded-xl p-3.5 shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="uppercase tracking-wider font-semibold text-[10px]">Shipping Success Rate</span>
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="bot-stat-success-rate" class="text-2xl font-extrabold text-emerald-400 font-mono">100.0%</h3>
+                            <p class="text-[10px] text-emerald-400/80 mt-0.5"><span id="bot-stat-delivered-count">0</span> Orders Delivered</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. Sales Revenue Fulfilled -->
+                    <div class="bg-slate-900/90 border border-emerald-500/30 rounded-xl p-3.5 shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="uppercase tracking-wider font-semibold text-[10px]">Sales Fulfilled</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-emerald-400"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="bot-stat-sales-rev" class="text-2xl font-extrabold text-emerald-400 font-mono">$0.00</h3>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Customer Sales Volume</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. Purchasing Cost -->
+                    <div class="bg-slate-900/90 border border-amber-500/30 rounded-xl p-3.5 shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="uppercase tracking-wider font-semibold text-[10px]">Purchasing Spend</span>
+                            <i class="fa-solid fa-cart-shopping text-amber-400"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="proc-kpi-spend" class="text-2xl font-extrabold text-amber-300 font-mono">$0.00</h3>
+                            <p class="text-[10px] text-amber-400/80 mt-0.5">Supplier Procurement Cost</p>
+                        </div>
+                    </div>
+
+                    <!-- 4. Gross Margin & Profit -->
+                    <div class="bg-slate-900/90 border border-cyan-500/30 rounded-xl p-3.5 shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="uppercase tracking-wider font-semibold text-[10px]">Net Bot Margin</span>
+                            <i class="fa-solid fa-chart-line text-cyan-400"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="bot-stat-margin" class="text-2xl font-extrabold text-cyan-300 font-mono">$0.00</h3>
+                            <p class="text-[10px] text-cyan-400/80 mt-0.5"><span id="bot-stat-margin-pct" class="font-bold">0.0%</span> Gross Margin</p>
+                        </div>
+                    </div>
+
+                    <!-- 5. Drop Shipping vs Warehouse -->
+                    <div class="bg-slate-900/90 border border-purple-500/30 rounded-xl p-3.5 shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="uppercase tracking-wider font-semibold text-[10px]">Drop Ship / Staging</span>
+                            <i class="fa-solid fa-dolly text-purple-400"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="bot-stat-dropship-split" class="text-xs font-bold text-purple-300 font-mono leading-tight">0 Drop Ships<br><span class="text-slate-400">0 Warehouse</span></h3>
+                            <p class="text-[10px] text-purple-400/80 mt-0.5">Fulfillment Channels</p>
+                        </div>
+                    </div>
+
+                    <!-- 6. Active In-Transit Shipments -->
+                    <div class="bg-slate-900/90 border border-indigo-500/30 rounded-xl p-3.5 shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="uppercase tracking-wider font-semibold text-[10px]">Live In-Transit</span>
+                            <i class="fa-solid fa-truck-moving text-indigo-400"></i>
+                        </div>
+                        <div class="mt-2">
+                            <h3 id="proc-kpi-transit" class="text-2xl font-extrabold text-indigo-300 font-mono">0</h3>
+                            <p class="text-[10px] text-indigo-400/80 mt-0.5">Carrier Scans Active</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Complete Shipping Success Ledger & Tracking Matrix Table -->
+                <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-amber-400"></i>
+                            <h3 class="font-bold text-sm text-slate-200 uppercase tracking-wider">Order Bot Complete Shipping Success Ledger</h3>
+                            <span id="bot-matrix-count" class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">0 Orders</span>
+                        </div>
+                        <div class="text-xs text-slate-400 flex flex-wrap items-center gap-3">
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span> Delivered (100% Success)</span>
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-indigo-400"></span> In Transit</span>
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-amber-400"></span> Awaiting Approval</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider bg-slate-900/80">
+                                    <th class="p-2.5">Customer Sale</th>
+                                    <th class="p-2.5">Bot Purchasing (PO)</th>
+                                    <th class="p-2.5">Supplier &amp; Cost</th>
+                                    <th class="p-2.5">Margin &amp; ROI</th>
+                                    <th class="p-2.5">Drop Shipping Mode</th>
+                                    <th class="p-2.5">Carrier Tracking</th>
+                                    <th class="p-2.5">Shipping Success Status</th>
+                                    <th class="p-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-matrix-body" class="divide-y divide-slate-800/80 font-sans">
+                                <tr>
+                                    <td colspan="8" class="p-4 text-center text-slate-500 italic">No purchase orders executed yet. Run the AI Order Filler below to process orders.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legacy Suppliers & Units Indicator Pills for compatibility -->
+            <div class="hidden">
+                <span id="proc-kpi-suppliers">4</span>
+                <span id="proc-kpi-units">0 Units</span>
+            </div>
+
+            <!-- Main Fulfillment Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: AI Order Filler & Supplier Integrations -->
+                <div class="space-y-6">
+                    <!-- AI Order Filler Launchpad -->
+                    <div class="bg-slate-800/80 border border-amber-500/50 rounded-xl p-5 shadow-2xl space-y-4 ring-1 ring-amber-400/20">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-bold text-sm uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                                <i class="fa-solid fa-robot text-amber-400"></i> AI Automated Order Filler
+                            </h2>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-amber-950 border border-amber-600/50 text-amber-300 font-mono">Autonomous</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Specify an inventory or customer requirement. The AI bot compares catalogs across Amazon Business, Grainger, DigiKey, and connected sites, enforces spending thresholds, places the order, and activates live carrier tracking.
+                        </p>
+
+                        <form id="form-autofill-order" onsubmit="handleAutoFillOrder(event)" class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1 flex items-center justify-between">
+                                    <span>Link to Customer Sale / Order (Optional)</span>
+                                    <span class="text-[10px] text-amber-400 font-normal">Auto-fills prompt &amp; drop-ship address</span>
+                                </label>
+                                <select id="in-autofill-client-sale" onchange="handleClientSaleSelection(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs">
+                                    <option value="">⚡ Direct Autonomous Procurement (No Client Sale)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">Requirement Prompt / Items to Order *</label>
+                                <textarea id="in-autofill-prompt" rows="3" required placeholder="E.g. Order 25 boxes of heavy-duty corrugated cartons (24x18x18) and 6 rolls of 3M shipping packaging tape" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed">Order 25 boxes of heavy-duty corrugated moving &amp; shipping boxes (24x18x18) and 6 rolls of 3M packaging tape</textarea>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Fulfillment Mode</label>
+                                    <select id="in-autofill-dest-type" onchange="toggleFulfillmentMode(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs">
+                                        <option value="warehouse">🏭 Warehouse Restock</option>
+                                        <option value="customer_dropship">🚀 Customer Drop Ship</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Target Supplier</label>
+                                    <select id="in-autofill-supplier" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs">
+                                        <option value="auto">⚡ AI Auto-Route (Best Price/Stock)</option>
+                                        <option value="amazon_business">Amazon Business (Packaging &amp; Office)</option>
+                                        <option value="grainger">W.W. Grainger (Industrial MRO &amp; Safety)</option>
+                                        <option value="digikey">DigiKey (Electronics &amp; Hardware)</option>
+                                        <option value="mcmaster">McMaster-Carr (Raw Parts &amp; CAD)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Max Auto-Spend ($)</label>
+                                    <input id="in-autofill-budget" type="number" step="10" value="500.00" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-amber-300 font-mono focus:outline-none focus:border-amber-500 text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Destination Address</label>
+                                    <input id="in-autofill-destination" type="text" value="Main Logistics Warehouse (Bay 4), 100 Supply Chain Blvd" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-amber-500 text-xs">
+                                </div>
+                            </div>
+
+                            <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-700/60 flex items-center justify-between text-[11px] text-slate-400">
+                                <span><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> Guardrail Protection:</span>
+                                <span class="text-amber-300 font-medium">Orders &gt; $500 halt for approval</span>
+                            </div>
+
+                            <button id="btn-run-autofill" type="submit" class="w-full py-2.5 px-4 bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-slate-950 font-extrabold rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.01]">
+                                <i class="fa-solid fa-cart-shopping"></i> Run AI Auto-Fill &amp; Purchase
+                            </button>
+                        </form>
+
+                        <!-- Live Agent Log Container -->
+                        <div id="autofill-agent-log" class="hidden p-3 rounded-lg bg-slate-950 border border-amber-500/40 text-[11px] font-mono text-amber-200/90 space-y-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Connected Business Supply Websites -->
+                    <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-semibold text-sm uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-globe text-indigo-400"></i> Connected Supply Portals
+                            </h2>
+                            <button onclick="openAddSupplierModal()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition flex items-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-plus"></i> Add Website
+                            </button>
+                        </div>
+                        <div id="suppliers-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right 2 Columns: Live Purchase Orders & Real-time Shipment Tracking -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- POs and Tracking Center -->
+                    <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-700/60">
+                            <div>
+                                <h2 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                                    <i class="fa-solid fa-truck-fast text-amber-400"></i> Purchase Orders &amp; Shipment Tracking
+                                </h2>
+                                <p class="text-xs text-slate-400">Autonomous purchasing ledger, live carrier tracking milestones, and inventory receipts</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="fetchPurchaseOrders(); fetchProcurementStats();" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-rotate"></i> Refresh Feed
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Purchase Orders Feed Container -->
+                        <div id="orders-feed-container" class="space-y-4">
+                            <div class="p-8 text-center text-slate-500 italic">
+                                <i class="fa-solid fa-box-open text-3xl mb-2 block text-slate-600"></i>
+                                Loading active purchase orders and live shipment trackings...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Add New Business Supply Website -->
+        <div id="modal-add-supplier" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-400"></i> Connect New Supply Website / API
+                    </h3>
+                    <button onclick="closeAddSupplierModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form id="form-new-supplier" onsubmit="handleCreateSupplier(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Company / Supplier Name *</label>
+                        <input id="in-sup-name" type="text" required placeholder="E.g. Fastenal Industrial Supply" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Website URL *</label>
+                        <input id="in-sup-url" type="url" required placeholder="https://www.fastenal.com" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Adapter / Access Type</label>
+                            <select id="in-sup-adapter" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-indigo-500">
+                                <option value="web_automation">Web Automation / Crawler</option>
+                                <option value="api">Direct B2B REST API</option>
+                                <option value="punchout">cXML / PunchOut</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Category Specialty</label>
+                            <input id="in-sup-category" type="text" value="Fasteners &amp; MRO" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Integration Notes / API Credentials (Optional)</label>
+                        <textarea id="in-sup-notes" rows="2" placeholder="Account #, Net-30 billing terms, or automated cart instructions" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="closeAddSupplierModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-md">
+                            <i class="fa-solid fa-plug"></i> Save Supplier Portal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Dispatch / Ship Purchased Inventory to Client -->
+        <div id="modal-dispatch" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-dolly text-emerald-400"></i> Dispatch Purchased Inventory Outbound
+                    </h3>
+                    <button onclick="closeDispatchModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form id="form-dispatch-shipment" onsubmit="handleDispatchShipment(event)" class="space-y-3 text-xs">
+                    <input type="hidden" id="dispatch-po-id" value="">
+                    <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs">
+                        <span class="text-slate-400 block text-[11px] mb-0.5">Purchased Order Source:</span>
+                        <div id="dispatch-po-label" class="font-mono font-bold text-amber-300">PO-XXXX</div>
+                        <div id="dispatch-items-label" class="text-slate-300 text-[11px] mt-1">Items in inventory</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Outbound Carrier</label>
+                            <select id="dispatch-carrier" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+                                <option value="UPS">UPS Ground</option>
+                                <option value="FEDEX">FedEx Express</option>
+                                <option value="USPS">USPS Priority</option>
+                                <option value="FREIGHT">Direct LTL Freight</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Assign to Client Account</label>
+                            <select id="dispatch-client-select" onchange="populateClientAddress(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+                                <option value="">Select Client Account...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Destination Address *</label>
+                        <input id="dispatch-address" type="text" required placeholder="E.g. 742 Evergreen Terrace, Springfield, OR" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                        <button type="button" onclick="closeDispatchModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-md">
+                            <i class="fa-solid fa-paper-plane"></i> Dispatch &amp; Generate Manifest
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -973,6 +1351,9 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchAuditLogs();
                     fetchClientStats();
                     fetchClients();
+                    fetchProcurementStats();
+                    fetchSuppliers();
+                    fetchPurchaseOrders();
                 } catch(e) {
                     alert("Error authenticating: " + e.message);
                 }
@@ -1772,21 +2153,35 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 currentCrmMode = mode;
                 const viewProspects = document.getElementById("view-prospects");
                 const viewClients = document.getElementById("view-clients");
+                const viewFulfillment = document.getElementById("view-fulfillment");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
+                const tabFulfillment = document.getElementById("tab-fulfillment");
+
+                // Reset all tabs to inactive state
+                tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                tabClients.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabFulfillment) tabFulfillment.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+
+                viewProspects.classList.add("hidden");
+                viewClients.classList.add("hidden");
+                if (viewFulfillment) viewFulfillment.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
-                    viewClients.classList.add("hidden");
                     tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-md";
-                    tabClients.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
-                } else {
-                    viewProspects.classList.add("hidden");
+                } else if (mode === 'clients') {
                     viewClients.classList.remove("hidden");
                     tabClients.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-emerald-600 text-white shadow-md";
-                    tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                     fetchClientStats();
                     fetchClients();
+                } else if (mode === 'fulfillment') {
+                    if (viewFulfillment) viewFulfillment.classList.remove("hidden");
+                    if (tabFulfillment) tabFulfillment.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-amber-500 text-slate-950 font-bold shadow-md";
+                    fetchProcurementStats();
+                    fetchSuppliers();
+                    fetchPurchaseOrders();
+                    fetchAllSalesForFulfillmentSelector();
                 }
             }
 
@@ -1938,7 +2333,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     tbody.innerHTML = "";
 
                     if (!sales.length) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500 italic">No sales recorded yet for this client account. Click '+ Log New Sale / Order' to record the first transaction.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-500 italic">No sales recorded yet for this client account. Click '+ Log New Sale / Order' to record the first transaction.</td></tr>`;
                         return;
                     }
 
@@ -1953,6 +2348,33 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
                         const amtFormatted = "$" + (s.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
+                        let fulfillmentHtml = "";
+                        if (s.po_number) {
+                            const isDropship = s.destination_type === 'customer_dropship';
+                            const isDeliv = s.shipping_status === 'delivered';
+                            fulfillmentHtml = `
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-950/80 text-amber-300 border border-amber-700/50 font-bold">${escapeHtml(s.po_number)}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] uppercase font-semibold ${isDropship ? 'bg-purple-950 text-purple-300 border border-purple-700/40' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${isDropship ? 'Drop Ship' : 'Warehouse'}</span>
+                                    </div>
+                                    ${s.tracking_number ? `
+                                        <div class="flex items-center gap-1 text-[10px]">
+                                            <span class="font-bold text-cyan-400">${escapeHtml(s.carrier || 'UPS')}:</span>
+                                            <a href="${escapeHtml(s.tracking_url || '#')}" target="_blank" class="font-mono text-cyan-300 hover:underline">${escapeHtml(s.tracking_number)}</a>
+                                            <span class="px-1 py-0.2 rounded text-[9px] ${isDeliv ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/40' : 'bg-indigo-950 text-indigo-300 border border-indigo-700/40'}">${escapeHtml(s.shipping_status || 'in_transit')}</span>
+                                        </div>
+                                    ` : `<span class="text-[10px] text-slate-400">Order Placed</span>`}
+                                </div>
+                            `;
+                        } else {
+                            fulfillmentHtml = `
+                                <button onclick="triggerFulfillSaleFromLedger('${s.id}', '${escapeHtml(s.order_number)}', '${escapeHtml(s.items_summary)}', '${escapeHtml(selectedClient ? selectedClient.account_name : '')}')" class="px-2 py-1 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-bold rounded text-[10px] flex items-center gap-1 shadow cursor-pointer transition">
+                                    <i class="fa-solid fa-robot"></i> Auto-Fulfill (Drop Ship)
+                                </button>
+                            `;
+                        }
+
                         tr.innerHTML = `
                             <td class="p-2.5 text-slate-400 font-mono text-[11px] whitespace-nowrap">${saleDate}</td>
                             <td class="p-2.5 font-mono text-indigo-300 font-bold whitespace-nowrap">${escapeHtml(s.order_number)}</td>
@@ -1962,6 +2384,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             </td>
                             <td class="p-2.5 text-slate-400 whitespace-nowrap uppercase text-[10px] font-mono">${escapeHtml(s.payment_method ? s.payment_method.replace(/_/g, ' ') : '')}</td>
                             <td class="p-2.5 text-slate-300 whitespace-nowrap text-[11px]">${escapeHtml(s.sales_rep_name || 'Sales Rep')}</td>
+                            <td class="p-2.5">${fulfillmentHtml}</td>
                             <td class="p-2.5 whitespace-nowrap">
                                 <span class="px-2 py-0.5 rounded text-[10px] border ${statusBadge} uppercase font-semibold">${escapeHtml(s.status)}</span>
                             </td>
@@ -2220,6 +2643,832 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }
                 } catch(e) {
                     alert("Error converting lead: " + e.message);
+                }
+            }
+
+            // ==============================================================================
+            // CRM 3: AI Order Filler & Supply Chain Logistics Handlers
+            // ==============================================================================
+
+            let allSuppliers = [];
+            let allPurchaseOrders = [];
+
+            let allClientSalesList = [];
+
+            async function fetchProcurementStats() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/stats", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const stats = await res.json();
+                    
+                    const spendVal = stats.total_procurement_spend || 0;
+                    document.getElementById("proc-kpi-spend").innerText = "$" + spendVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    
+                    const salesVal = stats.total_sales_revenue || 0;
+                    const salesEl = document.getElementById("bot-stat-sales-rev");
+                    if (salesEl) salesEl.innerText = "$" + salesVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                    const marginVal = stats.net_profit_margin || 0;
+                    const marginPct = stats.profit_margin_pct || 0;
+                    const marginEl = document.getElementById("bot-stat-margin");
+                    if (marginEl) marginEl.innerText = (marginVal >= 0 ? "+$" : "-$") + Math.abs(marginVal).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const marginPctEl = document.getElementById("bot-stat-margin-pct");
+                    if (marginPctEl) marginPctEl.innerText = marginPct.toFixed(1) + "%";
+
+                    const successRate = stats.shipping_success_rate !== undefined ? stats.shipping_success_rate : 100.0;
+                    const successRateEl = document.getElementById("bot-stat-success-rate");
+                    if (successRateEl) successRateEl.innerText = successRate.toFixed(1) + "%";
+                    const delivEl = document.getElementById("bot-stat-delivered-count");
+                    if (delivEl) delivEl.innerText = stats.delivered_orders_count || 0;
+
+                    const splitEl = document.getElementById("bot-stat-dropship-split");
+                    if (splitEl) splitEl.innerHTML = `${stats.dropship_orders_count || 0} Drop Ships<br><span class="text-slate-400 font-normal">${stats.warehouse_orders_count || 0} Warehouse</span>`;
+
+                    const transitVal = stats.in_transit_shipments_count || 0;
+                    document.getElementById("proc-kpi-transit").innerText = transitVal;
+                    const transitEl = document.getElementById("bot-stat-active-transit");
+                    if (transitEl) transitEl.innerText = transitVal;
+
+                    const navSuccessEl = document.getElementById("kpi-nav-bot-success");
+                    if (navSuccessEl) navSuccessEl.innerText = successRate.toFixed(1) + "%";
+                    const badge = document.getElementById("nav-badge-shipments");
+                    if (badge) badge.innerText = transitVal;
+
+                    const supEl = document.getElementById("proc-kpi-suppliers");
+                    if (supEl) supEl.innerText = stats.connected_suppliers_count || 0;
+                    const unitEl = document.getElementById("proc-kpi-units");
+                    if (unitEl) unitEl.innerText = (stats.units_in_transit || 0) + " Units";
+                } catch(e) {
+                    console.error("Error fetching procurement stats:", e);
+                }
+            }
+
+            async function fetchAllSalesForFulfillmentSelector() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/crm/sales", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    allClientSalesList = await res.json();
+                    const sel = document.getElementById("in-autofill-client-sale");
+                    if (!sel) return;
+                    const currVal = sel.value;
+                    sel.innerHTML = `<option value="">⚡ Direct Autonomous Procurement (No Client Sale)</option>`;
+                    allClientSalesList.forEach(s => {
+                        const opt = document.createElement("option");
+                        opt.value = s.id;
+                        const isFulfilled = !!s.po_number;
+                        opt.innerText = `${s.order_number} • $${s.amount.toFixed(2)} (${s.items_summary.substring(0, 32)}...) ${isFulfilled ? '✓ Fulfilled' : '⚡ Needs Drop Ship'}`;
+                        sel.appendChild(opt);
+                    });
+                    if (currVal) sel.value = currVal;
+                } catch(e) {
+                    console.error("Error loading sales for fulfillment selector:", e);
+                }
+            }
+
+            function handleClientSaleSelection(saleId) {
+                if (!saleId) {
+                    const destType = document.getElementById("in-autofill-dest-type");
+                    if (destType) destType.value = "warehouse";
+                    return;
+                }
+                const sale = allClientSalesList.find(s => s.id === saleId);
+                if (!sale) return;
+
+                const destType = document.getElementById("in-autofill-dest-type");
+                if (destType) destType.value = "customer_dropship";
+
+                const promptEl = document.getElementById("in-autofill-prompt");
+                if (promptEl) {
+                    promptEl.value = `Order ${sale.items_summary} for customer fulfillment (${sale.order_number})`;
+                }
+
+                const budgetEl = document.getElementById("in-autofill-budget");
+                if (budgetEl && sale.amount) {
+                    budgetEl.value = Math.max(500, Math.round(sale.amount * 0.8));
+                }
+
+                const destEl = document.getElementById("in-autofill-destination");
+                if (destEl) {
+                    destEl.value = `Customer Destination Facility (${sale.order_number}), 500 Logistics Way`;
+                }
+            }
+
+            function toggleFulfillmentMode(mode) {
+                const destEl = document.getElementById("in-autofill-destination");
+                if (!destEl) return;
+                if (mode === "customer_dropship") {
+                    if (destEl.value.includes("Main Logistics Warehouse")) {
+                        destEl.value = "Customer Destination Facility (Direct Drop Ship)";
+                    }
+                } else {
+                    destEl.value = "Main Logistics Warehouse (Bay 4), 100 Supply Chain Blvd";
+                }
+            }
+
+            function triggerFulfillSaleFromLedger(saleId, orderNum, itemsSummary, clientName) {
+                switchCrmMode('fulfillment');
+                setTimeout(() => {
+                    const sel = document.getElementById("in-autofill-client-sale");
+                    if (sel) {
+                        sel.value = saleId;
+                    }
+                    const destType = document.getElementById("in-autofill-dest-type");
+                    if (destType) destType.value = "customer_dropship";
+
+                    const promptEl = document.getElementById("in-autofill-prompt");
+                    if (promptEl) {
+                        promptEl.value = `Order ${itemsSummary} for customer fulfillment (${orderNum})`;
+                    }
+
+                    const destEl = document.getElementById("in-autofill-destination");
+                    if (destEl) {
+                        destEl.value = `${clientName ? clientName + ' Receiving Dock' : 'Customer Facility'}, Commercial Delivery Bay`;
+                    }
+
+                    promptEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    promptEl?.focus();
+                }, 200);
+            }
+
+            async function fetchSuppliers() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/suppliers", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    allSuppliers = await res.json();
+                    
+                    // Render into suppliers list
+                    const container = document.getElementById("suppliers-list");
+                    if (container) {
+                        container.innerHTML = "";
+                        allSuppliers.forEach(s => {
+                            const isApi = s.adapter_type === 'api';
+                            const badgeColor = isApi ? 'bg-indigo-950 text-indigo-300 border-indigo-700/50' : 'bg-emerald-950 text-emerald-300 border-emerald-700/50';
+                            const card = document.createElement("div");
+                            card.className = "p-3 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs";
+                            card.innerHTML = `
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                        <span class="font-bold text-slate-100">${escapeHtml(s.name)}</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] border ${badgeColor} font-mono">${escapeHtml(s.adapter_type.toUpperCase())}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
+                                        <span><i class="fa-solid fa-tag text-amber-400 mr-1"></i>${escapeHtml(s.category)}</span>
+                                        <span>•</span>
+                                        <span class="text-slate-500">${s.lead_days_estimate}d lead time</span>
+                                    </div>
+                                </div>
+                                <a href="${escapeHtml(s.website_url)}" target="_blank" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[11px] text-slate-300 transition flex items-center gap-1">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Visit
+                                </a>
+                            `;
+                            container.appendChild(card);
+                        });
+                    }
+
+                    // Update target supplier dropdown options
+                    const select = document.getElementById("in-autofill-supplier");
+                    if (select) {
+                        select.innerHTML = '<option value="auto">⚡ AI Auto-Route (Best Price/Stock)</option>';
+                        allSuppliers.forEach(s => {
+                            const opt = document.createElement("option");
+                            opt.value = s.code;
+                            opt.innerText = `${s.name} (${s.category})`;
+                            select.appendChild(opt);
+                        });
+                    }
+                } catch(e) {
+                    console.error("Error fetching suppliers:", e);
+                }
+            }
+
+            function openAddSupplierModal() {
+                document.getElementById("modal-add-supplier").classList.remove("hidden");
+                document.getElementById("in-sup-name").focus();
+            }
+
+            function closeAddSupplierModal() {
+                document.getElementById("modal-add-supplier").classList.add("hidden");
+            }
+
+            async function handleCreateSupplier(e) {
+                e.preventDefault();
+                const name = document.getElementById("in-sup-name").value;
+                const url = document.getElementById("in-sup-url").value;
+                const adapter = document.getElementById("in-sup-adapter").value;
+                const category = document.getElementById("in-sup-category").value;
+                const notes = document.getElementById("in-sup-notes").value;
+                const code = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/suppliers", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({
+                            name: name,
+                            code: code,
+                            website_url: url,
+                            adapter_type: adapter,
+                            category: category,
+                            lead_days_estimate: 2,
+                            notes: notes
+                        })
+                    });
+                    if (res.ok) {
+                        closeAddSupplierModal();
+                        document.getElementById("form-new-supplier").reset();
+                        await fetchSuppliers();
+                        await fetchProcurementStats();
+                        showToast("Supplier Connected", `Registered "${name}" portal for AI automated purchasing.`, "fa-plug", "success");
+                    } else {
+                        const err = await res.json();
+                        alert("Error adding supplier: " + (err.detail || res.statusText));
+                    }
+                } catch(err) {
+                    alert("Error adding supplier: " + err.message);
+                }
+            }
+
+            async function handleAutoFillOrder(e) {
+                e.preventDefault();
+                const prompt = document.getElementById("in-autofill-prompt").value;
+                const supplierCode = document.getElementById("in-autofill-supplier").value;
+                const budgetLimit = parseFloat(document.getElementById("in-autofill-budget").value) || 500.0;
+                const destination = document.getElementById("in-autofill-destination").value;
+                const clientSaleId = document.getElementById("in-autofill-client-sale") ? document.getElementById("in-autofill-client-sale").value : null;
+                const destType = document.getElementById("in-autofill-dest-type") ? document.getElementById("in-autofill-dest-type").value : "warehouse";
+
+                const btn = document.getElementById("btn-run-autofill");
+                const logBox = document.getElementById("autofill-agent-log");
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> AI Bot Analyzing Catalogs &amp; Purchasing...`;
+                logBox.classList.remove("hidden");
+                logBox.innerHTML = `
+                    <div class="text-amber-400 font-bold"><i class="fa-solid fa-microchip mr-1"></i> Initializing Gemini Order Filler Agent...</div>
+                    <div class="text-slate-400">Parsing prompt: "${escapeHtml(prompt)}"...</div>
+                    <div class="text-slate-400">Querying supplier catalogs &amp; checking live stock...</div>
+                `;
+
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/autofill", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({
+                            requirement_prompt: prompt,
+                            preferred_supplier_code: supplierCode,
+                            destination_address: destination,
+                            destination_type: destType,
+                            client_sale_id: clientSaleId || null,
+                            max_budget_limit: budgetLimit
+                        })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || res.statusText);
+                    }
+                    const data = await res.json();
+                    
+                    let logHtml = `<div class="text-emerald-400 font-bold"><i class="fa-solid fa-check-double mr-1"></i> Order Processing Complete:</div>`;
+                    (data.logs || []).forEach(l => {
+                        logHtml += `<div class="text-slate-300">• ${escapeHtml(l)}</div>`;
+                    });
+                    if (data.requires_approval) {
+                        logHtml += `<div class="text-amber-300 font-bold mt-1">⚠️ Safety Threshold: Placed in HITL queue for manager sign-off ($${data.total_cost.toFixed(2)} &gt; $${budgetLimit.toFixed(2)}).</div>`;
+                    } else {
+                        logHtml += `<div class="text-cyan-300 font-bold mt-1">✓ Order Confirmed: PO ${data.po_number} | Tracking: ${data.carrier} ${data.tracking_number}</div>`;
+                    }
+                    logBox.innerHTML = logHtml;
+
+                    await fetchPurchaseOrders();
+                    await fetchProcurementStats();
+                    fetchAllSalesForFulfillmentSelector();
+                    fetchClients();
+                    fetchAuditLogs();
+
+                    showToast(
+                        data.requires_approval ? "Order Placed (Approval Required)" : "Order Purchased & Dispatched!",
+                        `PO ${data.po_number} with ${data.supplier} ($${data.total_cost.toFixed(2)}) processed.`,
+                        data.requires_approval ? "fa-shield-halved" : "fa-truck-fast",
+                        data.requires_approval ? "info" : "success"
+                    );
+                } catch(err) {
+                    logBox.innerHTML = `<div class="text-rose-400 font-bold">Error: ${escapeHtml(err.message)}</div>`;
+                    alert("Error executing order autofill: " + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> Run AI Auto-Fill &amp; Purchase`;
+                }
+            }
+
+            function renderOrdersMatrix(orders) {
+                const matrixBody = document.getElementById("orders-matrix-body");
+                const matrixCount = document.getElementById("bot-matrix-count");
+                if (matrixCount) {
+                    const count = (orders && orders.length) || 0;
+                    matrixCount.innerText = `${count} Order${count === 1 ? '' : 's'}`;
+                }
+                if (!matrixBody) return;
+
+                if (!orders || orders.length === 0) {
+                    matrixBody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="p-6 text-center text-slate-500 italic">
+                                No purchase orders executed yet. Run the AI Order Filler below to process orders.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                matrixBody.innerHTML = orders.map(po => {
+                    const isPending = po.status === 'pending_approval';
+                    const isDelivered = po.status === 'delivered';
+                    const totalUnits = (po.items_json || []).reduce((acc, it) => acc + (it.qty || 1), 0);
+                    const sh = (po.shipments && po.shipments.length > 0) ? po.shipments[0] : null;
+
+                    // 1. Customer Sale
+                    let saleCell = `<span class="text-slate-500 italic text-[11px]">Direct Restock</span>`;
+                    if (po.client_sale_order_number) {
+                        saleCell = `
+                            <div>
+                                <div class="font-mono font-bold text-slate-200 text-xs">${escapeHtml(po.client_sale_order_number)}</div>
+                                <div class="text-[11px] text-slate-400 font-medium">${escapeHtml(po.client_name || 'Client')}</div>
+                                <div class="text-[11px] font-mono font-bold text-emerald-400">$${(po.client_sale_amount || 0).toFixed(2)}</div>
+                            </div>
+                        `;
+                    }
+
+                    // 2. Bot Purchasing (PO)
+                    const poCell = `
+                        <div>
+                            <div class="font-mono font-bold text-amber-300 text-xs">${escapeHtml(po.po_number)}</div>
+                            <div class="text-[10px] text-slate-400">${new Date(po.placed_at).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">${totalUnits} Unit${totalUnits === 1 ? '' : 's'}</div>
+                        </div>
+                    `;
+
+                    // 3. Supplier & Cost
+                    const supplierCell = `
+                        <div>
+                            <div class="font-semibold text-slate-200 text-xs">${escapeHtml(po.supplier_name || 'Vendor')}</div>
+                            <div class="font-mono font-bold text-slate-100 text-xs">$${po.total_cost.toFixed(2)}</div>
+                        </div>
+                    `;
+
+                    // 4. Margin & ROI
+                    let marginCell = `<span class="text-slate-500 text-[11px]">N/A</span>`;
+                    if (po.profit_margin_dollars !== null && po.profit_margin_dollars !== undefined) {
+                        const isPositive = po.profit_margin_dollars >= 0;
+                        marginCell = `
+                            <div>
+                                <div class="font-mono font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'} text-xs">
+                                    ${isPositive ? '+' : ''}$${po.profit_margin_dollars.toFixed(2)}
+                                </div>
+                                <div class="text-[10px] font-mono ${isPositive ? 'text-emerald-300' : 'text-rose-300'} font-semibold">
+                                    ${po.profit_margin_pct}% ROI
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // 5. Drop Shipping Mode
+                    const isDropShip = po.destination_type === 'customer_dropship';
+                    const dropShipCell = isDropShip ? `
+                        <div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/90 text-amber-300 border border-amber-600/60 font-semibold flex items-center gap-1 w-max">
+                                <i class="fa-solid fa-truck-arrow-right text-amber-400"></i> Drop Ship
+                            </span>
+                            <div class="text-[10px] text-slate-400 truncate max-w-[140px] mt-1" title="${escapeHtml(po.destination_address || '')}">
+                                ${escapeHtml(po.destination_address || 'Customer Address')}
+                            </div>
+                        </div>
+                    ` : `
+                        <div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-semibold flex items-center gap-1 w-max">
+                                <i class="fa-solid fa-warehouse text-slate-400"></i> Warehouse
+                            </span>
+                            <div class="text-[10px] text-slate-500 mt-1">Central Facility</div>
+                        </div>
+                    `;
+
+                    // 6. Carrier Tracking
+                    let trackingCell = `<span class="text-slate-500 text-[11px]">Awaiting Dispatch</span>`;
+                    if (sh) {
+                        trackingCell = `
+                            <div>
+                                <div class="font-semibold text-slate-300 text-[11px] flex items-center gap-1">
+                                    <i class="fa-solid fa-truck text-indigo-400 text-[10px]"></i> ${escapeHtml(sh.carrier || 'Carrier')}
+                                </div>
+                                <a href="${escapeHtml(sh.tracking_url || '#')}" target="_blank" class="font-mono text-cyan-400 hover:text-cyan-300 font-bold text-[11px] flex items-center gap-1 mt-0.5">
+                                    ${escapeHtml(sh.tracking_number || '')} <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i>
+                                </a>
+                            </div>
+                        `;
+                    }
+
+                    // 7. Shipping Success Status
+                    const stagePct = po.shipping_stage_pct !== null && po.shipping_stage_pct !== undefined ? po.shipping_stage_pct : (isDelivered ? 100 : (sh ? 40 : 0));
+                    const successStatus = po.shipping_success_status || (isDelivered ? 'Complete Success' : (isPending ? 'Pending Approval' : 'In Transit'));
+                    const statusColor = isDelivered ? 'text-emerald-400' : (isPending ? 'text-amber-400' : 'text-indigo-300');
+                    const barColor = isDelivered ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-500 to-indigo-500';
+
+                    const statusCell = `
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between gap-2 text-[10px] font-bold">
+                                <span class="${statusColor} flex items-center gap-1">
+                                    <i class="fa-solid ${isDelivered ? 'fa-circle-check text-emerald-400' : (isPending ? 'fa-clock text-amber-400' : 'fa-truck-fast text-indigo-400')}"></i>
+                                    ${escapeHtml(successStatus)}
+                                </span>
+                                <span class="font-mono text-slate-400">${stagePct}%</span>
+                            </div>
+                            <div class="w-28 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-1.5 rounded-full ${barColor} transition-all duration-500" style="width: ${stagePct}%"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    // 8. Actions
+                    let actionsCell = "";
+                    if (isPending) {
+                        actionsCell = `
+                            <button onclick="approvePurchaseOrder('${po.id}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-[10px] shadow transition flex items-center gap-1 ml-auto cursor-pointer">
+                                <i class="fa-solid fa-check"></i> Approve
+                            </button>
+                        `;
+                    } else if (sh && !isDelivered) {
+                        actionsCell = `
+                            <button onclick="advanceShipmentMilestone('${sh.id}')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded text-[10px] shadow transition flex items-center gap-1 ml-auto cursor-pointer">
+                                <i class="fa-solid fa-forward-step"></i> Advance Scan
+                            </button>
+                        `;
+                    } else if (isDelivered) {
+                        actionsCell = `
+                            <span class="text-emerald-400 font-bold text-[10px] flex items-center justify-end gap-1">
+                                <i class="fa-solid fa-check-double"></i> Delivered
+                            </span>
+                        `;
+                    } else {
+                        actionsCell = `<span class="text-slate-600 text-[10px]">-</span>`;
+                    }
+
+                    return `
+                        <tr class="hover:bg-slate-900/60 transition border-b border-slate-800/60">
+                            <td class="p-2.5 align-top">${saleCell}</td>
+                            <td class="p-2.5 align-top">${poCell}</td>
+                            <td class="p-2.5 align-top">${supplierCell}</td>
+                            <td class="p-2.5 align-top">${marginCell}</td>
+                            <td class="p-2.5 align-top">${dropShipCell}</td>
+                            <td class="p-2.5 align-top">${trackingCell}</td>
+                            <td class="p-2.5 align-top">${statusCell}</td>
+                            <td class="p-2.5 align-top text-right">${actionsCell}</td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+
+            async function fetchPurchaseOrders() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/orders", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    allPurchaseOrders = await res.json();
+
+                    // Render Order Bot Success Matrix Table
+                    renderOrdersMatrix(allPurchaseOrders);
+
+                    const container = document.getElementById("orders-feed-container");
+                    if (!container) return;
+                    container.innerHTML = "";
+
+                    if (!allPurchaseOrders.length) {
+                        container.innerHTML = `
+                            <div class="p-8 text-center text-slate-500 italic bg-slate-900/50 rounded-xl border border-slate-800">
+                                <i class="fa-solid fa-cart-plus text-3xl mb-2 block text-slate-600"></i>
+                                No purchase orders placed yet. Use the AI Order Filler panel on the left to purchase inventory.
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    allPurchaseOrders.forEach(po => {
+                        const isPending = po.status === 'pending_approval';
+                        const isDelivered = po.status === 'delivered';
+                        const statusColors = {
+                            'pending_approval': 'bg-amber-950 text-amber-300 border-amber-600/50',
+                            'ordered': 'bg-blue-950 text-blue-300 border-blue-600/50',
+                            'in_transit': 'bg-indigo-950 text-indigo-300 border-indigo-600/50',
+                            'shipped': 'bg-indigo-950 text-indigo-300 border-indigo-600/50',
+                            'delivered': 'bg-emerald-950 text-emerald-300 border-emerald-600/50'
+                        };
+                        const badgeClass = statusColors[po.status] || 'bg-slate-800 text-slate-300 border-slate-700';
+
+                        // Calculate total item count
+                        const totalUnits = (po.items_json || []).reduce((acc, it) => acc + (it.qty || 1), 0);
+                        const itemsSummary = (po.items_json || []).map(it => `${it.qty}x ${it.name}`).join(", ");
+
+                        // Shipment Card Section
+                        let shipmentHtml = "";
+                        if (po.shipments && po.shipments.length > 0) {
+                            const sh = po.shipments[0];
+                            const stages = [
+                                { id: 'label_created', label: 'Label Created' },
+                                { id: 'picked_up', label: 'Picked Up' },
+                                { id: 'in_transit', label: 'In Transit' },
+                                { id: 'out_for_delivery', label: 'Out for Delivery' },
+                                { id: 'delivered', label: 'Delivered' }
+                            ];
+                            const stageIds = stages.map(s => s.id);
+                            const currentIdx = stageIds.indexOf(sh.current_status);
+
+                            // Stepper HTML
+                            let stepsHtml = "";
+                            stages.forEach((s, idx) => {
+                                const isDone = idx <= currentIdx;
+                                const isCurrent = idx === currentIdx;
+                                const dotBg = isDone ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-500 border border-slate-700';
+                                const lineBg = idx < currentIdx ? 'bg-emerald-500' : 'bg-slate-800';
+                                
+                                stepsHtml += `
+                                    <div class="flex-1 flex flex-col items-center relative">
+                                        ${idx > 0 ? `<div class="absolute top-3 right-1/2 w-full h-0.5 ${lineBg} -z-0"></div>` : ''}
+                                        <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold z-10 ${dotBg} ${isCurrent && !isDelivered ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900 animate-pulse' : ''}">
+                                            ${isDone ? '<i class="fa-solid fa-check"></i>' : (idx + 1)}
+                                        </div>
+                                        <span class="text-[10px] mt-1 text-center font-medium ${isDone ? 'text-emerald-300 font-bold' : 'text-slate-500'}">${s.label}</span>
+                                    </div>
+                                `;
+                            });
+
+                            // Events log list
+                            let eventsHtml = "";
+                            (sh.history_events || []).forEach(ev => {
+                                eventsHtml += `
+                                    <div class="text-[10px] text-slate-400 flex items-start gap-2 border-l border-slate-700 pl-2 py-0.5">
+                                        <span class="text-slate-500 font-mono">${new Date(ev.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                        <span class="font-semibold text-slate-300">${escapeHtml(ev.location)}:</span>
+                                        <span class="text-slate-400">${escapeHtml(ev.description)}</span>
+                                    </div>
+                                `;
+                            });
+
+                            shipmentHtml = `
+                                <div class="mt-3 p-3 rounded-xl bg-slate-950/80 border border-slate-700/60 space-y-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 flex items-center gap-1">
+                                                <i class="fa-solid fa-truck"></i> ${escapeHtml(sh.carrier)}
+                                            </span>
+                                            <a href="${escapeHtml(sh.tracking_url || '#')}" target="_blank" class="font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-bold">
+                                                ${escapeHtml(sh.tracking_number)} <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                            </a>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            ${!isDelivered ? `
+                                                <button onclick="advanceShipmentMilestone('${sh.id}')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded text-[11px] transition flex items-center gap-1 cursor-pointer">
+                                                    <i class="fa-solid fa-forward-step"></i> Advance Transit Scan
+                                                </button>
+                                            ` : `
+                                                <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-700/50 flex items-center gap-1">
+                                                    <i class="fa-solid fa-box-archive"></i> In Stock (Warehouse Bay 4)
+                                                </span>
+                                            `}
+                                            <button onclick="openDispatchModal('${po.id}', '${po.po_number}', '${escapeHtml(itemsSummary)}')" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded text-[11px] transition flex items-center gap-1 cursor-pointer">
+                                                <i class="fa-solid fa-paper-plane"></i> Dispatch to Client
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Stepper Progress Bar -->
+                                    <div class="flex items-center justify-between pt-1 pb-1">
+                                        ${stepsHtml}
+                                    </div>
+
+                                    <!-- Recent Milestones Accordion -->
+                                    <div class="space-y-1 pt-1">
+                                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Carrier Activity Log:</span>
+                                        ${eventsHtml}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        const card = document.createElement("div");
+                        card.className = "p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3 shadow-lg hover:border-slate-700 transition";
+                        card.innerHTML = `
+                            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-mono font-bold text-xs">
+                                        <i class="fa-solid fa-receipt"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-mono font-bold text-sm text-slate-100">${escapeHtml(po.po_number)}</span>
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] border ${badgeClass} font-semibold uppercase tracking-wider">${escapeHtml(po.status.replace(/_/g, ' '))}</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">
+                                            Supplier: <strong class="text-slate-200">${escapeHtml(po.supplier_name || 'Vendor')}</strong> • 
+                                            Placed: <span class="text-slate-400">${new Date(po.placed_at).toLocaleDateString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono font-bold text-base text-emerald-400">$${po.total_cost.toFixed(2)}</div>
+                                    <div class="text-[10px] text-slate-400">${totalUnits} Total Units</div>
+                                </div>
+                            </div>
+
+                            ${po.client_sale_order_number ? `
+                                <div class="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-1.5 py-0.5 rounded bg-emerald-900/60 text-emerald-300 font-mono font-bold text-[10px] border border-emerald-600/40">
+                                            <i class="fa-solid fa-tag"></i> Linked Sale: ${escapeHtml(po.client_sale_order_number)}
+                                        </span>
+                                        <span class="text-slate-200 font-semibold">${escapeHtml(po.client_name || 'Client')}</span>
+                                        <span class="text-slate-400 font-mono">($${(po.client_sale_amount || 0).toFixed(2)})</span>
+                                    </div>
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="text-[11px] ${po.destination_type === 'customer_dropship' ? 'text-amber-300 font-semibold' : 'text-slate-400'}">
+                                            <i class="fa-solid ${po.destination_type === 'customer_dropship' ? 'fa-truck-arrow-right text-amber-400' : 'fa-warehouse text-slate-400'}"></i>
+                                            ${po.destination_type === 'customer_dropship' ? 'Direct Drop Ship' : 'Warehouse Restock'}
+                                        </span>
+                                        ${po.profit_margin_dollars !== null && po.profit_margin_dollars !== undefined ? `
+                                            <span class="font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/50 text-[11px]">
+                                                Margin: +$${po.profit_margin_dollars.toFixed(2)} (${po.profit_margin_pct}%)
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${isPending ? `
+                                <div class="p-3 rounded-lg bg-amber-950/60 border border-amber-600/70 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+                                    <div>
+                                        <div class="font-bold text-amber-300 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-shield-halved"></i> High-Spend Protection Hold
+                                        </div>
+                                        <p class="text-slate-300 text-[11px] mt-0.5">${escapeHtml(po.approval_reason || 'Order exceeds auto-purchase budget cap.')}</p>
+                                    </div>
+                                    <button onclick="approvePurchaseOrder('${po.id}')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer shrink-0">
+                                        <i class="fa-solid fa-check"></i> Approve &amp; Execute Order
+                                    </button>
+                                </div>
+                            ` : ''}
+
+                            <!-- Itemized Breakdown -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs text-slate-300 border border-slate-800 rounded">
+                                    <thead class="bg-slate-950 text-slate-400 text-[10px] uppercase font-mono">
+                                        <tr>
+                                            <th class="p-2">SKU</th>
+                                            <th class="p-2">Item Description</th>
+                                            <th class="p-2 text-center">Qty</th>
+                                            <th class="p-2 text-right">Unit Price</th>
+                                            <th class="p-2 text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-800/60 font-sans">
+                                        ${(po.items_json || []).map(it => `
+                                            <tr>
+                                                <td class="p-2 font-mono text-[11px] text-indigo-300">${escapeHtml(it.sku)}</td>
+                                                <td class="p-2 font-medium text-slate-200">${escapeHtml(it.name)}</td>
+                                                <td class="p-2 text-center font-mono">${it.qty}</td>
+                                                <td class="p-2 text-right font-mono">$${(it.unit_cost || 0).toFixed(2)}</td>
+                                                <td class="p-2 text-right font-mono font-bold text-slate-100">$${(it.total || 0).toFixed(2)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            ${shipmentHtml}
+                        `;
+                        container.appendChild(card);
+                    });
+                } catch(e) {
+                    console.error("Error fetching purchase orders:", e);
+                }
+            }
+
+            async function approvePurchaseOrder(poId) {
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/orders/" + poId + "/approve", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        await fetchPurchaseOrders();
+                        await fetchProcurementStats();
+                        fetchAllSalesForFulfillmentSelector();
+                        if (typeof selectedClient !== 'undefined' && selectedClient && selectedClient.id) {
+                            fetchSalesForClient(selectedClient.id);
+                        }
+                        showToast("Purchase Order Approved!", `Order dispatched. Tracking: ${data.carrier} ${data.tracking_number}`, "fa-check", "success");
+                    } else {
+                        const err = await res.json();
+                        alert("Error approving order: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error approving order: " + e.message);
+                }
+            }
+
+            async function advanceShipmentMilestone(trackingId) {
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/shipments/" + trackingId + "/advance", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({})
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        await fetchPurchaseOrders();
+                        await fetchProcurementStats();
+                        fetchAllSalesForFulfillmentSelector();
+                        if (typeof selectedClient !== 'undefined' && selectedClient && selectedClient.id) {
+                            fetchSalesForClient(selectedClient.id);
+                        }
+                        showToast("Carrier Scan Updated", `Milestone reached: ${data.current_status.toUpperCase().replace(/_/g, ' ')} (${data.carrier} ${data.tracking_number})`, "fa-truck-fast", "success");
+                    } else {
+                        const err = await res.json();
+                        alert("Error advancing tracking: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error advancing tracking: " + e.message);
+                }
+            }
+
+            function openDispatchModal(poId, poNumber, itemsSummary) {
+                document.getElementById("dispatch-po-id").value = poId;
+                document.getElementById("dispatch-po-label").innerText = poNumber;
+                document.getElementById("dispatch-items-label").innerText = itemsSummary;
+
+                // Populate client select
+                const sel = document.getElementById("dispatch-client-select");
+                sel.innerHTML = '<option value="">Select Client Account (Autofills Destination)...</option>';
+                allClients.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.id;
+                    opt.innerText = `${c.account_name} (${c.account_tier.toUpperCase()})`;
+                    sel.appendChild(opt);
+                });
+
+                document.getElementById("modal-dispatch").classList.remove("hidden");
+            }
+
+            function closeDispatchModal() {
+                document.getElementById("modal-dispatch").classList.add("hidden");
+            }
+
+            function populateClientAddress(clientId) {
+                if (!clientId) return;
+                const client = allClients.find(c => c.id === clientId);
+                if (client && client.company && client.company.address) {
+                    document.getElementById("dispatch-address").value = client.company.address;
+                } else if (client) {
+                    document.getElementById("dispatch-address").value = `${client.account_name} Receiving Facility, Dock 2`;
+                }
+            }
+
+            async function handleDispatchShipment(e) {
+                e.preventDefault();
+                const poId = document.getElementById("dispatch-po-id").value;
+                const carrier = document.getElementById("dispatch-carrier").value;
+                const dest = document.getElementById("dispatch-address").value;
+
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/shipments/dispatch", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({
+                            purchase_order_id: poId,
+                            carrier: carrier,
+                            destination: dest
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        closeDispatchModal();
+                        await fetchPurchaseOrders();
+                        await fetchProcurementStats();
+                        showToast("Outbound Shipment Dispatched!", `Carrier ${data.carrier} manifest generated with tracking ${data.tracking_number}.`, "fa-paper-plane", "success");
+                    } else {
+                        const err = await res.json();
+                        alert("Error dispatching shipment: " + (err.detail || res.statusText));
+                    }
+                } catch(err) {
+                    alert("Error dispatching shipment: " + err.message);
                 }
             }
 
