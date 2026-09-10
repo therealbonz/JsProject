@@ -152,6 +152,10 @@ class ClientAccount(Base, CommonMixin, TenantMixin):
     auto_charge_limit = Column(Float, nullable=True)
     payment_method_type = Column(String(50), default="card", nullable=False)
 
+    # Customer Self-Service Portal Access Token
+    portal_access_token = Column(String(100), unique=True, index=True, nullable=True)
+    portal_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     company = relationship("Company")
     primary_contact = relationship("Contact")

@@ -328,6 +328,7 @@ class ClientAccountResponse(BaseModel):
     auto_charge_enabled: bool = False
     auto_charge_limit: Optional[float] = None
     payment_method_type: Optional[str] = "card"
+    portal_access_token: Optional[str] = None
     created_at: datetime
     company: Optional[CompanyResponse] = None
     primary_contact: Optional[ContactResponse] = None

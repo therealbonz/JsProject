@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -83,7 +83,9 @@ async def lifespan(app: FastAPI):
                     ("card_last4", "VARCHAR(10)"),
                     ("auto_charge_enabled", "BOOLEAN DEFAULT 0"),
                     ("auto_charge_limit", "FLOAT"),
-                    ("payment_method_type", "VARCHAR(50) DEFAULT 'card'")
+                    ("payment_method_type", "VARCHAR(50) DEFAULT 'card'"),
+                    ("portal_access_token", "VARCHAR(100)"),
+                    ("portal_token_expires_at", "DATETIME")
                 ]
                 for col_name, col_type in client_cols:
                     if col_name not in cols:
@@ -124,6 +126,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(replenishments.router, prefix=prefix)
     app.include_router(organization_settings.router, prefix=prefix)
     app.include_router(documents.router, prefix=prefix)
+    app.include_router(customer_portal.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -640,6 +643,604 @@ async def customer_checkout_portal(session_id: str):
     """
     safe_session = html_lib.escape(session_id)
     return HTMLResponse(content=html.replace("{session_id}", safe_session))
+
+@app.get("/portal/{token}", response_class=HTMLResponse)
+@app.get("/JsProject/portal/{token}", response_class=HTMLResponse)
+async def customer_portal_page(token: str):
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Customer Account &amp; Replenishment Portal</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    </head>
+    <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 md:p-8">
+        <div class="w-full max-w-5xl space-y-6">
+            <!-- Header Card -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div id="brand-logo-container" class="h-12 w-12 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xl shadow-lg shrink-0 overflow-hidden">
+                        <i class="fa-solid fa-cube" id="brand-default-icon"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 id="brand-name" class="font-black text-xl text-white tracking-wide">Customer Account Portal</h1>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50">SECURE ACCESS</span>
+                        </div>
+                        <p id="portal-subheading" class="text-xs text-slate-400 mt-0.5">Enterprise Automated Replenishment &amp; Commercial Billing Hub</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div id="account-name" class="font-bold text-base text-slate-100">Loading Account...</div>
+                    <div id="contact-info" class="text-xs text-slate-400 mt-0.5">—</div>
+                </div>
+            </div>
+
+            <!-- Restock Cadence Hero Banner -->
+            <div class="bg-gradient-to-r from-indigo-950/70 via-slate-900 to-amber-950/60 border border-indigo-500/30 rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <h2 class="font-bold text-lg text-white">Automated Restock &amp; Inventory Replenishment</h2>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Autonomous cadence monitoring ensures your facility never encounters unexpected supply stockouts.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="accelerateRestock()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer">
+                            <i class="fa-solid fa-bolt text-amber-300"></i> Ship Restock Now
+                        </button>
+                        <button onclick="snoozeRestock(14)" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-clock-rotate-left text-amber-400"></i> Snooze 14 Days
+                        </button>
+                        <button onclick="openCadenceModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-calendar-days text-indigo-400"></i> Adjust Cadence
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-4">
+                        <span class="text-[11px] text-slate-400">Next Estimated Restock</span>
+                        <div id="stat-next-date" class="font-bold text-base text-amber-300 font-mono mt-1">—</div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-4">
+                        <span class="text-[11px] text-slate-400">Schedule Status</span>
+                        <div id="stat-status-badge" class="font-bold text-base text-emerald-400 font-mono mt-1">—</div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-4">
+                        <span class="text-[11px] text-slate-400">Reorder Frequency</span>
+                        <div id="stat-cadence-days" class="font-bold text-base text-indigo-300 font-mono mt-1">30 Days</div>
+                    </div>
+                    <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-4">
+                        <span class="text-[11px] text-slate-400">Account Tier</span>
+                        <div id="stat-account-tier" class="font-bold text-base text-purple-300 font-mono mt-1 uppercase">STANDARD</div>
+                    </div>
+                </div>
+
+                <div id="pending-proposal-banner" class="hidden bg-amber-950/50 border border-amber-500/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-bell text-amber-400 text-xl"></i>
+                        <div>
+                            <div class="font-bold text-sm text-amber-200" id="proposal-title">Scheduled Restock Order Prepared</div>
+                            <div class="text-xs text-amber-300/80 mt-0.5" id="proposal-items">—</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-amber-300 text-sm" id="proposal-amount">$0.00</span>
+                        <a id="proposal-pay-btn" href="#" target="_blank" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition">
+                            <i class="fa-brands fa-stripe"></i> Pay Online
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Strip: Card on File & Delivery Address -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Stored Payment Method Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2 text-indigo-400">
+                            <i class="fa-solid fa-credit-card"></i>
+                            <h3 class="font-bold text-sm text-slate-100">Payment Method on File</h3>
+                        </div>
+                        <span id="card-auto-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">No Card</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-2xl text-slate-300" id="card-brand-icon">
+                            <i class="fa-regular fa-credit-card"></i>
+                        </div>
+                        <div>
+                            <div class="font-mono font-bold text-sm text-slate-100" id="card-display-text">No Payment Method Stored</div>
+                            <div class="text-xs text-slate-400 mt-0.5" id="card-subtext">Add a corporate credit card for hands-free automated restock billing.</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                        <span class="text-slate-400" id="card-limit-text">Safety Spend Cap: None</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openCardModal()" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded text-xs flex items-center gap-1 cursor-pointer transition">
+                                <i class="fa-solid fa-pen-to-square"></i> <span id="btn-card-action-text">Add Card</span>
+                            </button>
+                            <button id="btn-detach-card" onclick="detachCard()" class="hidden px-2.5 py-1.5 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Receiving Dock & Delivery Address Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2 text-amber-400">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <h3 class="font-bold text-sm text-slate-100">Receiving Dock &amp; Delivery Site</h3>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">VERIFIED HUB</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-amber-400 text-lg shrink-0 mt-0.5">
+                            <i class="fa-solid fa-warehouse"></i>
+                        </div>
+                        <div class="text-xs space-y-1">
+                            <div class="font-bold text-slate-200" id="delivery-company-name">—</div>
+                            <div class="text-slate-400" id="delivery-address-text">—</div>
+                            <div class="text-slate-500 text-[11px] pt-1" id="delivery-contact-line">Receiving Lead: —</div>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-slate-800/80 text-[11px] text-slate-500 flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-emerald-400"></i> Standard freight carrier appointments dispatched automatically.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders, Invoices & Telemetry History Ledger -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-receipt text-base"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Orders, Commercial Invoices &amp; Tracking History</h3>
+                    </div>
+                    <span id="sales-count-badge" class="text-xs font-mono text-slate-400">0 Orders</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                <th class="pb-2.5 font-medium">Date</th>
+                                <th class="pb-2.5 font-medium">Order #</th>
+                                <th class="pb-2.5 font-medium">Items Summary</th>
+                                <th class="pb-2.5 font-medium">Payment</th>
+                                <th class="pb-2.5 font-medium">Fulfillment &amp; Carrier</th>
+                                <th class="pb-2.5 font-medium">Documents</th>
+                                <th class="pb-2.5 font-medium text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-table-body" class="divide-y divide-slate-800/60">
+                            <tr>
+                                <td colspan="7" class="py-6 text-center text-slate-500 italic">Loading order history...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center py-4 text-xs text-slate-500 space-y-1">
+                <div id="footer-brand-text">Enterprise Automated Restock &amp; Supply Chain Portal</div>
+                <div class="flex items-center justify-center gap-3 text-[11px] text-slate-400 pt-1">
+                    <span id="footer-support-email"><i class="fa-solid fa-envelope mr-1"></i>support@therealbonz.com</span>
+                    <span>&bull;</span>
+                    <span id="footer-support-phone"><i class="fa-solid fa-phone mr-1"></i>+1 (800) 555-0199</span>
+                    <span>&bull;</span>
+                    <span><i class="fa-solid fa-lock text-emerald-400 mr-1"></i>256-Bit Encrypted Portal</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Update Card on File -->
+        <div id="modal-card" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-credit-card text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Corporate Card Authorization</h3>
+                    </div>
+                    <button onclick="closeCardModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form id="form-card" onsubmit="handleSaveCard(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Card Brand</label>
+                        <select id="modal-card-brand" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100">
+                            <option value="visa" selected>Visa Commercial</option>
+                            <option value="mastercard">Mastercard Corporate</option>
+                            <option value="amex">American Express Corporate</option>
+                            <option value="discover">Discover</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Last 4 Digits</label>
+                        <input id="modal-card-last4" type="text" maxlength="4" pattern="[0-9]{4}" required value="4242" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 font-mono">
+                    </div>
+                    <div class="pt-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input id="modal-card-auto" type="checkbox" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-700">
+                            <span class="text-slate-200 font-semibold">Authorize Automatic Settlement on Cadence Restock</span>
+                        </label>
+                        <p class="text-[11px] text-slate-400 ml-6 mt-0.5">Recurring restocks trigger immediate order dispatch without manual paperwork.</p>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Safety Spend Ceiling ($) (Optional)</label>
+                        <input id="modal-card-limit" type="number" step="1" min="1" placeholder="Leave blank for unlimited" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 font-mono">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        <button type="button" onclick="closeCardModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold cursor-pointer">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer">
+                            <i class="fa-solid fa-lock"></i> Save Payment Method
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Adjust Restock Cadence -->
+        <div id="modal-cadence" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-calendar-days text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Adjust Reorder Frequency</h3>
+                    </div>
+                    <button onclick="closeCadenceModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form onsubmit="handleSaveCadence(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Restock Cycle (Days)</label>
+                        <select id="modal-cadence-select" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100">
+                            <option value="7">Weekly (7 Days)</option>
+                            <option value="14">Bi-Weekly (14 Days)</option>
+                            <option value="21">Every 3 Weeks (21 Days)</option>
+                            <option value="30" selected>Monthly (30 Days)</option>
+                            <option value="45">Every 45 Days</option>
+                            <option value="60">Bi-Monthly (60 Days)</option>
+                            <option value="90">Quarterly (90 Days)</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        <button type="button" onclick="closeCadenceModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold cursor-pointer">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold cursor-pointer">Update Cadence</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            const PORTAL_TOKEN = "{token}";
+            const SUB_PATH = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
+            const API_BASE = SUB_PATH + "/api/v1";
+
+            let portalData = null;
+
+            async function loadPortal() {
+                try {
+                    const res = await fetch(`${API_BASE}/portal/session/${PORTAL_TOKEN}`);
+                    if (!res.ok) {
+                        document.body.innerHTML = `
+                            <div class="min-h-screen flex flex-col items-center justify-center p-4 text-center">
+                                <div class="w-16 h-16 rounded-2xl bg-rose-950 border border-rose-700/60 flex items-center justify-center text-rose-400 text-2xl mb-4">
+                                    <i class="fa-solid fa-link-slash"></i>
+                                </div>
+                                <h1 class="text-xl font-bold text-white mb-1">Access Link Expired or Invalid</h1>
+                                <p class="text-xs text-slate-400 max-w-sm">This customer portal access token is invalid or has been revoked. Please contact your account executive for a renewed link.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    portalData = await res.json();
+                    renderPortal(portalData);
+                } catch(e) {
+                    console.error("Error loading portal:", e);
+                }
+            }
+
+            function renderPortal(data) {
+                const { tenant, account, payment_method, pending_replenishment, sales_ledger } = data;
+
+                // Brand
+                document.getElementById("brand-name").innerText = tenant.brand_name || "Customer Account Portal";
+                if (tenant.brand_logo_url) {
+                    document.getElementById("brand-logo-container").innerHTML = `<img src="${tenant.brand_logo_url}" class="h-full w-full object-contain p-1" alt="Logo">`;
+                }
+                document.getElementById("footer-brand-text").innerText = tenant.custom_footer_text || `${tenant.brand_name} • B2B Supply Chain & Replenishment Portal`;
+                document.getElementById("footer-support-email").innerHTML = `<i class="fa-solid fa-envelope mr-1"></i>${tenant.support_email || 'support@therealbonz.com'}`;
+                document.getElementById("footer-support-phone").innerHTML = `<i class="fa-solid fa-phone mr-1"></i>${tenant.support_phone || '+1 (800) 555-0199'}`;
+
+                // Account
+                document.getElementById("account-name").innerText = account.account_name;
+                document.getElementById("contact-info").innerText = `${account.contact_name} • ${account.contact_email || ''}`;
+                document.getElementById("stat-account-tier").innerText = account.account_tier || 'STANDARD';
+                document.getElementById("stat-cadence-days").innerText = `${account.reorder_cadence_days} Days`;
+                document.getElementById("modal-cadence-select").value = String(account.reorder_cadence_days);
+
+                // Cadence Stats
+                if (account.next_reorder_date) {
+                    const d = new Date(account.next_reorder_date);
+                    document.getElementById("stat-next-date").innerText = d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+                } else {
+                    document.getElementById("stat-next-date").innerText = "—";
+                }
+
+                const days = account.days_until_reorder;
+                const statusBadge = document.getElementById("stat-status-badge");
+                if (days !== null) {
+                    if (days <= 0) {
+                        statusBadge.className = "font-bold text-base text-rose-400 font-mono mt-1";
+                        statusBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i>Due Today`;
+                    } else if (days <= 7) {
+                        statusBadge.className = "font-bold text-base text-amber-300 font-mono mt-1";
+                        statusBadge.innerHTML = `<i class="fa-solid fa-hourglass-half mr-1"></i>${days} Days Left`;
+                    } else {
+                        statusBadge.className = "font-bold text-base text-emerald-400 font-mono mt-1";
+                        statusBadge.innerHTML = `<i class="fa-solid fa-calendar-check mr-1"></i>In ${days} Days`;
+                    }
+                } else {
+                    statusBadge.innerText = "Scheduled";
+                }
+
+                // Proposal
+                const propBanner = document.getElementById("pending-proposal-banner");
+                if (pending_replenishment) {
+                    propBanner.classList.remove("hidden");
+                    document.getElementById("proposal-title").innerText = `Restock Order #${pending_replenishment.order_number} Prepared`;
+                    document.getElementById("proposal-items").innerText = pending_replenishment.items_summary;
+                    document.getElementById("proposal-amount").innerText = "$" + Number(pending_replenishment.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const payUrl = pending_replenishment.checkout_url.startsWith("http") ? pending_replenishment.checkout_url : (SUB_PATH + pending_replenishment.checkout_url);
+                    document.getElementById("proposal-pay-btn").href = payUrl;
+                } else {
+                    propBanner.classList.add("hidden");
+                }
+
+                // Payment Method
+                const cardBadge = document.getElementById("card-auto-badge");
+                const cardText = document.getElementById("card-display-text");
+                const cardSubtext = document.getElementById("card-subtext");
+                const cardLimit = document.getElementById("card-limit-text");
+                const btnCardAction = document.getElementById("btn-card-action-text");
+                const btnDetach = document.getElementById("btn-detach-card");
+
+                if (payment_method.has_payment_method_on_file) {
+                    const brand = (payment_method.card_brand || "CARD").toUpperCase();
+                    const last4 = payment_method.card_last4 || "••••";
+                    const isAuto = payment_method.auto_charge_enabled;
+                    cardBadge.className = isAuto
+                        ? "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-600/60"
+                        : "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-600/60";
+                    cardBadge.innerText = isAuto ? "AUTO-BILLING ACTIVE" : "AUTO-BILLING PAUSED";
+                    cardText.innerText = `${brand} ending in ${last4}`;
+                    cardSubtext.innerText = isAuto
+                        ? "Authorized for hands-free settlement when cadence restocks trigger."
+                        : "Card stored on file; auto-billing currently paused.";
+                    cardLimit.innerText = payment_method.auto_charge_limit
+                        ? `Safety Spend Ceiling: $${Number(payment_method.auto_charge_limit).toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                        : "Safety Spend Ceiling: Unlimited";
+                    btnCardAction.innerText = "Update Card";
+                    btnDetach.classList.remove("hidden");
+                } else {
+                    cardBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700";
+                    cardBadge.innerText = "No Card Stored";
+                    cardText.innerText = "No Corporate Card Stored";
+                    cardSubtext.innerText = "Authorize a card on file to enable hands-free automated replenishment.";
+                    cardLimit.innerText = "Safety Spend Ceiling: None";
+                    btnCardAction.innerText = "Add Card";
+                    btnDetach.classList.add("hidden");
+                }
+
+                // Delivery Site
+                document.getElementById("delivery-company-name").innerText = account.company_name;
+                document.getElementById("delivery-address-text").innerText = account.delivery_address;
+                document.getElementById("delivery-contact-line").innerText = `Receiving Contact: ${account.contact_name} (${account.contact_phone || 'Direct Line'})`;
+
+                // Ledger
+                document.getElementById("sales-count-badge").innerText = `${sales_ledger.length} Order${sales_ledger.length === 1 ? '' : 's'}`;
+                const tbody = document.getElementById("sales-table-body");
+                tbody.innerHTML = "";
+
+                if (!sales_ledger.length) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-500 italic">No past transactions found. Your next scheduled delivery will appear here upon creation.</td></tr>`;
+                    return;
+                }
+
+                sales_ledger.forEach(s => {
+                    const tr = document.createElement("tr");
+                    tr.className = "hover:bg-slate-900/60 transition";
+                    const saleDate = s.sale_date ? new Date(s.sale_date).toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'}) : '—';
+                    const amt = "$" + (s.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const isPaid = s.payment_status === 'paid';
+
+                    let carrierHtml = `<span class="text-slate-500">Pending Dispatch</span>`;
+                    if (s.tracking_number) {
+                        const trackUrl = SUB_PATH + s.tracking_url;
+                        carrierHtml = `
+                            <div>
+                                <span class="font-bold text-cyan-400">${escapeHtml(s.carrier || 'Carrier')}:</span>
+                                <a href="${trackUrl}" target="_blank" class="text-cyan-300 font-mono hover:underline font-semibold">${escapeHtml(s.tracking_number)}</a>
+                                <div class="text-[10px] text-slate-400 uppercase">${escapeHtml(s.shipping_status || 'in_transit')}</div>
+                            </div>
+                        `;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="py-3 text-slate-400 font-mono whitespace-nowrap">${saleDate}</td>
+                        <td class="py-3 whitespace-nowrap">
+                            <span class="font-mono text-indigo-300 font-bold">${escapeHtml(s.order_number)}</span>
+                        </td>
+                        <td class="py-3 text-slate-200">
+                            <div class="font-medium max-w-xs">${escapeHtml(s.items_summary)}</div>
+                        </td>
+                        <td class="py-3 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isPaid ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/50' : 'bg-amber-950 text-amber-300 border border-amber-700/50'}">${isPaid ? '✓ PAID' : 'UNPAID'}</span>
+                        </td>
+                        <td class="py-3 whitespace-nowrap">${carrierHtml}</td>
+                        <td class="py-3 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <a href="${SUB_PATH}${s.invoice_url}" target="_blank" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-file-invoice"></i> Invoice
+                                </a>
+                                <span class="text-slate-600">&bull;</span>
+                                <a href="${SUB_PATH}${s.packing_slip_url}" target="_blank" class="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-box-open"></i> Slip
+                                </a>
+                            </div>
+                        </td>
+                        <td class="py-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">${amt}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function openCardModal() {
+                if (portalData && portalData.payment_method) {
+                    const pm = portalData.payment_method;
+                    if (pm.card_brand) document.getElementById("modal-card-brand").value = pm.card_brand.toLowerCase();
+                    if (pm.card_last4) document.getElementById("modal-card-last4").value = pm.card_last4;
+                    document.getElementById("modal-card-auto").checked = pm.auto_charge_enabled;
+                    document.getElementById("modal-card-limit").value = pm.auto_charge_limit || "";
+                }
+                document.getElementById("modal-card").classList.remove("hidden");
+            }
+
+            function closeCardModal() {
+                document.getElementById("modal-card").classList.add("hidden");
+            }
+
+            async function handleSaveCard(e) {
+                e.preventDefault();
+                const brand = document.getElementById("modal-card-brand").value;
+                const last4 = document.getElementById("modal-card-last4").value;
+                const isAuto = document.getElementById("modal-card-auto").checked;
+                const limitVal = document.getElementById("modal-card-limit").value;
+                const limit = limitVal ? parseFloat(limitVal) : null;
+
+                try {
+                    const res = await fetch(`${API_BASE}/portal/session/${PORTAL_TOKEN}/payment-method`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            card_brand: brand,
+                            card_last4: last4,
+                            enable_auto_charge: isAuto,
+                            auto_charge_limit: limit
+                        })
+                    });
+                    if (res.ok) {
+                        closeCardModal();
+                        await loadPortal();
+                    } else {
+                        const err = await res.json();
+                        alert("Error updating payment method: " + (err.detail || res.statusText));
+                    }
+                } catch(err) {
+                    alert("Error: " + err.message);
+                }
+            }
+
+            async function detachCard() {
+                if (!confirm("Are you sure you want to remove your card on file? Automatic replenishment settlements will be paused.")) return;
+                try {
+                    const res = await fetch(`${API_BASE}/portal/session/${PORTAL_TOKEN}/payment-method`, {
+                        method: "DELETE"
+                    });
+                    if (res.ok) {
+                        await loadPortal();
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function openCadenceModal() {
+                document.getElementById("modal-cadence").classList.remove("hidden");
+            }
+
+            function closeCadenceModal() {
+                document.getElementById("modal-cadence").classList.add("hidden");
+            }
+
+            async function handleSaveCadence(e) {
+                e.preventDefault();
+                const days = parseInt(document.getElementById("modal-cadence-select").value);
+                try {
+                    const res = await fetch(`${API_BASE}/portal/session/${PORTAL_TOKEN}/cadence`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ reorder_cadence_days: days })
+                    });
+                    if (res.ok) {
+                        closeCadenceModal();
+                        await loadPortal();
+                    } else {
+                        const err = await res.json();
+                        alert("Error updating cadence: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function snoozeRestock(days) {
+                if (!confirm(`Push scheduled restock delivery date forward by ${days} days?`)) return;
+                try {
+                    const res = await fetch(`${API_BASE}/portal/session/${PORTAL_TOKEN}/cadence`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ snooze_days: days })
+                    });
+                    if (res.ok) {
+                        await loadPortal();
+                    } else {
+                        const err = await res.json();
+                        alert("Error snoozing restock: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function accelerateRestock() {
+                if (!confirm("Initiate restock order immediately? If you have auto-billing authorized, payment and autonomous supplier dispatch will trigger right now.")) return;
+                try {
+                    const res = await fetch(`${API_BASE}/portal/session/${PORTAL_TOKEN}/accelerate-restock`, {
+                        method: "POST"
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        alert(data.message);
+                        await loadPortal();
+                    } else {
+                        const err = await res.json();
+                        alert("Error processing restock: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.innerText = str;
+                return div.innerHTML;
+            }
+
+            loadPortal();
+        </script>
+    </body>
+    </html>
+    """
+    safe_token = html_lib.escape(token)
+    return HTMLResponse(content=html.replace("{token}", safe_token))
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/JsProject", response_class=HTMLResponse)
@@ -1306,6 +1907,9 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             <div class="flex items-center gap-2">
                                 <button id="btn-trigger-replenishment" onclick="triggerClientReplenishmentProposal()" disabled class="py-2 px-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-md cursor-pointer" title="Generate an autonomous restock proposal with Stripe checkout link">
                                     <i class="fa-solid fa-rotate text-amber-200"></i> Restock Proposal
+                                </button>
+                                <button id="btn-portal-link" onclick="openClientPortalLink()" disabled class="py-2 px-3 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/60 disabled:bg-slate-800 disabled:text-slate-600 text-cyan-300 rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-md cursor-pointer" title="Open or copy customer self-service portal link">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-cyan-300"></i> Customer Portal
                                 </button>
                                 <button id="btn-toggle-sale" onclick="toggleLogSaleForm()" disabled class="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-2 shadow-md">
                                     <i class="fa-solid fa-plus-circle"></i> Log New Sale / Order
@@ -3416,6 +4020,8 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 document.getElementById("btn-toggle-sale").disabled = false;
                 const btnReplenish = document.getElementById("btn-trigger-replenishment");
                 if (btnReplenish) btnReplenish.disabled = false;
+                const btnPortal = document.getElementById("btn-portal-link");
+                if (btnPortal) btnPortal.disabled = false;
                 document.getElementById("btn-save-client-notes").disabled = false;
 
                 // Fetch sales for this client
@@ -3795,6 +4401,27 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     alert("Error: " + e.message);
                 } finally {
                     if (btn) btn.disabled = false;
+                }
+            }
+
+            async function openClientPortalLink() {
+                if (!selectedClient) return;
+                try {
+                    const res = await fetch(API_BASE + "/crm/clients/" + selectedClient.id + "/portal-link", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const fullUrl = data.portal_path.startsWith("http") ? data.portal_path : (SUB_PATH + data.portal_path);
+                        showToast("Customer Portal Ready", `Opening self-service portal for ${selectedClient.account_name}`, "fa-arrow-up-right-from-square", "info");
+                        window.open(fullUrl, "_blank");
+                    } else {
+                        const err = await res.json();
+                        alert("Error retrieving portal link: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
                 }
             }
 
