@@ -31,6 +31,7 @@ class Organization(Base, CommonMixin):
     sendgrid_api_key = Column(String(100), nullable=True)
     email_from_address = Column(String(255), nullable=True)
     email_from_name = Column(String(255), nullable=True)
+    default_commission_rate = Column(Float, default=10.0, nullable=False)
 
     # Relationships
     memberships = relationship("OrganizationMembership", back_populates="organization", cascade="all, delete-orphan")
@@ -57,6 +58,7 @@ class OrganizationMembership(Base, CommonMixin, TenantMixin):
 
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(50), default="sales_rep", nullable=False)  # super_admin, admin, sales_manager, sales_rep, viewer
+    commission_rate_pct = Column(Float, default=10.0, nullable=False)
 
     # Relationships
     organization = relationship("Organization", back_populates="memberships")

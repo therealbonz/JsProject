@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -40,7 +40,8 @@ async def lifespan(app: FastAPI):
                     ("twilio_from_number", "VARCHAR(50)"),
                     ("sendgrid_api_key", "VARCHAR(100)"),
                     ("email_from_address", "VARCHAR(255)"),
-                    ("email_from_name", "VARCHAR(255)")
+                    ("email_from_name", "VARCHAR(255)"),
+                    ("default_commission_rate", "FLOAT DEFAULT 10.0")
                 ]
                 for col_name, col_type in org_cols:
                     if col_name not in cols:
@@ -109,6 +110,10 @@ async def lifespan(app: FastAPI):
                 for col_name, col_type in audit_cols:
                     if col_name not in cols:
                         sync_conn.execute(text(f"ALTER TABLE audit_logs ADD COLUMN {col_name} {col_type}"))
+            if "organization_memberships" in tables:
+                cols = [c["name"] for c in inspector.get_columns("organization_memberships")]
+                if "commission_rate_pct" not in cols:
+                    sync_conn.execute(text("ALTER TABLE organization_memberships ADD COLUMN commission_rate_pct FLOAT DEFAULT 10.0"))
         await conn.run_sync(migrate_sqlite_columns)
     logger.info("Database initialized successfully.")
     yield
@@ -149,6 +154,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(forecasting.router, prefix=prefix)
     app.include_router(saas_licenses.router, prefix=prefix)
     app.include_router(team.router, prefix=prefix)
+    app.include_router(executive_analytics.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1405,6 +1411,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-users-gear text-emerald-400"></i>
                         <span>👥 CRM 6: Team &amp; Audit Security</span>
                         <span id="nav-badge-team" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/80 text-emerald-300 font-mono border border-emerald-700/50">1</span>
+                    </button>
+                    <button id="tab-financials" onclick="switchCrmMode('financials')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-scale-balanced text-amber-400"></i>
+                        <span>📊 CRM 7: Executive Financials</span>
+                        <span id="nav-badge-financials" class="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/80 text-amber-300 font-mono border border-amber-700/50">Live</span>
                     </button>
                 </div>
 
@@ -3523,6 +3534,183 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             </div>
         </div>
 
+        <!-- ============================================================================== -->
+        <!-- CRM 7: Executive Financials & Reconciliation View -->
+        <!-- ============================================================================== -->
+        <div id="view-financials" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-amber-950/60 via-slate-900 to-indigo-950/60 border border-amber-500/40 rounded-2xl p-6 shadow-2xl space-y-4 ring-1 ring-amber-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-amber-600/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/20 shrink-0">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-black text-white tracking-wide">CRM 7: Executive Financials &amp; Reconciliation</h2>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800/50 uppercase tracking-wider font-mono">Executive Intelligence</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">Real-time SaaS recurring revenue (MRR/ARR), supplier COGS, gross/net margins, sales commissions, and RFC 4180 reconciliation.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <button onclick="exportReconciliationCsv()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-file-csv text-amber-400"></i> Export Reconciliation (CSV)
+                        </button>
+                        <button onclick="fetchExecutiveFinancials()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5 Executive KPI Metric Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Monthly Recurring (MRR)</span>
+                            <i class="fa-solid fa-repeat text-cyan-400"></i>
+                        </div>
+                        <div id="fin-kpi-mrr" class="text-xl font-black text-cyan-400 font-mono">$0.00</div>
+                        <div class="text-[11px] text-slate-400">
+                            ARR: <span id="fin-kpi-arr" class="text-slate-200 font-mono font-bold">$0.00</span> • ARPU: <span id="fin-kpi-arpu" class="text-slate-200 font-mono">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Collected Revenue</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-emerald-400"></i>
+                        </div>
+                        <div id="fin-kpi-revenue" class="text-xl font-black text-emerald-400 font-mono">$0.00</div>
+                        <div class="text-[11px] text-slate-400">
+                            Unpaid: <span id="fin-kpi-unpaid" class="text-amber-400 font-mono font-bold">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Supplier COGS</span>
+                            <i class="fa-solid fa-truck-ramp-box text-rose-400"></i>
+                        </div>
+                        <div id="fin-kpi-cogs" class="text-xl font-black text-rose-400 font-mono">$0.00</div>
+                        <div class="text-[11px] text-slate-400">
+                            Gross: <span id="fin-kpi-gross-profit" class="text-emerald-300 font-mono font-bold">$0.00</span> (<span id="fin-kpi-gross-margin" class="text-emerald-400 font-bold">0%</span>)
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Rep Commissions</span>
+                            <i class="fa-solid fa-user-tag text-purple-400"></i>
+                        </div>
+                        <div id="fin-kpi-commissions" class="text-xl font-black text-purple-400 font-mono">$0.00</div>
+                        <div class="text-[11px] text-slate-400">
+                            Liabilities on Paid Deals
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1 col-span-2 lg:col-span-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Net Settlement Margin</span>
+                            <i class="fa-solid fa-chart-pie text-amber-400"></i>
+                        </div>
+                        <div id="fin-kpi-net-settlement" class="text-xl font-black text-amber-400 font-mono">$0.00</div>
+                        <div class="text-[11px] text-slate-400">
+                            Margin: <span id="fin-kpi-net-margin" class="text-amber-300 font-mono font-bold">0%</span> • Risk ARR: <span id="fin-kpi-at-risk" class="text-rose-400 font-mono">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Executive Operations Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left: Multi-Stream Financial Reconciliation Ledger (Col 7) -->
+                <div class="lg:col-span-7 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-receipt text-amber-400"></i>
+                            <h3 class="font-bold text-sm text-slate-100">Financial Reconciliation Statement</h3>
+                            <span id="fin-discrepancy-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">0 Discrepancies</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <input id="fin-filter-start" type="date" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1">
+                            <span class="text-slate-500">to</span>
+                            <input id="fin-filter-end" type="date" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1">
+                            <button onclick="filterReconciliation()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs cursor-pointer">Filter</button>
+                        </div>
+                    </div>
+                    <div id="fin-reconciliation-table-container" class="space-y-2 max-h-[550px] overflow-y-auto pr-1">
+                        <!-- Populated dynamically -->
+                        <div class="p-8 text-center text-slate-500 italic">Loading reconciliation statement...</div>
+                    </div>
+                </div>
+
+                <!-- Right: Sales Rep Commissions & Top Supplier Spend (Col 5) -->
+                <div class="lg:col-span-5 space-y-6">
+                    <!-- Sales Rep Commission Leaderboard -->
+                    <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-trophy text-purple-400"></i>
+                                <h3 class="font-bold text-sm text-slate-100">Rep Commission Leaderboard</h3>
+                            </div>
+                            <span id="fin-total-commissions-label" class="text-xs font-mono font-bold text-purple-300">$0.00 Payable</span>
+                        </div>
+                        <div id="fin-rep-commissions-container" class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                            <!-- Populated dynamically -->
+                            <div class="p-6 text-center text-slate-500 italic">Loading commission rankings...</div>
+                        </div>
+                    </div>
+
+                    <!-- Top Supplier Disbursements Card -->
+                    <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-boxes-packing text-rose-400"></i>
+                                <h3 class="font-bold text-sm text-slate-100">Top Supplier Disbursements (COGS)</h3>
+                            </div>
+                            <span class="text-[10px] text-slate-400 font-mono uppercase">Vendor Breakdown</span>
+                        </div>
+                        <div id="fin-top-suppliers-container" class="space-y-2">
+                            <!-- Populated dynamically -->
+                            <div class="p-4 text-center text-slate-500 italic">No supplier expenses recorded yet.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Edit Rep Commission Rate -->
+        <div id="modal-edit-commission" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-amber-400">
+                        <i class="fa-solid fa-percent text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Update Commission Rate</h3>
+                    </div>
+                    <button onclick="closeEditCommissionModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <input type="hidden" id="edit-comm-user-id">
+                <div class="space-y-3 text-xs">
+                    <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                        <span class="text-slate-400 block text-[11px]">Sales Representative:</span>
+                        <span id="edit-comm-name-display" class="font-bold text-white text-xs"></span>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Commission Rate (%)</label>
+                        <input id="in-edit-comm-rate" type="number" step="0.5" min="0" max="100" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono">
+                        <span class="text-[11px] text-slate-500 mt-1 block">Percentage applied to paid closed client sales.</span>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeEditCommissionModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                    <button onclick="submitEditCommission()" class="py-2 px-3.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> Save Rate
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal: Invite Team Member -->
         <div id="modal-invite-team" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
             <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -4563,12 +4751,14 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 const viewSettings = document.getElementById("view-settings");
                 const viewSaas = document.getElementById("view-saas");
                 const viewTeam = document.getElementById("view-team");
+                const viewFinancials = document.getElementById("view-financials");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
                 const tabSettings = document.getElementById("tab-settings");
                 const tabSaas = document.getElementById("tab-saas");
                 const tabTeam = document.getElementById("tab-team");
+                const tabFinancials = document.getElementById("tab-financials");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -4577,6 +4767,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 if (tabSettings) tabSettings.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabSaas) tabSaas.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabTeam) tabTeam.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabFinancials) tabFinancials.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
@@ -4584,6 +4775,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 if (viewSettings) viewSettings.classList.add("hidden");
                 if (viewSaas) viewSaas.classList.add("hidden");
                 if (viewTeam) viewTeam.classList.add("hidden");
+                if (viewFinancials) viewFinancials.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -4616,6 +4808,12 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchTeamMembers();
                     fetchAuditTrailOverview();
                     fetchAuditTrailLogs();
+                } else if (mode === 'financials') {
+                    if (viewFinancials) viewFinancials.classList.remove("hidden");
+                    if (tabFinancials) tabFinancials.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-amber-600 text-white shadow-md";
+                    fetchExecutiveFinancials();
+                    fetchReconciliationStatement();
+                    fetchRepCommissions();
                 }
             }
 
@@ -7775,6 +7973,247 @@ ${p.ai_drafted_outreach}
                     await fetchPurchaseOrders();
                     await fetchAuditTrailOverview();
                     showToast("ASN Ingested Successfully", `PO #${receipt.po_number} tracking updated to ${receipt.carrier} ${receipt.tracking_number} (${receipt.shipment_status.toUpperCase()}).`, "fa-truck-fast", "success");
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            // ==============================================================================
+            // CRM 7: Executive Financials & Reconciliation Handlers
+            // ==============================================================================
+
+            async function fetchExecutiveFinancials() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/executive/overview", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        if (res.status === 403) {
+                            showToast("Access Restricted", "Executive analytics require Administrator, Sales Manager, or Billing Officer role.", "fa-lock", "warning");
+                        }
+                        return;
+                    }
+                    const data = await res.json();
+                    
+                    document.getElementById("fin-kpi-mrr").innerText = "$" + data.mrr.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-arr").innerText = "$" + data.arr.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-arpu").innerText = "$" + data.arpu.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-revenue").innerText = "$" + data.total_collected_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-unpaid").innerText = "$" + data.total_unpaid_invoiced.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-cogs").innerText = "$" + data.total_supplier_cogs.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-gross-profit").innerText = "$" + data.gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-gross-margin").innerText = data.gross_margin_pct.toFixed(1) + "%";
+                    document.getElementById("fin-kpi-commissions").innerText = "$" + data.total_commissions_earned.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-net-settlement").innerText = "$" + data.net_settlement_margin.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById("fin-kpi-net-margin").innerText = data.net_margin_pct.toFixed(1) + "%";
+                    document.getElementById("fin-kpi-at-risk").innerText = "$" + data.at_risk_arr.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                    // Top suppliers
+                    const supCont = document.getElementById("fin-top-suppliers-container");
+                    if (data.top_supplier_expenses && data.top_supplier_expenses.length > 0) {
+                        supCont.innerHTML = data.top_supplier_expenses.map(s => `
+                            <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                                <div>
+                                    <span class="font-bold text-slate-200 block">${escapeHtml(s.supplier)}</span>
+                                    <span class="text-[10px] text-slate-500">${s.po_count} purchase orders</span>
+                                </div>
+                                <span class="font-mono font-bold text-rose-400">$${s.total_spend.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            </div>
+                        `).join("");
+                    } else {
+                        supCont.innerHTML = `<div class="p-4 text-center text-slate-500 text-xs italic">No supplier expenses recorded yet.</div>`;
+                    }
+                } catch(e) {
+                    console.error("Error fetching executive overview:", e);
+                }
+            }
+
+            async function fetchReconciliationStatement(startDate, endDate) {
+                if (!authToken) return;
+                let url = API_BASE + "/executive/reconciliation";
+                const params = [];
+                if (startDate) params.push("start_date=" + encodeURIComponent(startDate));
+                if (endDate) params.push("end_date=" + encodeURIComponent(endDate));
+                if (params.length > 0) url += "?" + params.join("&");
+
+                try {
+                    const res = await fetch(url, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+
+                    // Discrepancy badge
+                    const badge = document.getElementById("fin-discrepancy-badge");
+                    badge.innerText = data.unsettled_discrepancies_count + " Discrepancies";
+                    if (data.unsettled_discrepancies_count > 0) {
+                        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 font-mono";
+                    } else {
+                        badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono";
+                    }
+
+                    const cont = document.getElementById("fin-reconciliation-table-container");
+                    if (!data.line_items || data.line_items.length === 0) {
+                        cont.innerHTML = `<div class="p-8 text-center text-slate-500 text-xs italic">No transactions recorded in this period.</div>`;
+                        return;
+                    }
+
+                    cont.innerHTML = `
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="text-[10px] text-slate-400 border-b border-slate-800 uppercase tracking-wider font-bold">
+                                    <th class="py-2 px-2">Date</th>
+                                    <th class="py-2 px-2">Type</th>
+                                    <th class="py-2 px-2">Ref #</th>
+                                    <th class="py-2 px-2">Client / Vendor</th>
+                                    <th class="py-2 px-2 text-right">Revenue</th>
+                                    <th class="py-2 px-2 text-right">COGS</th>
+                                    <th class="py-2 px-2 text-right">Comm.</th>
+                                    <th class="py-2 px-2 text-right">Net</th>
+                                    <th class="py-2 px-2 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                ${data.line_items.map(item => {
+                                    let badgeColor = "bg-slate-800 text-slate-300";
+                                    if (item.transaction_type === "client_sale_paid") badgeColor = "bg-emerald-950 text-emerald-300 border border-emerald-800";
+                                    else if (item.transaction_type === "client_sale_invoiced") badgeColor = "bg-amber-950 text-amber-300 border border-amber-800";
+                                    else if (item.transaction_type === "supplier_po_cost") badgeColor = "bg-rose-950 text-rose-300 border border-rose-800";
+                                    else if (item.transaction_type === "rep_commission") badgeColor = "bg-purple-950 text-purple-300 border border-purple-800";
+
+                                    const typeShort = item.transaction_type.replace(/_/g, " ");
+                                    const netColor = item.net_amount > 0 ? "text-emerald-400" : (item.net_amount < 0 ? "text-rose-400" : "text-slate-400");
+
+                                    return `
+                                        <tr class="hover:bg-slate-800/40 transition">
+                                            <td class="py-2 px-2 text-slate-400">${item.date.slice(0, 10)}</td>
+                                            <td class="py-2 px-2">
+                                                <span class="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${badgeColor}">${typeShort}</span>
+                                            </td>
+                                            <td class="py-2 px-2 text-slate-200 font-bold">${escapeHtml(item.reference_id)}</td>
+                                            <td class="py-2 px-2 font-sans text-slate-300 truncate max-w-[120px]">${escapeHtml(item.client_or_vendor)}</td>
+                                            <td class="py-2 px-2 text-right text-emerald-400">${item.revenue > 0 ? "$" + item.revenue.toFixed(2) : "-"}</td>
+                                            <td class="py-2 px-2 text-right text-rose-400">${item.cogs > 0 ? "$" + item.cogs.toFixed(2) : "-"}</td>
+                                            <td class="py-2 px-2 text-right text-purple-400">${item.commission > 0 ? "$" + item.commission.toFixed(2) : "-"}</td>
+                                            <td class="py-2 px-2 text-right font-bold ${netColor}">$${item.net_amount.toFixed(2)}</td>
+                                            <td class="py-2 px-2 text-center">
+                                                <span class="text-[9px] uppercase font-bold text-slate-400">${item.status}</span>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join("")}
+                            </tbody>
+                        </table>
+                    `;
+                } catch(e) {
+                    console.error("Error fetching reconciliation:", e);
+                }
+            }
+
+            function filterReconciliation() {
+                const s = document.getElementById("fin-filter-start").value;
+                const e = document.getElementById("fin-filter-end").value;
+                fetchReconciliationStatement(s, e);
+            }
+
+            function exportReconciliationCsv() {
+                if (!authToken) return;
+                const s = document.getElementById("fin-filter-start").value;
+                const e = document.getElementById("fin-filter-end").value;
+                let url = API_BASE + "/executive/reconciliation/export";
+                const params = [];
+                if (s) params.push("start_date=" + encodeURIComponent(s));
+                if (e) params.push("end_date=" + encodeURIComponent(e));
+                if (params.length > 0) url += "?" + params.join("&");
+                window.open(url, "_blank");
+            }
+
+            async function fetchRepCommissions() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/executive/commissions", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    
+                    document.getElementById("fin-total-commissions-label").innerText = "$" + (data.total_commissions_payable || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " Payable";
+
+                    const cont = document.getElementById("fin-rep-commissions-container");
+                    if (!data.reps || data.reps.length === 0) {
+                        cont.innerHTML = `<div class="p-6 text-center text-slate-500 text-xs italic">No team sales performance recorded.</div>`;
+                        return;
+                    }
+
+                    cont.innerHTML = data.reps.map((rep, idx) => `
+                        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                            <div class="flex items-center gap-2.5">
+                                <div class="h-7 w-7 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/50 flex items-center justify-center text-xs font-bold font-mono">
+                                    #${idx + 1}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-bold text-white">${escapeHtml(rep.full_name)}</span>
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-800 text-slate-400 font-mono">${rep.role}</span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 font-mono">${rep.deals_count} deals closed • $${rep.sales_volume.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} vol</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 shrink-0">
+                                <div class="text-right font-mono">
+                                    <span class="font-bold text-purple-400 block">$${rep.commission_earned.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                    <span class="text-[10px] text-slate-400">${rep.commission_rate_pct}% rate</span>
+                                </div>
+                                <button onclick="openEditCommissionModal('${rep.user_id}', '${escapeHtml(rep.full_name)}', ${rep.commission_rate_pct})" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition cursor-pointer" title="Edit Commission Rate">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join("");
+                } catch(e) {
+                    console.error("Error fetching rep commissions:", e);
+                }
+            }
+
+            function openEditCommissionModal(userId, repName, currentRate) {
+                document.getElementById("edit-comm-user-id").value = userId;
+                document.getElementById("edit-comm-name-display").innerText = repName;
+                document.getElementById("in-edit-comm-rate").value = currentRate;
+                document.getElementById("modal-edit-commission").classList.remove("hidden");
+            }
+
+            function closeEditCommissionModal() {
+                document.getElementById("modal-edit-commission").classList.add("hidden");
+            }
+
+            async function submitEditCommission() {
+                const userId = document.getElementById("edit-comm-user-id").value;
+                const newRate = parseFloat(document.getElementById("in-edit-comm-rate").value);
+                if (isNaN(newRate) || newRate < 0 || newRate > 100) {
+                    alert("Commission rate must be between 0% and 100%.");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(API_BASE + "/executive/commissions/" + userId, {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ commission_rate_pct: newRate })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error updating rate: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    closeEditCommissionModal();
+                    await fetchExecutiveFinancials();
+                    await fetchRepCommissions();
+                    showToast("Commission Rate Updated", `New commission rate set to ${newRate}%.`, "fa-percent", "success");
                 } catch(e) {
                     alert("Error: " + e.message);
                 }
