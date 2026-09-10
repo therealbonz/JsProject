@@ -589,7 +589,9 @@ async def log_client_sale(
 ):
     user, org, _ = tenant_context
 
-    stmt = select(ClientAccount).where(
+    stmt = select(ClientAccount).options(
+        selectinload(ClientAccount.primary_contact)
+    ).where(
         ClientAccount.id == client_id,
         ClientAccount.organization_id == org.id
     )
@@ -610,6 +612,10 @@ async def log_client_sale(
         sale_date=sale_time,
         status=payload.status or "completed",
         payment_method=payload.payment_method or "credit_terms_30",
+        payment_status=payload.payment_status or "unpaid",
+        customer_email=str(payload.customer_email) if payload.customer_email else (client.primary_contact.email if client.primary_contact else None),
+        customer_phone=payload.customer_phone or (client.primary_contact.phone if client.primary_contact else None),
+        auto_fulfill_on_payment=payload.auto_fulfill_on_payment if payload.auto_fulfill_on_payment is not None else True,
         items_summary=payload.items_summary,
         sales_rep_name=payload.sales_rep_name or user.full_name or "Sales Executive",
         notes=payload.notes
@@ -671,6 +677,12 @@ async def list_all_tenant_sales(
             "sale_date": s.sale_date,
             "status": s.status,
             "payment_method": s.payment_method,
+            "payment_status": s.payment_status or "unpaid",
+            "stripe_checkout_url": s.stripe_checkout_url,
+            "stripe_session_id": s.stripe_session_id,
+            "customer_email": s.customer_email,
+            "customer_phone": s.customer_phone,
+            "auto_fulfill_on_payment": s.auto_fulfill_on_payment,
             "items_summary": s.items_summary,
             "sales_rep_name": s.sales_rep_name,
             "notes": s.notes,
@@ -723,6 +735,12 @@ async def list_client_sales(
             "sale_date": s.sale_date,
             "status": s.status,
             "payment_method": s.payment_method,
+            "payment_status": s.payment_status or "unpaid",
+            "stripe_checkout_url": s.stripe_checkout_url,
+            "stripe_session_id": s.stripe_session_id,
+            "customer_email": s.customer_email,
+            "customer_phone": s.customer_phone,
+            "auto_fulfill_on_payment": s.auto_fulfill_on_payment,
             "items_summary": s.items_summary,
             "sales_rep_name": s.sales_rep_name,
             "notes": s.notes,

@@ -218,6 +218,10 @@ class ClientSaleCreate(BaseModel):
     sale_date: Optional[datetime] = None
     status: Optional[str] = "completed"
     payment_method: Optional[str] = "credit_terms_30"
+    payment_status: Optional[str] = "unpaid"
+    customer_email: Optional[EmailStr] = None
+    customer_phone: Optional[str] = None
+    auto_fulfill_on_payment: Optional[bool] = True
     items_summary: str
     sales_rep_name: Optional[str] = None
     notes: Optional[str] = None
@@ -232,6 +236,12 @@ class ClientSaleResponse(BaseModel):
     sale_date: datetime
     status: str
     payment_method: str
+    payment_status: Optional[str] = "unpaid"
+    stripe_checkout_url: Optional[str] = None
+    stripe_session_id: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    auto_fulfill_on_payment: Optional[bool] = True
     items_summary: str
     sales_rep_name: Optional[str] = None
     notes: Optional[str] = None
@@ -245,6 +255,32 @@ class ClientSaleResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class CustomerNotificationResponse(BaseModel):
+    id: str
+    client_sale_id: str
+    recipient: str
+    channel: str
+    event_type: str
+    title: str
+    message_body: str
+    tracking_url: Optional[str] = None
+    sent_at: datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StripeCheckoutCreateRequest(BaseModel):
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+    customer_email: Optional[str] = None
+
+class StripeCheckoutResponse(BaseModel):
+    checkout_url: str
+    session_id: str
+    order_number: str
+    amount: float
+    is_simulation: bool
 
 class ClientAccountCreate(BaseModel):
     account_name: str

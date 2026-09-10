@@ -1,3 +1,4 @@
+import html as html_lib
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -5,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -36,6 +37,20 @@ async def lifespan(app: FastAPI):
                 cols = [c["name"] for c in inspector.get_columns("companies")]
                 if "notes" not in cols:
                     sync_conn.execute(text("ALTER TABLE companies ADD COLUMN notes TEXT"))
+            if "client_sales" in tables:
+                cols = [c["name"] for c in inspector.get_columns("client_sales")]
+                sale_cols = [
+                    ("payment_status", "VARCHAR(50) DEFAULT 'unpaid'"),
+                    ("stripe_session_id", "VARCHAR(255)"),
+                    ("stripe_payment_intent_id", "VARCHAR(255)"),
+                    ("stripe_checkout_url", "VARCHAR(500)"),
+                    ("auto_fulfill_on_payment", "BOOLEAN DEFAULT 1"),
+                    ("customer_email", "VARCHAR(255)"),
+                    ("customer_phone", "VARCHAR(50)")
+                ]
+                for col_name, col_type in sale_cols:
+                    if col_name not in cols:
+                        sync_conn.execute(text(f"ALTER TABLE client_sales ADD COLUMN {col_name} {col_type}"))
         await conn.run_sync(migrate_sqlite_columns)
     logger.info("Database initialized successfully.")
     yield
@@ -67,6 +82,8 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(hitl.router, prefix=prefix)
     app.include_router(conversations.router, prefix=prefix)
     app.include_router(fulfillment.router, prefix=prefix)
+    app.include_router(payments.router, prefix=prefix)
+    app.include_router(public_tracking.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -82,6 +99,434 @@ async def health_check():
             "mode": "Live Google GenAI Client" if gemini_service.is_live() else "Local-First Simulation & Guardrail Engine"
         }
     }
+
+@app.get("/track/{order_number}", response_class=HTMLResponse)
+@app.get("/JsProject/track/{order_number}", response_class=HTMLResponse)
+async def customer_tracking_portal(order_number: str):
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Order #{order_number} Delivery Status • Acme Logistics</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    </head>
+    <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 md:p-8">
+        <div class="w-full max-w-3xl space-y-6">
+            <!-- Header Card -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div class="h-12 w-12 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xl shadow-lg">
+                        <i class="fa-solid fa-truck-ramp-box"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="font-mono font-black text-xl text-white tracking-wide">#{order_number}</h1>
+                            <span id="badge-status" class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">Loading...</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                            <span>Acme Supply Delivery Tracking</span> • 
+                            <span id="text-client-name" class="font-medium text-slate-300">Customer Recipient</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchTrackingData()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-rotate-right" id="btn-refresh-icon"></i> Refresh
+                    </button>
+                    <span id="badge-payment" class="px-3 py-1.5 rounded-lg text-xs font-bold font-mono">...</span>
+                </div>
+            </div>
+
+            <!-- Interactive 5-Stage Stepper -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
+                <div class="flex items-center justify-between text-xs pb-1 border-b border-slate-800/80">
+                    <span class="font-bold text-slate-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <i class="fa-solid fa-route text-amber-400"></i> Shipment Progress
+                    </span>
+                    <span id="text-progress-pct" class="font-mono font-bold text-emerald-400">0%</span>
+                </div>
+                <div id="stepper-container" class="flex items-center justify-between pt-3 pb-2 relative">
+                    <!-- Dynamic Stepper Dots -->
+                </div>
+            </div>
+
+            <!-- Two-Column Information Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Shipping & Logistics Card -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <h2 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-truck-fast text-indigo-400"></i> Carrier Logistics
+                    </h2>
+                    <div class="space-y-2 text-xs divide-y divide-slate-800/60">
+                        <div class="pt-1 flex justify-between items-center">
+                            <span class="text-slate-400">Carrier Service:</span>
+                            <span id="text-carrier" class="font-bold text-slate-200">Processing</span>
+                        </div>
+                        <div class="pt-2 flex justify-between items-center">
+                            <span class="text-slate-400">Tracking Number:</span>
+                            <span id="text-tracking-num" class="font-mono font-bold text-cyan-400">Awaiting Label</span>
+                        </div>
+                        <div class="pt-2">
+                            <span class="text-slate-400 block mb-0.5">Destination Facility:</span>
+                            <span id="text-delivery-addr" class="font-medium text-slate-200 block text-[11px]">Commercial Receiving Facility</span>
+                        </div>
+                        <div class="pt-2 flex justify-between items-center">
+                            <span class="text-slate-400">Routing Mode:</span>
+                            <span id="text-routing-mode" class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">Direct Dropship</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Details & Payment Card -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <h2 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-box text-emerald-400"></i> Package &amp; Payment
+                    </h2>
+                    <div class="space-y-2 text-xs divide-y divide-slate-800/60">
+                        <div class="pt-1 flex justify-between items-center">
+                            <span class="text-slate-400">Order Placed:</span>
+                            <span id="text-order-date" class="text-slate-200 font-mono">—</span>
+                        </div>
+                        <div class="pt-2">
+                            <span class="text-slate-400 block mb-0.5">Items in Package:</span>
+                            <span id="text-items-summary" class="text-slate-200 text-[11px] font-medium block bg-slate-950 p-2 rounded border border-slate-800/80">—</span>
+                        </div>
+                        <div id="payment-action-box" class="pt-2">
+                            <!-- Pay online button or paid confirmation -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Log Card -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-timeline text-amber-400"></i> Live Transit Scan History
+                    </h2>
+                    <span class="text-[10px] text-slate-500">Live Telemetry</span>
+                </div>
+                <div id="activity-log-list" class="space-y-2 pt-1">
+                    <div class="text-center py-4 text-slate-500 text-xs italic">Awaiting first scan...</div>
+                </div>
+            </div>
+
+            <!-- Support Footer -->
+            <div class="text-center text-xs text-slate-500 pt-2 pb-6 space-y-1">
+                <p>Acme Supply Autonomous Fulfillment • Questions? Contact <a href="mailto:support@therealbonz.com" class="text-indigo-400 hover:underline">support@therealbonz.com</a></p>
+                <p class="text-[11px] text-slate-600">Generated securely by AI Sales Platform</p>
+            </div>
+        </div>
+
+        <script>
+            const orderNumber = "{order_number}";
+            const apiPrefix = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
+
+            async function fetchTrackingData() {
+                const icon = document.getElementById("btn-refresh-icon");
+                if (icon) icon.classList.add("fa-spin");
+                try {
+                    const res = await fetch(apiPrefix + "/api/v1/public/tracking/" + encodeURIComponent(orderNumber));
+                    if (!res.ok) {
+                        document.getElementById("badge-status").innerText = "Order Not Found";
+                        document.getElementById("badge-status").className = "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-950 text-rose-300 border border-rose-800";
+                        return;
+                    }
+                    const data = await res.json();
+                    renderTrackingView(data);
+                } catch(e) {
+                    console.error("Error loading tracking data:", e);
+                } finally {
+                    if (icon) icon.classList.remove("fa-spin");
+                }
+            }
+
+            function renderTrackingView(data) {
+                // Header & Badges
+                document.getElementById("text-client-name").innerText = data.client_name || "Customer";
+                const isDelivered = data.is_delivered || data.current_status === "delivered";
+
+                const badgeStatus = document.getElementById("badge-status");
+                if (isDelivered) {
+                    badgeStatus.innerText = "✓ Delivered";
+                    badgeStatus.className = "px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-600/50 shadow-emerald-500/20 shadow-sm";
+                } else {
+                    badgeStatus.innerText = (data.current_status || "Processing").replace(/_/g, " ");
+                    badgeStatus.className = "px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-950 text-indigo-300 border border-indigo-600/50";
+                }
+
+                // Payment badge & action
+                const badgePayment = document.getElementById("badge-payment");
+                const payBox = document.getElementById("payment-action-box");
+                if (data.payment_status === "paid") {
+                    badgePayment.innerText = "✓ Paid";
+                    badgePayment.className = "px-3 py-1 rounded-lg text-xs font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 flex items-center gap-1";
+                    payBox.innerHTML = `
+                        <div class="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-600/30 text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-400"></i> Invoice Paid Online</span>
+                            <span class="text-[10px] text-slate-400 font-mono">Secured with Stripe</span>
+                        </div>
+                    `;
+                } else {
+                    badgePayment.innerText = "Unpaid";
+                    badgePayment.className = "px-3 py-1 rounded-lg text-xs font-bold bg-amber-950/80 text-amber-300 border border-amber-700/50";
+                    const checkoutUrl = data.stripe_checkout_url ? (apiPrefix + data.stripe_checkout_url) : "#";
+                    payBox.innerHTML = `
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-[11px] text-amber-300">
+                                <span><i class="fa-solid fa-receipt mr-1"></i> Awaiting Customer Payment</span>
+                                <span class="font-bold">Due upon receipt</span>
+                            </div>
+                            <a href="${checkoutUrl}" class="w-full block text-center py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/30 transition">
+                                <i class="fa-solid fa-credit-card mr-1"></i> Pay Online with Stripe Checkout
+                            </a>
+                        </div>
+                    `;
+                }
+
+                // Stepper
+                const stages = [
+                    { id: 'label_created', label: 'Label Created' },
+                    { id: 'picked_up', label: 'Picked Up' },
+                    { id: 'in_transit', label: 'In Transit' },
+                    { id: 'out_for_delivery', label: 'Out for Delivery' },
+                    { id: 'delivered', label: 'Delivered' }
+                ];
+                const stageIds = stages.map(s => s.id);
+                const currentIdx = stageIds.indexOf(data.current_status);
+                document.getElementById("text-progress-pct").innerText = (data.shipping_stage_pct || 0) + "%";
+
+                let stepperHtml = "";
+                stages.forEach((s, idx) => {
+                    const isDone = idx <= currentIdx || isDelivered;
+                    const isCurrent = idx === currentIdx && !isDelivered;
+                    const dotBg = isDone ? 'bg-emerald-500 text-slate-950 font-bold' : 'bg-slate-800 text-slate-500 border border-slate-700';
+                    const lineBg = idx <= currentIdx ? 'bg-emerald-500' : 'bg-slate-800';
+
+                    stepperHtml += `
+                        <div class="flex-1 flex flex-col items-center relative">
+                            ${idx > 0 ? `<div class="absolute top-3.5 right-1/2 w-full h-0.5 ${lineBg} -z-0"></div>` : ''}
+                            <div class="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold z-10 ${dotBg} ${isCurrent ? 'ring-4 ring-emerald-400/30 animate-pulse' : ''}">
+                                ${isDone ? '<i class="fa-solid fa-check"></i>' : (idx + 1)}
+                            </div>
+                            <span class="text-[10px] mt-1.5 text-center font-medium ${isDone ? 'text-emerald-300 font-bold' : 'text-slate-500'}">${s.label}</span>
+                        </div>
+                    `;
+                });
+                document.getElementById("stepper-container").innerHTML = stepperHtml;
+
+                // Logistics & Order details
+                document.getElementById("text-carrier").innerText = data.carrier || "Assigned by Order Bot";
+                if (data.tracking_number) {
+                    const trackLink = data.tracking_url ? `<a href="${data.tracking_url}" target="_blank" class="hover:underline flex items-center gap-1">${data.tracking_number} <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>` : data.tracking_number;
+                    document.getElementById("text-tracking-num").innerHTML = trackLink;
+                } else {
+                    document.getElementById("text-tracking-num").innerText = "Generating Label...";
+                }
+                document.getElementById("text-delivery-addr").innerText = data.delivery_address || "Customer Receiving Facility";
+                document.getElementById("text-routing-mode").innerText = data.destination_type === 'customer_dropship' ? 'Direct Customer Dropship' : 'Warehouse Restock';
+                document.getElementById("text-order-date").innerText = new Date(data.sale_date).toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+                document.getElementById("text-items-summary").innerText = data.items_summary || "Commercial supplies package";
+
+                // Activity logs
+                const logContainer = document.getElementById("activity-log-list");
+                if (data.history_events && data.history_events.length > 0) {
+                    logContainer.innerHTML = data.history_events.map(ev => `
+                        <div class="flex items-start gap-3 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 text-xs">
+                            <div class="h-6 w-6 rounded bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[11px] shrink-0 mt-0.5">
+                                <i class="fa-solid fa-location-dot"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-bold text-slate-200 text-xs">${ev.location || 'Terminal'}</span>
+                                    <span class="font-mono text-[10px] text-slate-500">${new Date(ev.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                </div>
+                                <p class="text-slate-400 text-[11px] mt-0.5">${ev.description || ''}</p>
+                            </div>
+                        </div>
+                    `).reverse().join("");
+                } else {
+                    logContainer.innerHTML = `<div class="p-3 text-center text-slate-500 text-xs italic bg-slate-950/40 rounded-lg">Manifest created. Waiting for carrier transit checkpoint.</div>`;
+                }
+            }
+
+            fetchTrackingData();
+            setInterval(fetchTrackingData, 12000);
+        </script>
+    </body>
+    </html>
+    """
+    safe_order = html_lib.escape(order_number)
+    return HTMLResponse(content=html.replace("{order_number}", safe_order))
+
+@app.get("/checkout/pay/{session_id}", response_class=HTMLResponse)
+@app.get("/JsProject/checkout/pay/{session_id}", response_class=HTMLResponse)
+async def customer_checkout_portal(session_id: str):
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Secure Checkout • Acme Supply Corp</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    </head>
+    <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+            <!-- Brand & Stripe Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-9 w-9 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-sm text-slate-100">Acme Supply Checkout</h1>
+                        <p class="text-[10px] text-slate-400">Encrypted 256-bit SSL Payment</p>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-950 text-indigo-300 border border-indigo-700/50 font-semibold flex items-center gap-1">
+                    <i class="fa-brands fa-stripe text-indigo-400"></i> Stripe Verified
+                </span>
+            </div>
+
+            <!-- Order Summary Section -->
+            <div id="order-summary-box" class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 space-y-2 text-xs">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Order Reference:</span>
+                    <span id="text-order-num" class="font-mono font-bold text-slate-200">Loading...</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">Billed To:</span>
+                    <span id="text-client-name" class="font-semibold text-slate-200">Customer</span>
+                </div>
+                <div class="pt-2 border-t border-slate-800/80 flex justify-between items-center">
+                    <span class="text-slate-300 font-bold">Total Amount Due:</span>
+                    <span id="text-amount" class="font-mono font-black text-lg text-emerald-400">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Payment Form -->
+            <div id="payment-form-box" class="space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold">Cardholder Full Name</label>
+                    <input type="text" id="in-card-name" value="Finance Purchasing Dept" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold">Card Number</label>
+                    <div class="relative">
+                        <input type="text" id="in-card-num" value="•••• •••• •••• 4242" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-100 font-mono focus:outline-none focus:border-emerald-500 pl-9">
+                        <i class="fa-brands fa-cc-visa text-indigo-400 absolute left-3 top-3 text-sm"></i>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Expiration</label>
+                        <input type="text" id="in-card-exp" value="12/28" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-100 font-mono text-center focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">CVC / CVV</label>
+                        <input type="text" id="in-card-cvc" value="123" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-100 font-mono text-center focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <button id="btn-pay" onclick="submitPayment()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-sm shadow-xl shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer mt-2">
+                    <i class="fa-solid fa-lock"></i> <span id="btn-pay-text">Complete Secure Payment</span>
+                </button>
+            </div>
+
+            <!-- Success State Box (Initially hidden) -->
+            <div id="success-box" class="hidden text-center py-6 space-y-4">
+                <div class="h-16 w-16 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-500/20 animate-bounce">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg text-white">Payment Confirmed!</h3>
+                    <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                        Your transaction has been processed. The AI Order Bot has immediately triggered autonomous dropshipping and carrier dispatch.
+                    </p>
+                </div>
+                <a id="link-track-order" href="#" class="inline-block py-2.5 px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition">
+                    <i class="fa-solid fa-truck-ramp-box mr-1"></i> View Live Delivery Portal ➔
+                </a>
+            </div>
+        </div>
+
+        <script>
+            const sessionId = "{session_id}";
+            const apiPrefix = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
+            let currentOrderNumber = "";
+
+            async function loadSessionDetails() {
+                try {
+                    const res = await fetch(apiPrefix + "/api/v1/public/checkout/" + encodeURIComponent(sessionId));
+                    if (res.ok) {
+                        const data = await res.json();
+                        currentOrderNumber = data.order_number;
+                        document.getElementById("text-order-num").innerText = "#" + data.order_number;
+                        document.getElementById("text-client-name").innerText = data.client_name;
+                        document.getElementById("text-amount").innerText = "$" + data.amount.toFixed(2);
+                        document.getElementById("btn-pay-text").innerText = "Pay $" + data.amount.toFixed(2) + " with Card";
+                        if (data.payment_status === "paid") {
+                            showSuccessState();
+                        }
+                    }
+                } catch(e) {
+                    console.error("Error loading checkout session:", e);
+                }
+            }
+
+            async function submitPayment() {
+                const btn = document.getElementById("btn-pay");
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Authorizing Card...`;
+
+                try {
+                    const res = await fetch(apiPrefix + "/api/v1/payments/stripe/webhook", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            type: "checkout.session.completed",
+                            data: {
+                                object: {
+                                    id: sessionId,
+                                    payment_intent: "pi_test_" + Math.random().toString(36).substring(2, 12)
+                                }
+                            }
+                        })
+                    });
+
+                    if (res.ok) {
+                        showSuccessState();
+                    } else {
+                        alert("Payment authorization failed. Please try again.");
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-lock"></i> Complete Secure Payment`;
+                    }
+                } catch(err) {
+                    alert("Error authorizing payment: " + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-lock"></i> Complete Secure Payment`;
+                }
+            }
+
+            function showSuccessState() {
+                document.getElementById("payment-form-box").classList.add("hidden");
+                document.getElementById("order-summary-box").classList.add("hidden");
+                document.getElementById("success-box").classList.remove("hidden");
+                document.getElementById("link-track-order").href = apiPrefix + "/track/" + currentOrderNumber;
+            }
+
+            loadSessionDetails();
+        </script>
+    </body>
+    </html>
+    """
+    safe_session = html_lib.escape(session_id)
+    return HTMLResponse(content=html.replace("{session_id}", safe_session))
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/JsProject", response_class=HTMLResponse)
@@ -2375,14 +2820,47 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             `;
                         }
 
+                        const isPaid = s.payment_status === 'paid';
+                        const paymentBadge = isPaid
+                            ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50">✓ PAID</span>`
+                            : `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-300 border border-amber-700/50">UNPAID</span>`;
+
+                        const publicTrackUrl = SUB_PATH + "/track/" + encodeURIComponent(s.order_number);
+                        const customerPortalLink = `
+                            <a href="${publicTrackUrl}" target="_blank" class="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold mt-0.5" title="Open Customer Delivery Portal">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i> Tracking Portal
+                            </a>
+                        `;
+
+                        let stripeActionsHtml = "";
+                        if (!isPaid) {
+                            stripeActionsHtml = `
+                                <div class="flex items-center gap-1 mt-1">
+                                    <button onclick="createStripeCheckout('${s.id}', '${escapeHtml(s.order_number)}')" class="px-1.5 py-0.5 bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/40 rounded text-[9px] font-semibold flex items-center gap-1 cursor-pointer" title="Create / Open Stripe Checkout">
+                                        <i class="fa-brands fa-stripe"></i> Pay Link
+                                    </button>
+                                    <button onclick="simulateCustomerPayment('${s.id}')" class="px-1.5 py-0.5 bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-700/40 rounded text-[9px] font-semibold flex items-center gap-1 cursor-pointer" title="Simulate online payment & trigger bot dropshipping">
+                                        <i class="fa-solid fa-bolt text-amber-400"></i> Pay &amp; Fulfill
+                                    </button>
+                                </div>
+                            `;
+                        }
+
                         tr.innerHTML = `
                             <td class="p-2.5 text-slate-400 font-mono text-[11px] whitespace-nowrap">${saleDate}</td>
-                            <td class="p-2.5 font-mono text-indigo-300 font-bold whitespace-nowrap">${escapeHtml(s.order_number)}</td>
+                            <td class="p-2.5 whitespace-nowrap">
+                                <span class="font-mono text-indigo-300 font-bold">${escapeHtml(s.order_number)}</span>
+                                ${customerPortalLink}
+                            </td>
                             <td class="p-2.5 text-slate-200">
                                 <div class="font-medium">${escapeHtml(s.items_summary)}</div>
                                 ${s.notes ? `<div class="text-[10px] text-slate-500 italic">${escapeHtml(s.notes)}</div>` : ''}
                             </td>
-                            <td class="p-2.5 text-slate-400 whitespace-nowrap uppercase text-[10px] font-mono">${escapeHtml(s.payment_method ? s.payment_method.replace(/_/g, ' ') : '')}</td>
+                            <td class="p-2.5 text-slate-400 whitespace-nowrap uppercase text-[10px] font-mono">
+                                <div>${escapeHtml(s.payment_method ? s.payment_method.replace(/_/g, ' ') : '')}</div>
+                                <div class="mt-0.5">${paymentBadge}</div>
+                                ${stripeActionsHtml}
+                            </td>
                             <td class="p-2.5 text-slate-300 whitespace-nowrap text-[11px]">${escapeHtml(s.sales_rep_name || 'Sales Rep')}</td>
                             <td class="p-2.5">${fulfillmentHtml}</td>
                             <td class="p-2.5 whitespace-nowrap">
@@ -2394,6 +2872,49 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     });
                 } catch(e) {
                     console.error("Error fetching sales:", e);
+                }
+            }
+
+            async function createStripeCheckout(saleId, orderNum) {
+                try {
+                    const res = await fetch(API_BASE + "/crm/sales/" + saleId + "/create-checkout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({})
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const fullUrl = data.checkout_url.startsWith("http") ? data.checkout_url : (SUB_PATH + data.checkout_url);
+                        showToast("Stripe Checkout Ready", `Payment link created for Order #${orderNum}`, "fa-stripe", "info");
+                        window.open(fullUrl, "_blank");
+                        if (selectedClient) fetchSalesForClient(selectedClient.id);
+                    } else {
+                        const err = await res.json();
+                        alert("Error generating checkout link: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function simulateCustomerPayment(saleId) {
+                try {
+                    const res = await fetch(API_BASE + "/crm/sales/" + saleId + "/simulate-payment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        showToast("Payment Received!", `Order #${data.order_number} paid online! Autonomous dropshipping triggered.`, "fa-bolt", "success");
+                        if (selectedClient) fetchSalesForClient(selectedClient.id);
+                        await fetchPurchaseOrders();
+                        await fetchProcurementStats();
+                    } else {
+                        const err = await res.json();
+                        alert("Error simulating payment: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
                 }
             }
 
@@ -2998,9 +3519,13 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     // 1. Customer Sale
                     let saleCell = `<span class="text-slate-500 italic text-[11px]">Direct Restock</span>`;
                     if (po.client_sale_order_number) {
+                        const trackUrl = SUB_PATH + "/track/" + encodeURIComponent(po.client_sale_order_number);
                         saleCell = `
                             <div>
                                 <div class="font-mono font-bold text-slate-200 text-xs">${escapeHtml(po.client_sale_order_number)}</div>
+                                <a href="${trackUrl}" target="_blank" class="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold" title="View Customer Tracking Portal">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i> Tracking Portal
+                                </a>
                                 <div class="text-[11px] text-slate-400 font-medium">${escapeHtml(po.client_name || 'Client')}</div>
                                 <div class="text-[11px] font-mono font-bold text-emerald-400">$${(po.client_sale_amount || 0).toFixed(2)}</div>
                             </div>

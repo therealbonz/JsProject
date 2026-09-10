@@ -1,7 +1,7 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, JSON, desc
+from sqlalchemy import Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, JSON, desc, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from app.models.base import CommonMixin, TenantMixin
+from app.models.base import CommonMixin, TenantMixin, get_utc_now
 
 class Company(Base, CommonMixin, TenantMixin):
     __tablename__ = "companies"
@@ -158,6 +158,13 @@ class ClientSale(Base, CommonMixin, TenantMixin):
     sale_date = Column(DateTime(timezone=True), nullable=False)
     status = Column(String(50), default="completed", nullable=False)  # completed, pending, invoiced, delivered, cancelled
     payment_method = Column(String(50), default="credit_terms_30", nullable=False)  # credit_terms_30, credit_card, ach_wire, check
+    payment_status = Column(String(50), default="unpaid", nullable=False, index=True)  # unpaid, paid, refunded
+    stripe_session_id = Column(String(255), nullable=True, index=True)
+    stripe_payment_intent_id = Column(String(255), nullable=True)
+    stripe_checkout_url = Column(String(500), nullable=True)
+    auto_fulfill_on_payment = Column(Boolean, default=True, nullable=False)
+    customer_email = Column(String(255), nullable=True)
+    customer_phone = Column(String(50), nullable=True)
     items_summary = Column(Text, nullable=False)
     sales_rep_name = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
@@ -166,6 +173,23 @@ class ClientSale(Base, CommonMixin, TenantMixin):
     client = relationship("ClientAccount", back_populates="sales")
     lead = relationship("Lead")
     purchase_orders = relationship("PurchaseOrder", back_populates="client_sale", cascade="all, delete-orphan", order_by="desc(PurchaseOrder.created_at)")
+    notifications = relationship("CustomerNotification", back_populates="client_sale", cascade="all, delete-orphan", order_by="desc(CustomerNotification.sent_at)")
+
+class CustomerNotification(Base, CommonMixin, TenantMixin):
+    __tablename__ = "customer_notifications"
+
+    client_sale_id = Column(String(36), ForeignKey("client_sales.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipient = Column(String(255), nullable=False)
+    channel = Column(String(50), default="email", nullable=False)  # email, sms
+    event_type = Column(String(50), nullable=False)  # order_confirmed, payment_received, dispatched, in_transit, out_for_delivery, delivered
+    title = Column(String(255), nullable=False)
+    message_body = Column(Text, nullable=False)
+    tracking_url = Column(String(500), nullable=True)
+    sent_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
+    status = Column(String(50), default="sent", nullable=False)  # sent, simulated, failed
+
+    # Relationships
+    client_sale = relationship("ClientSale", back_populates="notifications")
 
 class Appointment(Base, CommonMixin, TenantMixin):
     __tablename__ = "appointments"

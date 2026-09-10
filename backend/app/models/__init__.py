@@ -1,7 +1,7 @@
 from app.core.database import Base
 from app.models.base import CommonMixin, TenantMixin
 from app.models.tenant import Organization, User, OrganizationMembership, AIConfiguration
-from app.models.crm import Company, Contact, Lead, Opportunity, Product, KnowledgeDocument, CallLog, ClientAccount, ClientSale, Appointment
+from app.models.crm import Company, Contact, Lead, Opportunity, Product, KnowledgeDocument, CallLog, ClientAccount, ClientSale, Appointment, CustomerNotification
 from app.models.conversation import Conversation, Message
 from app.models.hitl import HumanAssistanceRequest, AgentTask, AuditLog, ComplianceDNC
 from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, InventoryItem
@@ -21,6 +21,7 @@ __all__ = [
     "Appointment",
     "ClientAccount",
     "ClientSale",
+    "CustomerNotification",
     "Opportunity",
     "Product",
     "KnowledgeDocument",

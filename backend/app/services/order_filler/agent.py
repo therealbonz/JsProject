@@ -356,6 +356,24 @@ class OrderFillerAgent:
         elif po and po.status in ["ordered", "pending_approval"]:
             po.status = "in_transit"
 
+        # Dispatch customer milestone notification if linked to a sale
+        if po and po.client_sale_id and next_status in ("in_transit", "out_for_delivery", "delivered"):
+            try:
+                from app.services.notification_service import NotificationService
+                s_stmt = select(ClientSale).where(ClientSale.id == po.client_sale_id)
+                s_res = await db.execute(s_stmt)
+                linked_sale = s_res.scalar_one_or_none()
+                if linked_sale:
+                    await NotificationService.create_and_send_notification(
+                        db=db,
+                        sale=linked_sale,
+                        event_type=next_status,
+                        carrier=tracking.carrier,
+                        tracking_number=tracking.tracking_number
+                    )
+            except Exception as notify_err:
+                logger.warning(f"Milestone notification trigger failed: {notify_err}")
+
         await db.commit()
         await db.refresh(tracking)
         return tracking
