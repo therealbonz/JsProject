@@ -24,6 +24,14 @@ class Organization(Base, CommonMixin):
     stripe_secret_key = Column(String(255), nullable=True)
     stripe_webhook_secret = Column(String(255), nullable=True)
 
+    # Live Multi-Channel Notification Gateways (Twilio SMS & SendGrid/Postmark Email)
+    twilio_account_sid = Column(String(100), nullable=True)
+    twilio_auth_token = Column(String(100), nullable=True)
+    twilio_from_number = Column(String(50), nullable=True)
+    sendgrid_api_key = Column(String(100), nullable=True)
+    email_from_address = Column(String(255), nullable=True)
+    email_from_name = Column(String(255), nullable=True)
+
     # Relationships
     memberships = relationship("OrganizationMembership", back_populates="organization", cascade="all, delete-orphan")
     ai_config = relationship("AIConfiguration", back_populates="organization", uselist=False, cascade="all, delete-orphan")

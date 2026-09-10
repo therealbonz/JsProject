@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.crm import ClientSale, CustomerNotification
+from app.services.communication_gateway import CommunicationGatewayService
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class NotificationService:
             "in_transit": f"Delivery Update: Order {sale.order_number} is In Transit",
             "out_for_delivery": f"Out for Delivery: Order {sale.order_number}",
             "delivered": f"Delivered: Order {sale.order_number} has arrived",
+            "replenishment_proposal": f"Restock Re-Order Due: {sale.order_number}",
         }
 
         messages = {
@@ -67,7 +69,12 @@ class NotificationService:
             ),
             "delivered": (
                 f"Order #{sale.order_number} has been delivered successfully! "
-                f"Thank you for choosing Acme Supply. View proof of delivery: {tracking_url}"
+                f"Thank you for your business. View proof of delivery: {tracking_url}"
+            ),
+            "replenishment_proposal": (
+                f"Your scheduled restock cadence is approaching for #{sale.order_number}. "
+                f"Items: {sale.items_summary}. Total: ${sale.amount:.2f}. "
+                f"Click to approve and pay securely online: {tracking_url}"
             ),
         }
 
@@ -83,11 +90,17 @@ class NotificationService:
             title=title,
             message_body=message_body,
             tracking_url=tracking_url,
-            status="sent",
+            status="pending",
         )
         db.add(notification)
         await db.commit()
         await db.refresh(notification)
 
-        logger.info(f"Dispatched {channel.upper()} [{event_type}] to {recipient}: {title}")
+        # Dispatch across live Twilio / SendGrid or Simulation Gateway
+        try:
+            await CommunicationGatewayService.dispatch_customer_notification(db=db, notification=notification)
+        except Exception as e:
+            logger.warning(f"CommunicationGateway error dispatching {notification.id}: {e}")
+
+        logger.info(f"Dispatched {channel.upper()} [{event_type}] to {recipient}: {title} (status={notification.status})")
         return notification

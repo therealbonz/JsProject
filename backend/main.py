@@ -34,7 +34,13 @@ async def lifespan(app: FastAPI):
                     ("tracking_portal_notice", "TEXT"),
                     ("stripe_publishable_key", "VARCHAR(255)"),
                     ("stripe_secret_key", "VARCHAR(255)"),
-                    ("stripe_webhook_secret", "VARCHAR(255)")
+                    ("stripe_webhook_secret", "VARCHAR(255)"),
+                    ("twilio_account_sid", "VARCHAR(100)"),
+                    ("twilio_auth_token", "VARCHAR(100)"),
+                    ("twilio_from_number", "VARCHAR(50)"),
+                    ("sendgrid_api_key", "VARCHAR(100)"),
+                    ("email_from_address", "VARCHAR(255)"),
+                    ("email_from_name", "VARCHAR(255)")
                 ]
                 for col_name, col_type in org_cols:
                     if col_name not in cols:
@@ -2031,6 +2037,103 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                 <div class="font-mono text-[11px] text-slate-300 bg-slate-900 p-2 rounded-lg border border-slate-800/80 break-all select-all" id="text-webhook-url-display">
                                     https://therealbonz.com/JsProject/api/v1/payments/stripe/webhook
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Multi-Channel Notification Gateways (Twilio SMS & SendGrid Email) -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <div class="h-6 w-6 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </div>
+                                <h2 class="font-bold text-sm text-slate-200">Live Notification Gateways (Twilio &amp; SendGrid)</h2>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-700/50 flex items-center gap-1">
+                                <i class="fa-solid fa-tower-broadcast text-emerald-400"></i> Multi-Channel Engine
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-400">
+                            Configure your enterprise Twilio and SendGrid credentials to dispatch real-time SMS and branded transactional emails upon replenishment restocks, invoice payments, and delivery checkpoint scans. If left blank, notifications operate in local simulation mode.
+                        </p>
+
+                        <!-- Two Sub-Sections: Twilio SMS and SendGrid Email -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                            <!-- Twilio SMS Box -->
+                            <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3.5">
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                                    <span class="font-bold text-xs text-slate-200 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-comment-sms text-cyan-400"></i> Twilio SMS Gateway
+                                    </span>
+                                    <span id="badge-twilio-status" class="text-[10px] font-mono text-slate-400">Simulation</span>
+                                </div>
+
+                                <div class="space-y-3 text-xs">
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Account SID</label>
+                                        <input type="text" id="setting-twilio-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxx" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-cyan-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Auth Token</label>
+                                        <input type="password" id="setting-twilio-token" placeholder="••••••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-cyan-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Twilio Phone Number</label>
+                                        <input type="text" id="setting-twilio-phone" placeholder="+15551234567" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-cyan-500">
+                                    </div>
+                                    <div class="pt-1">
+                                        <button type="button" onclick="promptSendTestSms()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-semibold rounded-lg text-xs border border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                            <i class="fa-solid fa-mobile-screen"></i> Send Test SMS
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SendGrid Email Box -->
+                            <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3.5">
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                                    <span class="font-bold text-xs text-slate-200 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-envelope text-purple-400"></i> SendGrid / Postmark Email
+                                    </span>
+                                    <span id="badge-sendgrid-status" class="text-[10px] font-mono text-slate-400">Simulation</span>
+                                </div>
+
+                                <div class="space-y-3 text-xs">
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">API Key</label>
+                                        <input type="password" id="setting-sendgrid-key" placeholder="SG.xxxxxxxxxxxxxxxx" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Sender Email Address</label>
+                                        <input type="email" id="setting-email-from" placeholder="orders@yourcompany.com" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 text-xs focus:outline-none focus:border-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Sender Display Name</label>
+                                        <input type="text" id="setting-email-name" placeholder="Acme Logistics Dispatch" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 text-xs focus:outline-none focus:border-purple-500">
+                                    </div>
+                                    <div class="pt-1">
+                                        <button type="button" onclick="promptSendTestEmail()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-purple-300 font-semibold rounded-lg text-xs border border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                            <i class="fa-solid fa-paper-plane"></i> Send Test Branded Email
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Notifications Dispatch Table Strip -->
+                        <div class="pt-2 border-t border-slate-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-bold text-xs text-slate-300 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Recent Multi-Channel Dispatches
+                                </span>
+                                <button type="button" onclick="fetchNotificationHistory()" class="text-indigo-400 hover:text-indigo-300 text-[11px] font-semibold cursor-pointer">
+                                    <i class="fa-solid fa-rotate-right"></i> Refresh Log
+                                </button>
+                            </div>
+                            <div id="settings-notifications-log" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs">
+                                <div class="text-center py-2 text-slate-500 text-[11px] italic">Loading recent notifications...</div>
                             </div>
                         </div>
                     </div>
@@ -4531,6 +4634,55 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                         }
                     }
 
+                    // Multi-Channel Notification Gateways
+                    const twilioSid = document.getElementById("setting-twilio-sid");
+                    if (twilioSid) twilioSid.value = data.twilio_account_sid || "";
+                    const twilioToken = document.getElementById("setting-twilio-token");
+                    if (twilioToken) {
+                        if (data.has_twilio_token && data.masked_twilio_token) {
+                            twilioToken.value = data.masked_twilio_token;
+                        } else {
+                            twilioToken.value = "";
+                        }
+                    }
+                    const twilioPhone = document.getElementById("setting-twilio-phone");
+                    if (twilioPhone) twilioPhone.value = data.twilio_from_number || "";
+
+                    const twilioBadge = document.getElementById("badge-twilio-status");
+                    if (twilioBadge) {
+                        if (data.is_sms_configured) {
+                            twilioBadge.innerHTML = `<i class="fa-solid fa-circle-check text-cyan-400"></i> Twilio Live`;
+                            twilioBadge.className = "text-[10px] font-mono text-cyan-400 font-semibold";
+                        } else {
+                            twilioBadge.innerHTML = `<i class="fa-solid fa-bolt text-slate-400"></i> Simulation Ready`;
+                            twilioBadge.className = "text-[10px] font-mono text-slate-400";
+                        }
+                    }
+
+                    const sendgridKey = document.getElementById("setting-sendgrid-key");
+                    if (sendgridKey) {
+                        if (data.has_sendgrid_key && data.masked_sendgrid_key) {
+                            sendgridKey.value = data.masked_sendgrid_key;
+                        } else {
+                            sendgridKey.value = "";
+                        }
+                    }
+                    const emailFrom = document.getElementById("setting-email-from");
+                    if (emailFrom) emailFrom.value = data.email_from_address || "";
+                    const emailName = document.getElementById("setting-email-name");
+                    if (emailName) emailName.value = data.email_from_name || "";
+
+                    const sendgridBadge = document.getElementById("badge-sendgrid-status");
+                    if (sendgridBadge) {
+                        if (data.is_email_configured) {
+                            sendgridBadge.innerHTML = `<i class="fa-solid fa-circle-check text-purple-400"></i> SendGrid Live`;
+                            sendgridBadge.className = "text-[10px] font-mono text-purple-400 font-semibold";
+                        } else {
+                            sendgridBadge.innerHTML = `<i class="fa-solid fa-bolt text-slate-400"></i> Simulation Ready`;
+                            sendgridBadge.className = "text-[10px] font-mono text-slate-400";
+                        }
+                    }
+
                     // Status ribbons
                     const labelOrg = document.getElementById("label-settings-org-id");
                     if (labelOrg) labelOrg.innerText = data.brand_name || data.name || data.slug || "Active";
@@ -4557,6 +4709,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }
 
                     updateLiveBrandPreview();
+                    fetchNotificationHistory();
                 } catch(e) {
                     console.error("Error fetching organization settings:", e);
                 } finally {
@@ -4668,6 +4821,12 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     stripe_publishable_key: document.getElementById("setting-stripe-pub-key")?.value.trim() || undefined,
                     stripe_secret_key: document.getElementById("setting-stripe-sec-key")?.value.trim() || undefined,
                     stripe_webhook_secret: document.getElementById("setting-stripe-webhook-sec")?.value.trim() || undefined,
+                    twilio_account_sid: document.getElementById("setting-twilio-sid")?.value.trim() || undefined,
+                    twilio_auth_token: document.getElementById("setting-twilio-token")?.value.trim() || undefined,
+                    twilio_from_number: document.getElementById("setting-twilio-phone")?.value.trim() || undefined,
+                    sendgrid_api_key: document.getElementById("setting-sendgrid-key")?.value.trim() || undefined,
+                    email_from_address: document.getElementById("setting-email-from")?.value.trim() || undefined,
+                    email_from_name: document.getElementById("setting-email-name")?.value.trim() || undefined,
                 };
 
                 try {
@@ -4692,6 +4851,109 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }
                 } catch(err) {
                     alert("Error saving settings: " + err.message);
+                }
+            }
+
+            async function promptSendTestSms() {
+                if (!authToken) return;
+                const recipient = prompt("Enter recipient mobile phone number for test SMS (E.164 format):", "+15551234567");
+                if (!recipient || !recipient.trim()) return;
+
+                try {
+                    showToast("Sending Test SMS...", "Dispatching test message via Twilio gateway...", "fa-paper-plane", "info");
+                    const res = await fetch(API_BASE + "/orgs/notifications/test-sms", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ recipient: recipient.trim(), channel: "sms" })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const modeText = data.mode === "live_twilio" ? "Live Twilio API" : "Local Simulation Mode";
+                        showToast("SMS Dispatched!", `Delivered via ${modeText}. SID: ${data.sid}`, "fa-check-circle", "success");
+                        fetchNotificationHistory();
+                    } else {
+                        alert("SMS Dispatch Failed: " + (data.error || JSON.stringify(data)));
+                    }
+                } catch(e) {
+                    alert("Error sending test SMS: " + e.message);
+                }
+            }
+
+            async function promptSendTestEmail() {
+                if (!authToken) return;
+                const recipient = prompt("Enter recipient email address for test branded notification:", "test@example.com");
+                if (!recipient || !recipient.trim()) return;
+
+                try {
+                    showToast("Sending Test Email...", "Generating branded HTML template & sending via SendGrid...", "fa-paper-plane", "info");
+                    const res = await fetch(API_BASE + "/orgs/notifications/test-email", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ recipient: recipient.trim(), channel: "email" })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const modeText = data.mode === "live_sendgrid" ? "Live SendGrid API" : "Local Simulation Mode";
+                        showToast("Email Dispatched!", `Delivered via ${modeText}.`, "fa-check-circle", "success");
+                        fetchNotificationHistory();
+                    } else {
+                        alert("Email Dispatch Failed: " + (data.error || JSON.stringify(data)));
+                    }
+                } catch(e) {
+                    alert("Error sending test email: " + e.message);
+                }
+            }
+
+            async function fetchNotificationHistory() {
+                if (!authToken) return;
+                const container = document.getElementById("settings-notifications-log");
+                if (!container) return;
+
+                try {
+                    const res = await fetch(API_BASE + "/orgs/notifications/history?limit=15", {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) return;
+                    const items = await res.json();
+                    if (!items || items.length === 0) {
+                        container.innerHTML = `<div class="text-center py-2 text-slate-500 text-[11px] italic">No notifications logged yet. Trigger replenishment or test dispatch above.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = items.map(n => {
+                        const isSms = n.channel === 'sms';
+                        const icon = isSms ? 'fa-comment-sms text-cyan-400' : 'fa-envelope text-purple-400';
+                        const badgeColor = n.status === 'sent' ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-rose-950 text-rose-400 border-rose-800';
+                        const timeStr = n.sent_at ? new Date(n.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Pending';
+                        return `
+                            <div class="p-2 bg-slate-900/90 rounded border border-slate-800 flex items-center justify-between text-[11px]">
+                                <div class="flex items-center gap-2 overflow-hidden">
+                                    <i class="fa-solid ${icon} text-xs shrink-0"></i>
+                                    <div class="truncate">
+                                        <span class="font-semibold text-slate-200">${n.title || 'Notification'}</span>
+                                        <span class="text-slate-400 ml-1">&rarr; ${n.recipient}</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0 ml-2">
+                                    <span class="text-slate-500 font-mono text-[10px]">${timeStr}</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border ${badgeColor} uppercase font-bold">${n.status}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } catch(e) {
+                    console.error("Error fetching notification history:", e);
                 }
             }
 
