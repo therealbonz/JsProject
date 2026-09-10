@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -84,6 +84,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(fulfillment.router, prefix=prefix)
     app.include_router(payments.router, prefix=prefix)
     app.include_router(public_tracking.router, prefix=prefix)
+    app.include_router(replenishments.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1061,6 +1062,30 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 </div>
             </div>
 
+            <!-- Autonomous Replenishment Notification Banner / Control Strip -->
+            <div id="replenishment-alert-banner" class="bg-gradient-to-r from-indigo-950/80 via-slate-900 to-amber-950/70 border border-amber-500/30 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-lg shadow-lg">
+                        <i class="fa-solid fa-arrows-rotate animate-spin" style="animation-duration: 12s;"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-sm text-slate-100">Autonomous Restock &amp; Replenishment Engine</h4>
+                            <span id="badge-replenishment-count" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-700/50">0 Due</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">Monitors client reorder cadences, predicts stockouts, and drafts 1-click Stripe reorder proposals.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchDueReplenishments()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                        <i class="fa-solid fa-rotate text-[10px]"></i> Check Due
+                    </button>
+                    <button onclick="processDueReplenishments()" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer">
+                        <i class="fa-solid fa-bolt text-amber-200"></i> Process All Due Restocks
+                    </button>
+                </div>
+            </div>
+
             <!-- Client Grid Layout -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Left Column: Quick Add Client & Directory -->
@@ -1159,6 +1184,9 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                 <p id="detail-client-contact" class="text-xs text-slate-400 mt-0.5">Click an account on the left to review contracts, notes, and log sales transactions.</p>
                             </div>
                             <div class="flex items-center gap-2">
+                                <button id="btn-trigger-replenishment" onclick="triggerClientReplenishmentProposal()" disabled class="py-2 px-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-md cursor-pointer" title="Generate an autonomous restock proposal with Stripe checkout link">
+                                    <i class="fa-solid fa-rotate text-amber-200"></i> Restock Proposal
+                                </button>
                                 <button id="btn-toggle-sale" onclick="toggleLogSaleForm()" disabled class="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-2 shadow-md">
                                     <i class="fa-solid fa-plus-circle"></i> Log New Sale / Order
                                 </button>
@@ -1796,6 +1824,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchAuditLogs();
                     fetchClientStats();
                     fetchClients();
+                    fetchDueReplenishments();
                     fetchProcurementStats();
                     fetchSuppliers();
                     fetchPurchaseOrders();
@@ -2620,6 +2649,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     tabClients.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-emerald-600 text-white shadow-md";
                     fetchClientStats();
                     fetchClients();
+                    fetchDueReplenishments();
                 } else if (mode === 'fulfillment') {
                     if (viewFulfillment) viewFulfillment.classList.remove("hidden");
                     if (tabFulfillment) tabFulfillment.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-amber-500 text-slate-950 font-bold shadow-md";
@@ -2689,6 +2719,18 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                         else if (c.account_tier === 'enterprise') tierBadgeClass = "bg-purple-950/80 text-purple-300 border-purple-600/70";
                         else if (c.account_tier === 'premium') tierBadgeClass = "bg-blue-950/80 text-blue-300 border-blue-600/70";
 
+                        let restockBadge = "";
+                        if (c.next_reorder_date) {
+                            const diffDays = Math.ceil((new Date(c.next_reorder_date) - new Date()) / (1000 * 60 * 60 * 24));
+                            if (diffDays <= 0) {
+                                restockBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-950 text-rose-300 border border-rose-700/60 flex items-center gap-1"><i class="fa-solid fa-clock-rotate-left"></i> Due</span>`;
+                            } else if (diffDays <= 7) {
+                                restockBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-300 border border-amber-700/60 flex items-center gap-1"><i class="fa-solid fa-hourglass-half"></i> ${diffDays}d</span>`;
+                            } else {
+                                restockBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-800 text-slate-400 border border-slate-700">${diffDays}d</span>`;
+                            }
+                        }
+
                         const revFormatted = "$" + (c.total_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         const contactName = c.primary_contact ? (c.primary_contact.first_name + " " + c.primary_contact.last_name) : (c.company ? c.company.name : "Contact");
 
@@ -2698,7 +2740,10 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                     <div class="font-bold text-slate-200 text-xs">${escapeHtml(c.account_name)}</div>
                                     <div class="text-[11px] text-slate-400">${escapeHtml(contactName)} • <span class="text-slate-500">${escapeHtml(c.company ? c.company.industry || '' : '')}</span></div>
                                 </div>
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${tierBadgeClass} uppercase">${escapeHtml(c.account_tier)}</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${tierBadgeClass} uppercase">${escapeHtml(c.account_tier)}</span>
+                                    ${restockBadge}
+                                </div>
                             </div>
                             <div class="flex justify-between items-center pt-1 border-t border-slate-800/80 text-[11px]">
                                 <span class="font-bold font-mono text-emerald-400">${revFormatted}</span>
@@ -2760,6 +2805,8 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
                 // Buttons
                 document.getElementById("btn-toggle-sale").disabled = false;
+                const btnReplenish = document.getElementById("btn-trigger-replenishment");
+                if (btnReplenish) btnReplenish.disabled = false;
                 document.getElementById("btn-save-client-notes").disabled = false;
 
                 // Fetch sales for this client
@@ -2915,6 +2962,78 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }
                 } catch(e) {
                     alert("Error: " + e.message);
+                }
+            }
+
+            async function fetchDueReplenishments() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/crm/replenishments/due?threshold_days=7", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const countBadge = document.getElementById("badge-replenishment-count");
+                        if (countBadge) {
+                            countBadge.innerText = `${data.count} Due`;
+                            countBadge.className = data.count > 0
+                                ? "px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-700/60 animate-pulse"
+                                : "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50";
+                        }
+                    }
+                } catch(e) {
+                    console.error("Error fetching due replenishments:", e);
+                }
+            }
+
+            async function processDueReplenishments() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/crm/replenishments/process-due?threshold_days=7", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        showToast("Replenishments Processed!", `Generated ${data.generated_count} new restock order proposal(s) with Stripe checkout links.`, "fa-bolt", "success");
+                        await fetchClients();
+                        await fetchDueReplenishments();
+                        if (selectedClient) fetchSalesForClient(selectedClient.id);
+                    } else {
+                        const err = await res.json();
+                        alert("Error processing replenishments: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function triggerClientReplenishmentProposal() {
+                if (!selectedClient) return;
+                const btn = document.getElementById("btn-trigger-replenishment");
+                if (btn) btn.disabled = true;
+                try {
+                    const res = await fetch(API_BASE + "/crm/clients/" + selectedClient.id + "/generate-replenishment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({})
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const fullUrl = data.checkout_url.startsWith("http") ? data.checkout_url : (SUB_PATH + data.checkout_url);
+                        showToast("Restock Proposal Ready", `Order #${data.order_number} ($${data.amount.toFixed(2)}) generated with Stripe Checkout!`, "fa-stripe", "success");
+                        window.open(fullUrl, "_blank");
+                        await fetchClients();
+                        await fetchSalesForClient(selectedClient.id);
+                        await fetchDueReplenishments();
+                    } else {
+                        const err = await res.json();
+                        alert("Error creating restock proposal: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                } finally {
+                    if (btn) btn.disabled = false;
                 }
             }
 

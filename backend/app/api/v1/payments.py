@@ -14,6 +14,7 @@ from app.models.crm import ClientSale, ClientAccount
 from app.schemas.crm import StripeCheckoutCreateRequest, StripeCheckoutResponse
 from app.services.order_filler.agent import OrderFillerAgent
 from app.services.notification_service import NotificationService
+from app.services.replenishment_service import ReplenishmentService
 from app.api.deps import get_current_tenant
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,7 @@ async def simulate_customer_payment(
         raise HTTPException(status_code=404, detail="Client sale not found")
 
     sale.payment_status = "paid"
+    await ReplenishmentService.advance_client_cadence_on_payment(db=db, sale=sale)
     await db.commit()
     await db.refresh(sale)
 
@@ -236,6 +238,7 @@ async def stripe_webhook(
 
     if event_type in ("checkout.session.completed", "invoice.payment_succeeded", "charge.succeeded"):
         sale.payment_status = "paid"
+        await ReplenishmentService.advance_client_cadence_on_payment(db=db, sale=sale)
         payment_intent = data_object.get("payment_intent")
         if payment_intent:
             sale.stripe_payment_intent_id = payment_intent
