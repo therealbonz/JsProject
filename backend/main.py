@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -85,7 +85,15 @@ async def lifespan(app: FastAPI):
                     ("auto_charge_limit", "FLOAT"),
                     ("payment_method_type", "VARCHAR(50) DEFAULT 'card'"),
                     ("portal_access_token", "VARCHAR(100)"),
-                    ("portal_token_expires_at", "DATETIME")
+                    ("portal_token_expires_at", "DATETIME"),
+                    ("predicted_burn_rate", "FLOAT DEFAULT 0.0"),
+                    ("safety_stock_buffer_percent", "FLOAT DEFAULT 15.0"),
+                    ("stockout_risk_score", "INTEGER DEFAULT 10"),
+                    ("stockout_risk_level", "VARCHAR(20) DEFAULT 'low'"),
+                    ("recommended_reorder_date", "DATETIME"),
+                    ("forecast_confidence", "FLOAT DEFAULT 0.85"),
+                    ("forecast_rationale", "TEXT"),
+                    ("forecast_updated_at", "DATETIME")
                 ]
                 for col_name, col_type in client_cols:
                     if col_name not in cols:
@@ -127,6 +135,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(organization_settings.router, prefix=prefix)
     app.include_router(documents.router, prefix=prefix)
     app.include_router(customer_portal.router, prefix=prefix)
+    app.include_router(forecasting.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -738,6 +747,44 @@ async def customer_portal_page(token: str):
                 </div>
             </div>
 
+            <!-- Smart Inventory Telemetry & AI Safety Stock Advisory Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2.5">
+                        <div class="h-8 w-8 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-sm text-slate-100">AI Inventory Telemetry &amp; Safety Stock Advisory</h3>
+                                <span id="telemetry-risk-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">SAFE INVENTORY BUFFER</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Continuous consumption run-rate monitoring and lead time variability protection.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Burn Rate</span>
+                            <div id="telemetry-burn-rate" class="font-mono font-bold text-sm text-teal-300">$0.00 / day</div>
+                        </div>
+                        <div class="text-right pl-3 border-l border-slate-800">
+                            <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Safety Buffer</span>
+                            <div id="telemetry-safety-buffer" class="font-mono font-bold text-sm text-indigo-300">15.0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-start gap-3">
+                    <i class="fa-solid fa-brain text-indigo-400 mt-0.5 shrink-0"></i>
+                    <div>
+                        <div class="text-[11px] text-indigo-300 font-bold uppercase tracking-wider">Autonomous Restock Intelligence</div>
+                        <p id="telemetry-rationale" class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                            Analyzing consumption patterns and supplier transit times to optimize your reorder intervals.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Two-Column Strip: Card on File & Delivery Address -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Stored Payment Method Card -->
@@ -1000,6 +1047,31 @@ async def customer_portal_page(token: str):
                     document.getElementById("proposal-pay-btn").href = payUrl;
                 } else {
                     propBanner.classList.add("hidden");
+                }
+
+                // Smart Inventory Telemetry
+                if (data.inventory_telemetry) {
+                    const it = data.inventory_telemetry;
+                    document.getElementById("telemetry-burn-rate").innerText = "$" + (it.predicted_burn_rate || 0).toFixed(2) + " / day";
+                    document.getElementById("telemetry-safety-buffer").innerText = (it.safety_stock_buffer_percent || 15.0).toFixed(1) + "%";
+                    if (it.forecast_rationale) {
+                        document.getElementById("telemetry-rationale").innerText = it.forecast_rationale;
+                    }
+                    const riskBadge = document.getElementById("telemetry-risk-badge");
+                    const level = (it.stockout_risk_level || 'low').toLowerCase();
+                    if (level === 'critical') {
+                        riskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-800";
+                        riskBadge.innerText = "CRITICAL STOCKOUT RISK";
+                    } else if (level === 'high') {
+                        riskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800";
+                        riskBadge.innerText = "HIGH STOCKOUT RISK";
+                    } else if (level === 'moderate') {
+                        riskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/70 text-amber-400 border border-amber-800/60";
+                        riskBadge.innerText = "MODERATE DEMAND";
+                    } else {
+                        riskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800";
+                        riskBadge.innerText = "SAFE INVENTORY BUFFER";
+                    }
                 }
 
                 // Payment Method
@@ -1962,6 +2034,39 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                     <i class="fa-solid fa-trash-can"></i> Remove
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- AI Demand Forecasting & Dynamic Safety Stock Strip -->
+                        <div class="bg-gradient-to-r from-teal-950/40 via-slate-900 to-indigo-950/40 border border-teal-500/30 rounded-xl p-3.5 space-y-2.5 shadow-inner">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-teal-950 border border-teal-700/50 flex items-center justify-center text-teal-400 text-lg shadow-sm">
+                                        <i class="fa-solid fa-chart-line"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="text-xs font-bold text-slate-200">AI Demand Forecasting &amp; Safety Stock Optimization</h4>
+                                            <span id="detail-forecast-risk-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">LOW RISK</span>
+                                        </div>
+                                        <div class="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+                                            <span>Burn Rate: <strong id="detail-forecast-burn" class="text-teal-300 font-mono">$0.00/d</strong></span>
+                                            <span>• Buffer: <strong id="detail-forecast-buffer" class="text-indigo-300 font-mono">15.0%</strong></span>
+                                            <span>• Rec. Restock: <strong id="detail-forecast-rec-date" class="text-amber-300 font-mono">—</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button id="btn-run-forecast" onclick="runClientForecast()" disabled class="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition shadow-sm cursor-pointer" title="Recalculate demand velocity and Gemini rationale">
+                                        <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i> <span id="btn-run-forecast-text">Run AI Forecast</span>
+                                    </button>
+                                    <button id="btn-adopt-cadence" onclick="adoptForecastCadence()" disabled class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:text-slate-600 text-slate-300 border border-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer" title="Adopt AI-recommended reorder date and cadence">
+                                        <i class="fa-solid fa-calendar-check text-emerald-400"></i> Adopt Cadence
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="detail-forecast-rationale" class="text-[11px] text-slate-300 italic bg-slate-950/60 p-2.5 rounded border border-slate-800/80">
+                                Run forecast to calculate daily consumption run-rate and evaluate stockout risk.
+                            </p>
                         </div>
 
                         <!-- Editable Client Notes & Contract Hub -->
@@ -3886,6 +3991,17 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             cardBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${isAuto ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-700/60' : 'bg-indigo-950/90 text-indigo-300 border border-indigo-700/60'}" title="${isAuto ? 'Auto-Charge Active' : 'Card on File'}"><i class="fa-solid fa-credit-card text-[8px] mr-1"></i>${brand} ${c.card_last4 || '••••'}</span>`;
                         }
 
+                        let riskBadge = "";
+                        const riskScore = c.stockout_risk_score || 0;
+                        const riskLvl = (c.stockout_risk_level || 'low').toLowerCase();
+                        if (riskLvl === 'critical' || riskScore >= 85) {
+                            riskBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-950 text-rose-300 border border-rose-700/60" title="Critical Stockout Risk (${riskScore}/100)"><i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Critical</span>`;
+                        } else if (riskLvl === 'high' || riskScore >= 70) {
+                            riskBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-300 border border-amber-700/60" title="High Stockout Risk (${riskScore}/100)"><i class="fa-solid fa-bolt text-amber-400"></i> High Risk</span>`;
+                        } else if (riskLvl === 'moderate' || riskScore >= 35) {
+                            riskBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-950/60 text-amber-400 border border-amber-800/40" title="Moderate Demand (${riskScore}/100)">Mod</span>`;
+                        }
+
                         const revFormatted = "$" + (c.total_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         const contactName = c.primary_contact ? (c.primary_contact.first_name + " " + c.primary_contact.last_name) : (c.company ? c.company.name : "Contact");
 
@@ -3898,6 +4014,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                 <div class="flex items-center gap-1 flex-wrap justify-end">
                                     <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${tierBadgeClass} uppercase">${escapeHtml(c.account_tier)}</span>
                                     ${cardBadge}
+                                    ${riskBadge}
                                     ${restockBadge}
                                 </div>
                             </div>
@@ -4015,6 +4132,50 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
                 // Notes
                 document.getElementById("detail-client-notes").value = client.notes || "";
+
+                // AI Demand Forecasting & Safety Stock
+                const btnRunForecast = document.getElementById("btn-run-forecast");
+                const btnAdoptCadence = document.getElementById("btn-adopt-cadence");
+                if (btnRunForecast) btnRunForecast.disabled = false;
+                if (btnAdoptCadence) btnAdoptCadence.disabled = false;
+
+                const forecastRiskBadge = document.getElementById("detail-forecast-risk-badge");
+                const forecastBurn = document.getElementById("detail-forecast-burn");
+                const forecastBuffer = document.getElementById("detail-forecast-buffer");
+                const forecastRecDate = document.getElementById("detail-forecast-rec-date");
+                const forecastRationale = document.getElementById("detail-forecast-rationale");
+
+                if (forecastBurn) forecastBurn.innerText = "$" + (client.predicted_burn_rate || 0).toFixed(2) + "/d";
+                if (forecastBuffer) forecastBuffer.innerText = (client.safety_stock_buffer_percent || 15.0).toFixed(1) + "%";
+
+                if (client.recommended_reorder_date) {
+                    const recD = new Date(client.recommended_reorder_date).toLocaleDateString([], {month: 'short', day: 'numeric', year: 'numeric'});
+                    if (forecastRecDate) forecastRecDate.innerText = recD;
+                } else {
+                    if (forecastRecDate) forecastRecDate.innerText = "—";
+                }
+
+                if (forecastRationale) {
+                    forecastRationale.innerText = client.forecast_rationale || "Run forecast to calculate daily consumption run-rate and evaluate stockout risk.";
+                }
+
+                if (forecastRiskBadge) {
+                    const score = client.stockout_risk_score || 10;
+                    const lvl = (client.stockout_risk_level || 'low').toLowerCase();
+                    if (lvl === 'critical' || score >= 85) {
+                        forecastRiskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-700/60";
+                        forecastRiskBadge.innerText = `CRITICAL RISK (${score}/100)`;
+                    } else if (lvl === 'high' || score >= 70) {
+                        forecastRiskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-700/60";
+                        forecastRiskBadge.innerText = `HIGH RISK (${score}/100)`;
+                    } else if (lvl === 'moderate' || score >= 35) {
+                        forecastRiskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/70 text-amber-400 border border-amber-800/60";
+                        forecastRiskBadge.innerText = `MODERATE (${score}/100)`;
+                    } else {
+                        forecastRiskBadge.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800";
+                        forecastRiskBadge.innerText = `LOW RISK (${score}/100)`;
+                    }
+                }
 
                 // Buttons
                 document.getElementById("btn-toggle-sale").disabled = false;
@@ -4422,6 +4583,73 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }
                 } catch(e) {
                     alert("Error: " + e.message);
+                }
+            }
+
+            async function runClientForecast() {
+                if (!selectedClient || !authToken) return;
+                const btnText = document.getElementById("btn-run-forecast-text");
+                const origText = btnText ? btnText.innerText : "Run AI Forecast";
+                if (btnText) btnText.innerText = "Analyzing...";
+
+                try {
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/forecast/refresh`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast("Forecast Updated!", `Consumption run-rate: $${(data.predicted_burn_rate || 0).toFixed(2)}/day with ${data.safety_stock_buffer_percent}% buffer.`, "fa-brain", "success");
+                        const updatedRes = await fetch(API_BASE + "/crm/clients/" + selectedClient.id, {
+                            headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                        });
+                        if (updatedRes.ok) {
+                            const fresh = await updatedRes.json();
+                            selectClient(fresh);
+                            fetchClients();
+                        }
+                    } else {
+                        alert("Error running forecast: " + (data.detail || JSON.stringify(data)));
+                    }
+                } catch(e) {
+                    alert("Error running forecast: " + e.message);
+                } finally {
+                    if (btnText) btnText.innerText = origText;
+                }
+            }
+
+            async function adoptForecastCadence() {
+                if (!selectedClient || !authToken) return;
+                try {
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/apply-forecast-cadence`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ apply_cadence_days: true, apply_reorder_date: true })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast("Cadence Synchronized!", `Adopted ${data.reorder_cadence_days}-day cadence based on AI consumption forecast.`, "fa-calendar-check", "success");
+                        const updatedRes = await fetch(API_BASE + "/crm/clients/" + selectedClient.id, {
+                            headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                        });
+                        if (updatedRes.ok) {
+                            const fresh = await updatedRes.json();
+                            selectClient(fresh);
+                            fetchClients();
+                        }
+                    } else {
+                        alert("Error adopting cadence: " + (data.detail || JSON.stringify(data)));
+                    }
+                } catch(e) {
+                    alert("Error adopting cadence: " + e.message);
                 }
             }
 

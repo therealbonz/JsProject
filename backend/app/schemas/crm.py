@@ -329,6 +329,14 @@ class ClientAccountResponse(BaseModel):
     auto_charge_limit: Optional[float] = None
     payment_method_type: Optional[str] = "card"
     portal_access_token: Optional[str] = None
+    predicted_burn_rate: Optional[float] = 0.0
+    safety_stock_buffer_percent: Optional[float] = 15.0
+    stockout_risk_score: Optional[int] = 10
+    stockout_risk_level: Optional[str] = "low"
+    recommended_reorder_date: Optional[datetime] = None
+    forecast_confidence: Optional[float] = 0.85
+    forecast_rationale: Optional[str] = None
+    forecast_updated_at: Optional[datetime] = None
     created_at: datetime
     company: Optional[CompanyResponse] = None
     primary_contact: Optional[ContactResponse] = None
@@ -368,3 +376,35 @@ class LeadConversionPayload(BaseModel):
     initial_order_amount: Optional[float] = None
     initial_order_items: Optional[str] = None
     notes: Optional[str] = None
+
+class DemandForecastResponse(BaseModel):
+    client_id: str
+    account_name: str
+    predicted_burn_rate: float
+    reorder_cadence_days: int
+    recommended_cadence_days: int
+    next_reorder_date: Optional[datetime] = None
+    recommended_reorder_date: Optional[datetime] = None
+    days_until_stockout: int
+    stockout_risk_score: int
+    stockout_risk_level: str
+    safety_stock_buffer_percent: float
+    recommended_restock_amount: float
+    forecast_confidence: float
+    forecast_rationale: str
+    model_used: str
+    telemetry: Dict[str, Any]
+    last_updated: datetime
+
+class DemandForecastOverviewStats(BaseModel):
+    monitored_accounts: int
+    high_risk_accounts: int
+    moderate_risk_accounts: int
+    safe_accounts: int
+    average_burn_rate: float
+    projected_30d_demand: float
+    average_forecast_confidence: float
+
+class ApplyForecastCadenceRequest(BaseModel):
+    apply_cadence_days: Optional[bool] = True
+    apply_reorder_date: Optional[bool] = True

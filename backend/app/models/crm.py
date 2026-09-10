@@ -156,10 +156,21 @@ class ClientAccount(Base, CommonMixin, TenantMixin):
     portal_access_token = Column(String(100), unique=True, index=True, nullable=True)
     portal_token_expires_at = Column(DateTime(timezone=True), nullable=True)
 
+    # AI Demand Forecasting & Dynamic Safety Stock Optimization
+    predicted_burn_rate = Column(Float, default=0.0, nullable=False)  # $/day
+    safety_stock_buffer_percent = Column(Float, default=15.0, nullable=False)  # % buffer
+    stockout_risk_score = Column(Integer, default=10, nullable=False)  # 0-100
+    stockout_risk_level = Column(String(20), default="low", nullable=False)  # low, moderate, high, critical
+    recommended_reorder_date = Column(DateTime(timezone=True), nullable=True)
+    forecast_confidence = Column(Float, default=0.85, nullable=False)
+    forecast_rationale = Column(Text, nullable=True)
+    forecast_updated_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     company = relationship("Company")
     primary_contact = relationship("Contact")
     sales = relationship("ClientSale", back_populates="client", cascade="all, delete-orphan", order_by=lambda: desc(ClientSale.sale_date))
+    forecast_logs = relationship("DemandForecastLog", back_populates="client", cascade="all, delete-orphan", order_by=lambda: desc(DemandForecastLog.forecast_date))
 
 class ClientSale(Base, CommonMixin, TenantMixin):
     __tablename__ = "client_sales"
@@ -227,4 +238,24 @@ class Appointment(Base, CommonMixin, TenantMixin):
     lead = relationship("Lead", back_populates="appointments")
     company = relationship("Company", back_populates="appointments")
     contact = relationship("Contact", back_populates="appointments")
+
+class DemandForecastLog(Base, CommonMixin, TenantMixin):
+    __tablename__ = "demand_forecast_logs"
+
+    client_id = Column(String(36), ForeignKey("client_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    forecast_date = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
+    predicted_burn_rate = Column(Float, default=0.0, nullable=False)
+    recommended_reorder_date = Column(DateTime(timezone=True), nullable=True)
+    recommended_amount = Column(Float, default=0.0, nullable=False)
+    recommended_items = Column(String(500), nullable=True)
+    stockout_risk_score = Column(Integer, default=10, nullable=False)
+    stockout_risk_level = Column(String(20), default="low", nullable=False)
+    safety_stock_buffer_percent = Column(Float, default=15.0, nullable=False)
+    confidence_score = Column(Float, default=0.85, nullable=False)
+    model_used = Column(String(50), default="gemini-2.5-flash", nullable=False)
+    rationale = Column(Text, nullable=True)
+    telemetry_json = Column(JSON, default=dict, nullable=False)
+
+    # Relationships
+    client = relationship("ClientAccount", back_populates="forecast_logs")
 

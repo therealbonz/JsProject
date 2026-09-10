@@ -184,6 +184,15 @@ async def get_customer_portal_session(
             "auto_charge_limit": client.auto_charge_limit,
             "payment_method_type": client.payment_method_type or "card"
         },
+        "inventory_telemetry": {
+            "predicted_burn_rate": client.predicted_burn_rate or 0.0,
+            "stockout_risk_score": client.stockout_risk_score or 10,
+            "stockout_risk_level": client.stockout_risk_level or "low",
+            "safety_stock_buffer_percent": client.safety_stock_buffer_percent or 15.0,
+            "recommended_reorder_date": client.recommended_reorder_date.isoformat() if client.recommended_reorder_date else None,
+            "forecast_confidence": client.forecast_confidence or 0.85,
+            "forecast_rationale": client.forecast_rationale or "Inventory reserves operating within normal replenishment parameters."
+        },
         "pending_replenishment": pending_proposal,
         "sales_ledger": sales_history
     }
