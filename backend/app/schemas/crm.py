@@ -321,12 +321,39 @@ class ClientAccountResponse(BaseModel):
     next_reorder_date: Optional[datetime] = None
     account_manager: str
     notes: Optional[str] = None
+    stripe_customer_id: Optional[str] = None
+    has_payment_method_on_file: bool = False
+    card_brand: Optional[str] = None
+    card_last4: Optional[str] = None
+    auto_charge_enabled: bool = False
+    auto_charge_limit: Optional[float] = None
+    payment_method_type: Optional[str] = "card"
     created_at: datetime
     company: Optional[CompanyResponse] = None
     primary_contact: Optional[ContactResponse] = None
     sales: List[ClientSaleResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+class AttachPaymentMethodRequest(BaseModel):
+    card_brand: Optional[str] = "visa"
+    card_last4: Optional[str] = "4242"
+    payment_method_type: Optional[str] = "card"
+    enable_auto_charge: Optional[bool] = True
+    auto_charge_limit: Optional[float] = None
+
+class AutoChargeToggleRequest(BaseModel):
+    auto_charge_enabled: Optional[bool] = None
+    enabled: Optional[bool] = None
+    auto_charge_limit: Optional[float] = None
+    limit: Optional[float] = None
+
+class SetupPaymentMethodResponse(BaseModel):
+    client_id: str
+    stripe_customer_id: str
+    setup_url: Optional[str] = None
+    client_secret: Optional[str] = None
+    mode: str = "simulated"
 
 class ClientSalesOverviewStats(BaseModel):
     total_revenue: float

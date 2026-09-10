@@ -143,6 +143,15 @@ class ClientAccount(Base, CommonMixin, TenantMixin):
     account_manager = Column(String(100), default="Primary Sales Manager", nullable=False)
     notes = Column(Text, nullable=True)
 
+    # Card on File & Recurring Subscriptions
+    stripe_customer_id = Column(String(255), nullable=True, index=True)
+    has_payment_method_on_file = Column(Boolean, default=False, nullable=False)
+    card_brand = Column(String(50), nullable=True)
+    card_last4 = Column(String(10), nullable=True)
+    auto_charge_enabled = Column(Boolean, default=False, nullable=False)
+    auto_charge_limit = Column(Float, nullable=True)
+    payment_method_type = Column(String(50), default="card", nullable=False)
+
     # Relationships
     company = relationship("Company")
     primary_contact = relationship("Contact")

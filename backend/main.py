@@ -74,6 +74,20 @@ async def lifespan(app: FastAPI):
                 for col_name, col_type in sale_cols:
                     if col_name not in cols:
                         sync_conn.execute(text(f"ALTER TABLE client_sales ADD COLUMN {col_name} {col_type}"))
+            if "client_accounts" in tables:
+                cols = [c["name"] for c in inspector.get_columns("client_accounts")]
+                client_cols = [
+                    ("stripe_customer_id", "VARCHAR(255)"),
+                    ("has_payment_method_on_file", "BOOLEAN DEFAULT 0"),
+                    ("card_brand", "VARCHAR(50)"),
+                    ("card_last4", "VARCHAR(10)"),
+                    ("auto_charge_enabled", "BOOLEAN DEFAULT 0"),
+                    ("auto_charge_limit", "FLOAT"),
+                    ("payment_method_type", "VARCHAR(50) DEFAULT 'card'")
+                ]
+                for col_name, col_type in client_cols:
+                    if col_name not in cols:
+                        sync_conn.execute(text(f"ALTER TABLE client_accounts ADD COLUMN {col_name} {col_type}"))
         await conn.run_sync(migrate_sqlite_columns)
     logger.info("Database initialized successfully.")
     yield
@@ -1319,6 +1333,33 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             </div>
                         </div>
 
+                        <!-- Card-on-File & Stripe Recurring Settlement Strip -->
+                        <div class="bg-slate-900/90 border border-slate-700/60 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-inner">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-indigo-950 border border-indigo-700/50 flex items-center justify-center text-indigo-400 text-lg shadow-sm">
+                                    <i class="fa-solid fa-credit-card"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-xs font-bold text-slate-200">Stripe Card-on-File &amp; Recurring Settlement</h4>
+                                        <span id="detail-card-status-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">No Card</span>
+                                    </div>
+                                    <p id="detail-card-description" class="text-[11px] text-slate-400 mt-0.5">Attach a corporate card for automated recurring replenishment billing.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="btn-attach-card" onclick="openAttachCardModal()" disabled class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition shadow-sm cursor-pointer">
+                                    <i class="fa-solid fa-plus-circle"></i> <span id="btn-attach-card-text">Store Card</span>
+                                </button>
+                                <button id="btn-toggle-auto-charge" onclick="toggleAutoCharge()" disabled class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:text-slate-600 text-slate-300 border border-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                                    <i class="fa-solid fa-bolt text-amber-400"></i> Auto-Charge
+                                </button>
+                                <button id="btn-detach-card" onclick="detachPaymentMethod()" disabled class="hidden px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                                    <i class="fa-solid fa-trash-can"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Editable Client Notes & Contract Hub -->
                         <div class="space-y-2">
                             <div class="flex justify-between items-center">
@@ -1861,6 +1902,52 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                         <button type="button" onclick="closeConvertModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold">Cancel</button>
                         <button type="submit" class="py-2 px-4 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-md">
                             <i class="fa-solid fa-trophy"></i> Complete Conversion & Launch CRM 2
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Attach / Update Card on File for Client Account -->
+        <div id="modal-attach-card" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-credit-card text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Store Corporate Card on File</h3>
+                    </div>
+                    <button onclick="closeAttachCardModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form id="form-attach-card" onsubmit="handleAttachPaymentMethod(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Card Brand</label>
+                        <select id="in-card-brand" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <option value="visa" selected>Visa Corporate</option>
+                            <option value="mastercard">Mastercard Commercial</option>
+                            <option value="amex">American Express Corporate</option>
+                            <option value="discover">Discover</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Last 4 Digits</label>
+                        <input id="in-card-last4" type="text" maxlength="4" pattern="[0-9]{4}" required placeholder="4242" value="4242" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 font-mono focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="pt-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input id="in-auto-charge-enabled" type="checkbox" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-700">
+                            <span class="text-slate-200 font-semibold">Enable Automatic Settlement on Restock Due</span>
+                        </label>
+                        <p class="text-[11px] text-slate-400 ml-6 mt-0.5">When enabled, the replenishment engine charges this card automatically when cadence restocks trigger.</p>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Safety Auto-Charge Limit ($) (Optional)</label>
+                        <input id="in-auto-charge-limit" type="number" step="1" min="1" placeholder="e.g. 5000 (Leave blank for unlimited)" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 font-mono focus:outline-none focus:border-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-0.5">Orders exceeding this limit will pause for manual authorization before charging.</p>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        <button type="button" onclick="closeAttachCardModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-semibold cursor-pointer">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer">
+                            <i class="fa-solid fa-lock text-indigo-200"></i> Authorize &amp; Store Card
                         </button>
                     </div>
                 </form>
@@ -3188,6 +3275,13 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             }
                         }
 
+                        let cardBadge = "";
+                        if (c.has_payment_method_on_file) {
+                            const brand = (c.card_brand || "CARD").toUpperCase();
+                            const isAuto = Boolean(c.auto_charge_enabled);
+                            cardBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${isAuto ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-700/60' : 'bg-indigo-950/90 text-indigo-300 border border-indigo-700/60'}" title="${isAuto ? 'Auto-Charge Active' : 'Card on File'}"><i class="fa-solid fa-credit-card text-[8px] mr-1"></i>${brand} ${c.card_last4 || '••••'}</span>`;
+                        }
+
                         const revFormatted = "$" + (c.total_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         const contactName = c.primary_contact ? (c.primary_contact.first_name + " " + c.primary_contact.last_name) : (c.company ? c.company.name : "Contact");
 
@@ -3197,8 +3291,9 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                     <div class="font-bold text-slate-200 text-xs">${escapeHtml(c.account_name)}</div>
                                     <div class="text-[11px] text-slate-400">${escapeHtml(contactName)} • <span class="text-slate-500">${escapeHtml(c.company ? c.company.industry || '' : '')}</span></div>
                                 </div>
-                                <div class="flex items-center gap-1">
+                                <div class="flex items-center gap-1 flex-wrap justify-end">
                                     <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${tierBadgeClass} uppercase">${escapeHtml(c.account_tier)}</span>
+                                    ${cardBadge}
                                     ${restockBadge}
                                 </div>
                             </div>
@@ -3255,6 +3350,63 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     document.getElementById("detail-client-next-reorder").innerText = nextDate;
                 } else {
                     document.getElementById("detail-client-next-reorder").innerText = "—";
+                }
+
+                // Stored Card on File & Auto-Charge status
+                const badgeCard = document.getElementById("detail-card-status-badge");
+                const descCard = document.getElementById("detail-card-description");
+                const btnAttach = document.getElementById("btn-attach-card");
+                const btnAttachText = document.getElementById("btn-attach-card-text");
+                const btnToggleAuto = document.getElementById("btn-toggle-auto-charge");
+                const btnDetach = document.getElementById("btn-detach-card");
+
+                if (btnAttach) btnAttach.disabled = false;
+
+                if (client.has_payment_method_on_file) {
+                    const brand = (client.card_brand || "card").toUpperCase();
+                    const last4 = client.card_last4 || "••••";
+                    const isAuto = Boolean(client.auto_charge_enabled);
+                    const limitStr = client.auto_charge_limit ? ` (Max: $${Number(client.auto_charge_limit).toLocaleString()})` : " (Unlimited)";
+                    
+                    if (badgeCard) {
+                        badgeCard.className = `px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${isAuto ? 'bg-emerald-950 text-emerald-300 border-emerald-600/60' : 'bg-amber-950 text-amber-300 border-amber-600/60'}`;
+                        badgeCard.innerHTML = `<i class="fa-solid fa-credit-card mr-1"></i>${brand} •••• ${last4} &bull; ${isAuto ? 'AUTO-CHARGE ACTIVE' : 'AUTO-CHARGE PAUSED'}`;
+                    }
+                    if (descCard) {
+                        descCard.innerHTML = `<span class="text-slate-300 font-semibold">${brand} ending in ${last4}</span> on file.${limitStr} ${isAuto ? '<span class="text-emerald-400">Autonomous replenishment charges execute without human intervention.</span>' : '<span class="text-amber-400">Card stored; auto-charge paused.</span>'}`;
+                    }
+                    if (btnAttachText) btnAttachText.innerText = "Update Card";
+                    if (btnDetach) {
+                        btnDetach.disabled = false;
+                        btnDetach.classList.remove("hidden");
+                    }
+                    if (btnToggleAuto) {
+                        btnToggleAuto.disabled = false;
+                        btnToggleAuto.innerHTML = isAuto
+                            ? `<i class="fa-solid fa-pause text-amber-400"></i> Pause Auto-Charge`
+                            : `<i class="fa-solid fa-play text-emerald-400"></i> Enable Auto-Charge`;
+                        btnToggleAuto.className = isAuto
+                            ? `px-2.5 py-1.5 bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800/60 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer`
+                            : `px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer`;
+                    }
+                } else {
+                    if (badgeCard) {
+                        badgeCard.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700";
+                        badgeCard.innerText = "No Card on File";
+                    }
+                    if (descCard) {
+                        descCard.innerText = "Attach a corporate card to enable hands-free autonomous replenishment billing.";
+                    }
+                    if (btnAttachText) btnAttachText.innerText = "Store Card";
+                    if (btnDetach) {
+                        btnDetach.disabled = true;
+                        btnDetach.classList.add("hidden");
+                    }
+                    if (btnToggleAuto) {
+                        btnToggleAuto.disabled = true;
+                        btnToggleAuto.innerHTML = `<i class="fa-solid fa-bolt text-slate-500"></i> Auto-Charge`;
+                        btnToggleAuto.className = `px-2.5 py-1.5 bg-slate-800 text-slate-500 border border-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed`;
+                    }
                 }
 
                 // Notes
@@ -3338,8 +3490,17 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
                         let stripeActionsHtml = "";
                         if (!isPaid) {
+                            let autoChargeBtn = "";
+                            if (selectedClient && selectedClient.has_payment_method_on_file) {
+                                autoChargeBtn = `
+                                    <button onclick="chargeClientSaleWithStoredCard('${selectedClient.id}', '${s.id}', '${escapeHtml(s.order_number)}')" class="px-1.5 py-0.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white border border-emerald-400/40 rounded text-[9px] font-semibold flex items-center gap-1 cursor-pointer shadow-sm" title="Charge client's stored card-on-file">
+                                        <i class="fa-solid fa-bolt text-amber-300"></i> Auto-Charge Card
+                                    </button>
+                                `;
+                            }
                             stripeActionsHtml = `
-                                <div class="flex items-center gap-1 mt-1">
+                                <div class="flex items-center gap-1 mt-1 flex-wrap">
+                                    ${autoChargeBtn}
                                     <button onclick="createStripeCheckout('${s.id}', '${escapeHtml(s.order_number)}')" class="px-1.5 py-0.5 bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/40 rounded text-[9px] font-semibold flex items-center gap-1 cursor-pointer" title="Create / Open Stripe Checkout">
                                         <i class="fa-brands fa-stripe"></i> Pay Link
                                     </button>
@@ -3426,6 +3587,139 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     } else {
                         const err = await res.json();
                         alert("Error simulating payment: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function openAttachCardModal() {
+                if (!selectedClient) {
+                    alert("Please select a client account first.");
+                    return;
+                }
+                if (selectedClient.has_payment_method_on_file) {
+                    if (selectedClient.card_brand) document.getElementById("in-card-brand").value = selectedClient.card_brand.toLowerCase();
+                    if (selectedClient.card_last4) document.getElementById("in-card-last4").value = selectedClient.card_last4;
+                    document.getElementById("in-auto-charge-enabled").checked = Boolean(selectedClient.auto_charge_enabled);
+                    document.getElementById("in-auto-charge-limit").value = selectedClient.auto_charge_limit || "";
+                }
+                document.getElementById("modal-attach-card").classList.remove("hidden");
+            }
+
+            function closeAttachCardModal() {
+                document.getElementById("modal-attach-card").classList.add("hidden");
+            }
+
+            async function handleAttachPaymentMethod(e) {
+                e.preventDefault();
+                if (!selectedClient) return;
+
+                const brand = document.getElementById("in-card-brand").value;
+                const last4 = document.getElementById("in-card-last4").value;
+                const enableAuto = document.getElementById("in-auto-charge-enabled").checked;
+                const limitVal = document.getElementById("in-auto-charge-limit").value;
+                const limit = limitVal ? parseFloat(limitVal) : null;
+
+                try {
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/payment-method/attach`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({
+                            card_brand: brand,
+                            card_last4: last4,
+                            payment_method_type: "card",
+                            enable_auto_charge: enableAuto,
+                            auto_charge_limit: limit
+                        })
+                    });
+
+                    if (res.ok) {
+                        const updated = await res.json();
+                        closeAttachCardModal();
+                        showToast("Card Stored on File!", `${brand.toUpperCase()} ending in ${last4} authorized for auto-billing.`, "fa-credit-card", "success");
+                        await fetchClients();
+                        selectClient(updated);
+                    } else {
+                        const err = await res.json();
+                        alert("Error attaching payment method: " + (err.detail || res.statusText));
+                    }
+                } catch(err) {
+                    alert("Error: " + err.message);
+                }
+            }
+
+            async function toggleAutoCharge() {
+                if (!selectedClient || !selectedClient.has_payment_method_on_file) return;
+                const currentStatus = Boolean(selectedClient.auto_charge_enabled);
+                const nextStatus = !currentStatus;
+
+                try {
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/payment-method/auto-charge`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId },
+                        body: JSON.stringify({
+                            enabled: nextStatus,
+                            limit: selectedClient.auto_charge_limit
+                        })
+                    });
+
+                    if (res.ok) {
+                        const updated = await res.json();
+                        showToast(nextStatus ? "Auto-Charge Enabled" : "Auto-Charge Paused", `Recurring restock charges will ${nextStatus ? 'process autonomously' : 'pause for review'}.`, "fa-bolt", "info");
+                        await fetchClients();
+                        selectClient(updated);
+                    } else {
+                        const err = await res.json();
+                        alert("Error toggling auto-charge: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function detachPaymentMethod() {
+                if (!selectedClient || !selectedClient.has_payment_method_on_file) return;
+                if (!confirm(`Are you sure you want to remove the stored card for ${selectedClient.account_name}? Automatic replenishment billing will be disabled.`)) return;
+
+                try {
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/payment-method`, {
+                        method: "DELETE",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+
+                    if (res.ok) {
+                        const updated = await res.json();
+                        showToast("Card Removed", "Payment method detached from client account.", "fa-trash-can", "info");
+                        await fetchClients();
+                        selectClient(updated);
+                    } else {
+                        const err = await res.json();
+                        alert("Error detaching payment method: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function chargeClientSaleWithStoredCard(clientId, saleId, orderNum) {
+                if (!confirm(`Charge client's stored card for Order #${orderNum}?`)) return;
+                try {
+                    const res = await fetch(API_BASE + `/crm/clients/${clientId}/charge-sale/${saleId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        showToast("Auto-Charge Successful!", `Card charged for Order #${orderNum}. Autonomous fulfillment triggered.`, "fa-bolt", "success");
+                        await fetchClients();
+                        if (selectedClient) fetchSalesForClient(selectedClient.id);
+                        await fetchPurchaseOrders();
+                        await fetchProcurementStats();
+                        await fetchDueReplenishments();
+                    } else {
+                        const err = await res.json();
+                        alert("Auto-charge failed: " + (err.detail || res.statusText));
                     }
                 } catch(e) {
                     alert("Error: " + e.message);

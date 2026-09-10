@@ -21,8 +21,13 @@ from app.schemas.crm import (
     ClientAccountCreate, ClientAccountUpdate, ClientAccountResponse,
     ClientSaleCreate, ClientSaleResponse, ClientSalesOverviewStats,
     LeadConversionPayload,
-    AppointmentCreate, AppointmentUpdate, AppointmentResponse
+    AppointmentCreate, AppointmentUpdate, AppointmentResponse,
+    AttachPaymentMethodRequest, AutoChargeToggleRequest, SetupPaymentMethodResponse
 )
+from app.services.stripe_recurring_service import StripeRecurringService
+from app.services.notification_service import NotificationService
+from app.services.replenishment_service import ReplenishmentService
+from app.services.order_filler.agent import OrderFillerAgent
 
 router = APIRouter(prefix="/crm", tags=["CRM & Pipeline"])
 
@@ -579,6 +584,199 @@ async def update_client(
     await db.commit()
     await db.refresh(client)
     return client
+
+@router.post("/clients/{client_id}/payment-method/attach", response_model=ClientAccountResponse)
+async def attach_client_payment_method(
+    client_id: str,
+    payload: AttachPaymentMethodRequest,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Attaches a payment method (card or ACH) on file for the client account
+    and enables/configures off-session auto-billing.
+    """
+    user, org, _ = tenant_context
+    stmt = (
+        select(ClientAccount)
+        .options(
+            selectinload(ClientAccount.company),
+            selectinload(ClientAccount.primary_contact),
+            selectinload(ClientAccount.sales)
+        )
+        .where(ClientAccount.id == client_id, ClientAccount.organization_id == org.id)
+    )
+    res = await db.execute(stmt)
+    client = res.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client account not found")
+
+    updated_client = await StripeRecurringService.attach_payment_method(
+        db=db,
+        client=client,
+        card_brand=payload.card_brand or "visa",
+        card_last4=payload.card_last4 or "4242",
+        payment_method_type=payload.payment_method_type or "card",
+        enable_auto_charge=payload.enable_auto_charge if payload.enable_auto_charge is not None else True,
+        auto_charge_limit=payload.auto_charge_limit
+    )
+    return updated_client
+
+@router.delete("/clients/{client_id}/payment-method", response_model=ClientAccountResponse)
+async def detach_client_payment_method(
+    client_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Removes the stored payment method on file and disables automatic charging.
+    """
+    user, org, _ = tenant_context
+    stmt = (
+        select(ClientAccount)
+        .options(
+            selectinload(ClientAccount.company),
+            selectinload(ClientAccount.primary_contact),
+            selectinload(ClientAccount.sales)
+        )
+        .where(ClientAccount.id == client_id, ClientAccount.organization_id == org.id)
+    )
+    res = await db.execute(stmt)
+    client = res.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client account not found")
+
+    updated_client = await StripeRecurringService.detach_payment_method(db=db, client=client)
+    return updated_client
+
+@router.post("/clients/{client_id}/payment-method/auto-charge", response_model=ClientAccountResponse)
+async def toggle_client_auto_charge(
+    client_id: str,
+    payload: AutoChargeToggleRequest,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggles automatic charge authorization and adjusts safety spending cap.
+    """
+    user, org, _ = tenant_context
+    stmt = (
+        select(ClientAccount)
+        .options(
+            selectinload(ClientAccount.company),
+            selectinload(ClientAccount.primary_contact),
+            selectinload(ClientAccount.sales)
+        )
+        .where(ClientAccount.id == client_id, ClientAccount.organization_id == org.id)
+    )
+    res = await db.execute(stmt)
+    client = res.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client account not found")
+
+    enabled = payload.auto_charge_enabled if payload.auto_charge_enabled is not None else (payload.enabled if payload.enabled is not None else True)
+    limit = payload.auto_charge_limit if payload.auto_charge_limit is not None else payload.limit
+
+    updated_client = await StripeRecurringService.toggle_auto_charge(
+        db=db,
+        client=client,
+        enabled=enabled,
+        limit=limit
+    )
+    return updated_client
+
+@router.post("/clients/{client_id}/charge-sale/{sale_id}")
+async def charge_client_stored_card_for_sale(
+    client_id: str,
+    sale_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manually or programmatically triggers an off-session charge against the stored card
+    on file for a specific unpaid order, automatically advancing cadence and triggering fulfillment.
+    """
+    user, org, _ = tenant_context
+    stmt = (
+        select(ClientAccount)
+        .options(
+            selectinload(ClientAccount.company),
+            selectinload(ClientAccount.primary_contact)
+        )
+        .where(ClientAccount.id == client_id, ClientAccount.organization_id == org.id)
+    )
+    res = await db.execute(stmt)
+    client = res.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client account not found")
+
+    sale_stmt = (
+        select(ClientSale)
+        .options(selectinload(ClientSale.purchase_orders))
+        .where(ClientSale.id == sale_id, ClientSale.client_id == client.id, ClientSale.organization_id == org.id)
+    )
+    sale_res = await db.execute(sale_stmt)
+    sale = sale_res.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale not found for this client")
+
+    charge_result = await StripeRecurringService.charge_stored_payment_method(
+        db=db,
+        client=client,
+        sale=sale,
+        org=org
+    )
+    if not charge_result.get("success"):
+        raise HTTPException(status_code=400, detail=charge_result.get("error", "Charge failed"))
+
+    # Advance client replenishment cadence
+    await ReplenishmentService.advance_client_cadence_on_payment(db=db, sale=sale)
+    await db.commit()
+
+    # Dispatch Payment Received notification
+    await NotificationService.create_and_send_notification(
+        db=db,
+        sale=sale,
+        event_type="payment_received",
+        channel="email"
+    )
+
+    # If auto-fulfill enabled, trigger dropshipping PO
+    auto_fulfilled = False
+    po_data = None
+    if sale.auto_fulfill_on_payment and not sale.purchase_orders:
+        dest_address = None
+        if client.company and client.company.address:
+            dest_address = client.company.address
+        else:
+            dest_address = f"{client.account_name} Receiving Dock"
+
+        agent = OrderFillerAgent()
+        po_res = await agent.auto_fill_order(
+            db=db,
+            org_id=sale.organization_id,
+            prompt=sale.items_summary,
+            max_budget_limit=max(sale.amount * 1.5, 2000.0),
+            client_sale_id=sale.id,
+            destination_type="customer_dropship",
+            destination_address=dest_address
+        )
+        auto_fulfilled = True
+        po_data = {
+            "po_number": po_res.get("po_number"),
+            "carrier": po_res.get("carrier"),
+            "tracking_number": po_res.get("tracking_number")
+        }
+
+    return {
+        "success": True,
+        "sale_id": sale.id,
+        "order_number": sale.order_number,
+        "payment_status": sale.payment_status,
+        "charge": charge_result,
+        "auto_fulfilled": auto_fulfilled,
+        "fulfillment": po_data
+    }
 
 @router.post("/clients/{client_id}/sales", response_model=ClientSaleResponse)
 async def log_client_sale(

@@ -6,8 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
 
+from app.models.tenant import Organization
 from app.models.crm import ClientAccount, ClientSale, CustomerNotification
 from app.services.notification_service import NotificationService
+from app.services.stripe_recurring_service import StripeRecurringService
+from app.services.order_filler.agent import OrderFillerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +96,11 @@ class ReplenishmentService:
                     "contact_phone": c.primary_contact.phone if c.primary_contact else None,
                     "total_revenue": c.total_revenue,
                     "order_count": c.order_count,
+                    "has_payment_method_on_file": bool(c.has_payment_method_on_file),
+                    "auto_charge_enabled": bool(c.auto_charge_enabled),
+                    "card_brand": c.card_brand,
+                    "card_last4": c.card_last4,
+                    "auto_charge_limit": c.auto_charge_limit,
                     "pending_replenishment": pending_sale
                 })
 
@@ -114,6 +122,7 @@ class ReplenishmentService:
             select(ClientAccount)
             .options(
                 selectinload(ClientAccount.primary_contact),
+                selectinload(ClientAccount.company),
                 selectinload(ClientAccount.sales)
             )
             .where(
@@ -126,9 +135,70 @@ class ReplenishmentService:
         if not client:
             raise ValueError(f"Client account {client_id} not found")
 
+        org_stmt = select(Organization).where(Organization.id == org_id)
+        org_res = await db.execute(org_stmt)
+        org = org_res.scalar_one_or_none()
+
         # Check if an unpaid replenishment sale already exists
         for existing in (client.sales or []):
             if existing.status == "replenishment_pending" and existing.payment_status == "unpaid":
+                # Check if client has card-on-file auto-charge eligible
+                if client.has_payment_method_on_file and client.auto_charge_enabled:
+                    if client.auto_charge_limit is None or existing.amount <= client.auto_charge_limit:
+                        charge_res = await StripeRecurringService.charge_stored_payment_method(
+                            db=db,
+                            client=client,
+                            sale=existing,
+                            org=org
+                        )
+                        if charge_res.get("success"):
+                            await ReplenishmentService.advance_client_cadence_on_payment(db=db, sale=existing)
+                            await db.commit()
+
+                            try:
+                                await NotificationService.create_and_send_notification(
+                                    db=db,
+                                    sale=existing,
+                                    event_type="payment_received",
+                                    channel="email"
+                                )
+                            except Exception as e:
+                                logger.warning(f"Could not dispatch payment confirmation: {e}")
+
+                            if existing.auto_fulfill_on_payment:
+                                try:
+                                    dest_address = client.company.address if (client.company and client.company.address) else f"{client.account_name} Facility"
+                                    agent = OrderFillerAgent()
+                                    await agent.auto_fill_order(
+                                        db=db,
+                                        org_id=org_id,
+                                        prompt=existing.items_summary,
+                                        max_budget_limit=max(existing.amount * 1.5, 2000.0),
+                                        client_sale_id=existing.id,
+                                        destination_type="customer_dropship",
+                                        destination_address=dest_address
+                                    )
+                                    await NotificationService.create_and_send_notification(
+                                        db=db,
+                                        sale=existing,
+                                        event_type="order_shipped",
+                                        channel="email"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"Auto-charge fulfillment error: {e}")
+
+                            return {
+                                "client_id": client.id,
+                                "sale_id": existing.id,
+                                "order_number": existing.order_number,
+                                "amount": existing.amount,
+                                "items_summary": existing.items_summary,
+                                "checkout_url": existing.stripe_checkout_url,
+                                "auto_charged": True,
+                                "charge_info": charge_res,
+                                "is_new": False
+                            }
+
                 logger.info(f"Re-using existing pending replenishment sale {existing.order_number} for client {client.account_name}")
                 return {
                     "client_id": client.id,
@@ -137,6 +207,7 @@ class ReplenishmentService:
                     "amount": existing.amount,
                     "items_summary": existing.items_summary,
                     "checkout_url": existing.stripe_checkout_url,
+                    "auto_charged": False,
                     "is_new": False
                 }
 
@@ -188,28 +259,82 @@ class ReplenishmentService:
         db.add(sale)
         await db.flush()
 
-        # Generate outbound CustomerNotification draft
-        contact_name = client.primary_contact.first_name if client.primary_contact else "Procurement Manager"
-        notification_body = (
-            f"Hello {contact_name}, your {client.reorder_cadence_days}-day replenishment schedule for {client.account_name} "
-            f"is due. We have prepared Order #{order_number} ({items_summary}) for ${amount:.2f}. "
-            f"Pay invoice online to trigger immediate autonomous dispatch: https://therealbonz.com/JsProject{checkout_url}"
-        )
+        auto_charged = False
+        charge_info = None
 
-        notification = CustomerNotification(
-            organization_id=org_id,
-            client_sale_id=sale.id,
-            recipient=customer_email or "client@example.com",
-            channel="email",
-            event_type="replenishment_proposal",
-            title=f"Scheduled Restock Proposal: Order #{order_number}",
-            message_body=notification_body,
-            tracking_url=f"https://therealbonz.com/JsProject/track/{order_number}",
-            status="sent"
-        )
-        db.add(notification)
+        # Check if stored card-on-file auto-charge should be processed immediately
+        if client.has_payment_method_on_file and client.auto_charge_enabled:
+            if client.auto_charge_limit is None or sale.amount <= client.auto_charge_limit:
+                charge_res = await StripeRecurringService.charge_stored_payment_method(
+                    db=db,
+                    client=client,
+                    sale=sale,
+                    org=org
+                )
+                if charge_res.get("success"):
+                    auto_charged = True
+                    charge_info = charge_res
+                    await ReplenishmentService.advance_client_cadence_on_payment(db=db, sale=sale)
+                    await db.commit()
 
-        await db.commit()
+                    try:
+                        await NotificationService.create_and_send_notification(
+                            db=db,
+                            sale=sale,
+                            event_type="payment_received",
+                            channel="email"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not dispatch payment confirmation: {e}")
+
+                    # Autonomous fulfillment
+                    if sale.auto_fulfill_on_payment:
+                        try:
+                            dest_address = client.company.address if (client.company and client.company.address) else f"{client.account_name} Facility"
+                            agent = OrderFillerAgent()
+                            await agent.auto_fill_order(
+                                db=db,
+                                org_id=org_id,
+                                prompt=sale.items_summary,
+                                max_budget_limit=max(sale.amount * 1.5, 2000.0),
+                                client_sale_id=sale.id,
+                                destination_type="customer_dropship",
+                                destination_address=dest_address
+                            )
+                            await NotificationService.create_and_send_notification(
+                                db=db,
+                                sale=sale,
+                                event_type="order_shipped",
+                                channel="email"
+                            )
+                        except Exception as e:
+                            logger.error(f"Auto-charge fulfillment error: {e}")
+
+        # If not auto-charged, dispatch replenishment proposal notification
+        notification_id = None
+        if not auto_charged:
+            contact_name = client.primary_contact.first_name if client.primary_contact else "Procurement Manager"
+            notification_body = (
+                f"Hello {contact_name}, your {client.reorder_cadence_days}-day replenishment schedule for {client.account_name} "
+                f"is due. We have prepared Order #{order_number} ({items_summary}) for ${amount:.2f}. "
+                f"Pay invoice online to trigger immediate autonomous dispatch: https://therealbonz.com/JsProject{checkout_url}"
+            )
+
+            notification = CustomerNotification(
+                organization_id=org_id,
+                client_sale_id=sale.id,
+                recipient=customer_email or "client@example.com",
+                channel="email",
+                event_type="replenishment_proposal",
+                title=f"Scheduled Restock Proposal: Order #{order_number}",
+                message_body=notification_body,
+                tracking_url=f"https://therealbonz.com/JsProject/track/{order_number}",
+                status="sent"
+            )
+            db.add(notification)
+            await db.commit()
+            notification_id = notification.id
+
         await db.refresh(sale)
 
         return {
@@ -219,7 +344,9 @@ class ReplenishmentService:
             "amount": sale.amount,
             "items_summary": sale.items_summary,
             "checkout_url": sale.stripe_checkout_url,
-            "notification_id": notification.id,
+            "notification_id": notification_id,
+            "auto_charged": auto_charged,
+            "charge_info": charge_info,
             "is_new": True
         }
 
