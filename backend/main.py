@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -109,6 +109,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(public_tracking.router, prefix=prefix)
     app.include_router(replenishments.router, prefix=prefix)
     app.include_router(organization_settings.router, prefix=prefix)
+    app.include_router(documents.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -3353,7 +3354,17 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             <td class="p-2.5 text-slate-400 font-mono text-[11px] whitespace-nowrap">${saleDate}</td>
                             <td class="p-2.5 whitespace-nowrap">
                                 <span class="font-mono text-indigo-300 font-bold">${escapeHtml(s.order_number)}</span>
-                                ${customerPortalLink}
+                                <div class="flex items-center gap-2 mt-1">
+                                    ${customerPortalLink}
+                                    <span class="text-slate-600">&bull;</span>
+                                    <a href="${SUB_PATH}/api/v1/documents/invoice/${s.id}?print=true" target="_blank" class="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold" title="Print Commercial B2B Invoice">
+                                        <i class="fa-solid fa-file-invoice text-[9px]"></i> Invoice
+                                    </a>
+                                    <span class="text-slate-600">&bull;</span>
+                                    <a href="${SUB_PATH}/api/v1/documents/packing-slip/${s.id}?print=true" target="_blank" class="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold" title="Print Warehouse Packing Slip">
+                                        <i class="fa-solid fa-box-open text-[9px]"></i> Slip
+                                    </a>
+                                </div>
                             </td>
                             <td class="p-2.5 text-slate-200">
                                 <div class="font-medium">${escapeHtml(s.items_summary)}</div>
@@ -4098,9 +4109,19 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                         saleCell = `
                             <div>
                                 <div class="font-mono font-bold text-slate-200 text-xs">${escapeHtml(po.client_sale_order_number)}</div>
-                                <a href="${trackUrl}" target="_blank" class="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold" title="View Customer Tracking Portal">
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i> Tracking Portal
-                                </a>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <a href="${trackUrl}" target="_blank" class="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold" title="View Customer Tracking Portal">
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i> Tracking
+                                    </a>
+                                    <span class="text-slate-600">&bull;</span>
+                                    <a href="${SUB_PATH}/api/v1/documents/invoice/${encodeURIComponent(po.client_sale_order_number)}?print=true" target="_blank" class="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold" title="Print B2B Commercial Invoice">
+                                        <i class="fa-solid fa-file-invoice text-[8px]"></i> Invoice
+                                    </a>
+                                    <span class="text-slate-600">&bull;</span>
+                                    <a href="${SUB_PATH}/api/v1/documents/packing-slip/${encodeURIComponent(po.client_sale_order_number)}?print=true" target="_blank" class="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold" title="Print Warehouse Packing Slip">
+                                        <i class="fa-solid fa-box-open text-[8px]"></i> Slip
+                                    </a>
+                                </div>
                                 <div class="text-[11px] text-slate-400 font-medium">${escapeHtml(po.client_name || 'Client')}</div>
                                 <div class="text-[11px] font-mono font-bold text-emerald-400">$${(po.client_sale_amount || 0).toFixed(2)}</div>
                             </div>
@@ -4396,6 +4417,12 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                         </span>
                                         <span class="text-slate-200 font-semibold">${escapeHtml(po.client_name || 'Client')}</span>
                                         <span class="text-slate-400 font-mono">($${(po.client_sale_amount || 0).toFixed(2)})</span>
+                                        <a href="${SUB_PATH}/api/v1/documents/invoice/${encodeURIComponent(po.client_sale_order_number)}?print=true" target="_blank" class="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 rounded text-[9px] font-semibold flex items-center gap-1 ml-1" title="Print Invoice">
+                                            <i class="fa-solid fa-file-invoice"></i> Invoice
+                                        </a>
+                                        <a href="${SUB_PATH}/api/v1/documents/packing-slip/${encodeURIComponent(po.client_sale_order_number)}?print=true" target="_blank" class="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded text-[9px] font-semibold flex items-center gap-1" title="Print Warehouse Packing Slip">
+                                            <i class="fa-solid fa-box-open"></i> Slip
+                                        </a>
                                     </div>
                                     <div class="flex items-center gap-2.5">
                                         <span class="text-[11px] ${po.destination_type === 'customer_dropship' ? 'text-amber-300 font-semibold' : 'text-slate-400'}">
