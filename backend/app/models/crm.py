@@ -21,6 +21,7 @@ class Company(Base, CommonMixin, TenantMixin):
     leads = relationship("Lead", back_populates="company", cascade="all, delete-orphan")
     call_logs = relationship("CallLog", back_populates="company")
     appointments = relationship("Appointment", back_populates="company", cascade="all, delete-orphan")
+    saas_licenses = relationship("SaaSLicense", back_populates="company", cascade="all, delete-orphan")
 
 class Contact(Base, CommonMixin, TenantMixin):
     __tablename__ = "contacts"
@@ -171,6 +172,7 @@ class ClientAccount(Base, CommonMixin, TenantMixin):
     primary_contact = relationship("Contact")
     sales = relationship("ClientSale", back_populates="client", cascade="all, delete-orphan", order_by=lambda: desc(ClientSale.sale_date))
     forecast_logs = relationship("DemandForecastLog", back_populates="client", cascade="all, delete-orphan", order_by=lambda: desc(DemandForecastLog.forecast_date))
+    licenses = relationship("SaaSLicense", back_populates="client", cascade="all, delete-orphan", order_by="desc(SaaSLicense.created_at)")
 
 class ClientSale(Base, CommonMixin, TenantMixin):
     __tablename__ = "client_sales"
@@ -258,4 +260,76 @@ class DemandForecastLog(Base, CommonMixin, TenantMixin):
 
     # Relationships
     client = relationship("ClientAccount", back_populates="forecast_logs")
+
+
+class SaaSLicense(Base, CommonMixin, TenantMixin):
+    __tablename__ = "saas_licenses"
+
+    client_id = Column(String(36), ForeignKey("client_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    primary_contact_id = Column(String(36), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    license_key = Column(String(100), unique=True, nullable=False, index=True)
+    license_token = Column(Text, nullable=True)
+    product_name = Column(String(255), default="Enterprise AI Platform", nullable=False)
+    plan_tier = Column(String(50), default="pro", nullable=False)  # starter, pro, enterprise, custom
+    license_status = Column(String(50), default="active", nullable=False, index=True)  # active, trialing, suspended, expired, cancelled
+    billing_interval = Column(String(50), default="annual", nullable=False)  # monthly, quarterly, annual, multi_year
+
+    seat_unit_price = Column(Float, default=50.0, nullable=False)  # $/seat/month
+    licensed_seats = Column(Integer, default=25, nullable=False)
+    active_seats_used = Column(Integer, default=5, nullable=False)
+    seat_utilization_pct = Column(Float, default=20.0, nullable=False)
+
+    monthly_quota_units = Column(Integer, default=100000, nullable=False)
+    current_quota_used = Column(Integer, default=12000, nullable=False)
+    overage_allowed = Column(Boolean, default=True, nullable=False)
+    overage_unit_rate = Column(Float, default=0.05, nullable=False)
+
+    mrr = Column(Float, default=0.0, nullable=False)
+    arr = Column(Float, default=0.0, nullable=False)
+
+    auto_renew = Column(Boolean, default=True, nullable=False)
+    contract_start_date = Column(DateTime(timezone=True), nullable=False)
+    renewal_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_telemetry_at = Column(DateTime(timezone=True), nullable=True)
+
+    health_score = Column(Integer, default=95, nullable=False)  # 0 to 100
+    churn_risk_level = Column(String(50), default="healthy", nullable=False)  # healthy, monitor, at_risk, critical
+    health_rationale = Column(Text, nullable=True)
+
+    features_enabled = Column(JSON, default=list, nullable=False)
+    notes = Column(Text, nullable=True)
+
+    # Relationships
+    client = relationship("ClientAccount", back_populates="licenses")
+    company = relationship("Company", back_populates="saas_licenses")
+    primary_contact = relationship("Contact")
+    expansion_proposals = relationship("SaaSExpansionProposal", back_populates="license", cascade="all, delete-orphan", order_by="desc(SaaSExpansionProposal.created_at)")
+
+
+class SaaSExpansionProposal(Base, CommonMixin, TenantMixin):
+    __tablename__ = "saas_expansion_proposals"
+
+    license_id = Column(String(36), ForeignKey("saas_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
+    proposal_type = Column(String(50), default="seat_expansion", nullable=False)  # seat_expansion, tier_upgrade, quota_boost, annual_renewal
+    trigger_reason = Column(String(255), nullable=False)
+
+    current_seats = Column(Integer, nullable=False)
+    proposed_seats = Column(Integer, nullable=False)
+    current_mrr = Column(Float, nullable=False)
+    proposed_mrr = Column(Float, nullable=False)
+    arr_delta = Column(Float, nullable=False)
+    discount_pct = Column(Float, default=0.0, nullable=False)
+
+    requires_hitl_approval = Column(Boolean, default=False, nullable=False)
+    hitl_request_id = Column(String(36), nullable=True)
+
+    ai_drafted_outreach = Column(Text, nullable=False)
+    status = Column(String(50), default="pending", nullable=False)  # pending, approved, sent, accepted, rejected
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    license = relationship("SaaSLicense", back_populates="expansion_proposals")
+
 

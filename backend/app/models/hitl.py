@@ -6,8 +6,8 @@ from app.models.base import CommonMixin, TenantMixin
 class HumanAssistanceRequest(Base, CommonMixin, TenantMixin):
     __tablename__ = "human_assistance_requests"
 
-    conversation_id = Column(String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True)
+    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=True, index=True)
     
     trigger_reason = Column(String(100), nullable=False)  # policy_discount, low_confidence, angry_lead, human_requested, complex_pricing
     situation_summary = Column(Text, nullable=False)

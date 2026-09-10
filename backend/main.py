@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -136,6 +136,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(documents.router, prefix=prefix)
     app.include_router(customer_portal.router, prefix=prefix)
     app.include_router(forecasting.router, prefix=prefix)
+    app.include_router(saas_licenses.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1383,10 +1384,20 @@ async def dashboard_home():
                         <span>⚙️ CRM 4: Brand &amp; Stripe Connect</span>
                         <span id="nav-badge-payment-status" class="px-2 py-0.5 rounded-full text-[10px] bg-purple-950/80 text-purple-300 font-mono border border-purple-700/50">Ready</span>
                     </button>
+                    <button id="tab-saas" onclick="switchCrmMode('saas')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-server text-cyan-400"></i>
+                        <span>🚀 CRM 5: SaaS Licenses</span>
+                        <span id="nav-badge-saas" class="px-2 py-0.5 rounded-full text-[10px] bg-cyan-950/80 text-cyan-300 font-mono border border-cyan-700/50">0</span>
+                    </button>
                 </div>
 
                 <!-- Live Sales & Account KPIs Strip -->
                 <div class="flex items-center gap-5 text-xs bg-slate-900/90 border border-slate-800/80 px-4 py-2 rounded-xl">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-cloud text-cyan-400 mr-1"></i>SaaS ARR:</span>
+                        <span id="kpi-nav-saas-arr" class="font-bold text-cyan-400 font-mono text-sm">$0.00</span>
+                    </div>
+                    <div class="h-4 w-px bg-slate-800"></div>
                     <div class="flex items-center gap-2">
                         <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-chart-line text-emerald-400 mr-1"></i>Total Revenue:</span>
                         <span id="kpi-nav-rev" class="font-bold text-emerald-400 font-mono text-sm">$0.00</span>
@@ -1403,12 +1414,7 @@ async def dashboard_home():
                     </div>
                     <div class="h-4 w-px bg-slate-800"></div>
                     <div class="flex items-center gap-2">
-                        <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-receipt text-amber-400 mr-1"></i>Avg Order:</span>
-                        <span id="kpi-nav-aov" class="font-bold text-amber-300 font-mono">$0.00</span>
-                    </div>
-                    <div class="h-4 w-px bg-slate-800"></div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-truck-ramp-box text-cyan-400 mr-1"></i>Bot Shipping Success:</span>
+                        <span class="text-slate-400 text-[11px]"><i class="fa-solid fa-truck-ramp-box text-cyan-400 mr-1"></i>Bot Shipping:</span>
                         <span id="kpi-nav-bot-success" class="font-bold text-emerald-400 font-mono text-sm">100.0%</span>
                     </div>
                 </div>
@@ -3023,6 +3029,336 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             </div>
         </div>
 
+        <!-- ========================================================================= -->
+        <!-- CRM 5: SaaS Licenses & Subscriptions Subsystem -->
+        <!-- ========================================================================= -->
+        <div id="view-saas" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-cyan-950/60 via-slate-900 to-indigo-950/60 border border-cyan-500/40 rounded-2xl p-6 shadow-2xl space-y-4 ring-1 ring-cyan-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-cyan-600/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/20 shrink-0">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-black text-white tracking-wide">CRM 5: SaaS Licenses &amp; Subscriptions</h2>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-700/50 uppercase">PQL &amp; Entitlement Engine</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Real-time seat allocation, developer API quotas, autonomous renewal triggers, and telemetry-driven upsell bots.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openIssueLicenseModal()" class="px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-cyan-600/30 transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-key text-cyan-200"></i> Issue New License
+                        </button>
+                        <button onclick="triggerExpansionAudit()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/30 transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-chart-line-up text-emerald-200"></i> ⚡ Run Expansion Bot
+                        </button>
+                        <button onclick="triggerRenewalRadar()" class="px-3.5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-shield-halved text-amber-200"></i> 🛡️ Renewal Radar
+                        </button>
+                        <button onclick="loadSaaSLicenses()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition cursor-pointer">
+                            <i class="fa-solid fa-rotate-right" id="saas-refresh-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live SaaS KPI Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
+                        <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-between">
+                            <span>Annual Run Rate (ARR)</span>
+                            <i class="fa-solid fa-money-bill-trend-up text-emerald-400"></i>
+                        </div>
+                        <div id="saas-kpi-arr" class="text-xl font-black font-mono text-emerald-400">$0.00</div>
+                        <div class="text-[10px] text-slate-500 font-mono">Total Contract Value / Yr</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
+                        <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-between">
+                            <span>Monthly MRR</span>
+                            <i class="fa-solid fa-calendar text-cyan-400"></i>
+                        </div>
+                        <div id="saas-kpi-mrr" class="text-xl font-black font-mono text-cyan-300">$0.00</div>
+                        <div class="text-[10px] text-slate-500 font-mono">Recurring Base Run-Rate</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
+                        <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-between">
+                            <span>Active Seats</span>
+                            <i class="fa-solid fa-users text-indigo-400"></i>
+                        </div>
+                        <div id="saas-kpi-seats" class="text-xl font-black font-mono text-indigo-300">0 / 0</div>
+                        <div class="text-[10px] text-slate-500 font-mono">Provisioned vs Licensed</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
+                        <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-between">
+                            <span>Seat Utilization</span>
+                            <i class="fa-solid fa-gauge-high text-amber-400"></i>
+                        </div>
+                        <div id="saas-kpi-util" class="text-xl font-black font-mono text-amber-300">0.0%</div>
+                        <div class="text-[10px] text-slate-500 font-mono">&gt;85% triggers expansion bot</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
+                        <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-between">
+                            <span>License Health</span>
+                            <i class="fa-solid fa-heart-pulse text-rose-400"></i>
+                        </div>
+                        <div id="saas-kpi-health" class="text-xl font-black font-mono text-emerald-400">0 At Risk</div>
+                        <div class="text-[10px] text-slate-500 font-mono">AI Churn Protection Active</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SaaS Licenses Table Card -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-cyan-400">
+                        <i class="fa-solid fa-id-card text-base"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Client Software Licenses &amp; Seat Quotas</h3>
+                        <span id="saas-table-count" class="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">0 Licenses</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <select id="filter-saas-tier" onchange="loadSaaSLicenses()" class="bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-slate-200">
+                            <option value="">All Tiers</option>
+                            <option value="starter">Starter</option>
+                            <option value="pro">Pro</option>
+                            <option value="enterprise">Enterprise</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <select id="filter-saas-risk" onchange="loadSaaSLicenses()" class="bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-slate-200">
+                            <option value="">All Health Levels</option>
+                            <option value="healthy">Healthy (80-100)</option>
+                            <option value="monitor">Monitor (60-79)</option>
+                            <option value="at_risk">At Risk (40-59)</option>
+                            <option value="critical">Critical (&lt;40)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                                <th class="pb-2.5 font-medium">License Key</th>
+                                <th class="pb-2.5 font-medium">Client Account</th>
+                                <th class="pb-2.5 font-medium">Plan Tier</th>
+                                <th class="pb-2.5 font-medium min-w-[160px]">Seat Utilization</th>
+                                <th class="pb-2.5 font-medium">MRR / ARR</th>
+                                <th class="pb-2.5 font-medium">Renewal</th>
+                                <th class="pb-2.5 font-medium">Health</th>
+                                <th class="pb-2.5 font-medium text-right">Autonomous Bot Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="saas-licenses-tbody" class="divide-y divide-slate-800/60">
+                            <tr>
+                                <td colspan="8" class="py-8 text-center text-slate-500 italic">Loading SaaS client licenses...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- MODALS: SaaS CRM Subsystem -->
+        <!-- ========================================================================= -->
+
+        <!-- Modal: Issue New SaaS License -->
+        <div id="modal-issue-license" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-cyan-400">
+                        <i class="fa-solid fa-key text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Issue &amp; Provision SaaS License</h3>
+                    </div>
+                    <button onclick="closeIssueLicenseModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form onsubmit="handleIssueLicense(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Select Client Account</label>
+                        <select id="modal-lic-client" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-100">
+                            <option value="">Select an active client...</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Plan Tier</label>
+                            <select id="modal-lic-tier" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100">
+                                <option value="starter">Starter</option>
+                                <option value="pro" selected>Professional</option>
+                                <option value="enterprise">Enterprise</option>
+                                <option value="custom">Custom Unlimited</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Billing Cadence</label>
+                            <select id="modal-lic-interval" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100">
+                                <option value="annual" selected>Annual (12 Months)</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Licensed Seats</label>
+                            <input id="modal-lic-seats" type="number" min="1" max="10000" value="25" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Price per Seat ($/mo)</label>
+                            <input id="modal-lic-seat-price" type="number" step="0.01" min="1" value="50.00" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Monthly API Quota Units</label>
+                            <input id="modal-lic-quota" type="number" min="1000" step="1000" value="100000" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Overage Allowed?</label>
+                            <select id="modal-lic-overage" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100">
+                                <option value="true" selected>Yes ($0.05 / unit)</option>
+                                <option value="false">No (Hard Stop)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Product Description / Notes</label>
+                        <input id="modal-lic-notes" type="text" placeholder="e.g. Enterprise AI Suite with Multi-Tenant Guardrails" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        <button type="button" onclick="closeIssueLicenseModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer">
+                            <i class="fa-solid fa-lock"></i> Issue License Key
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Inject Usage Telemetry -->
+        <div id="modal-telemetry-ping" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-cyan-400">
+                        <i class="fa-solid fa-satellite-dish text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Simulate SaaS Usage Telemetry</h3>
+                    </div>
+                    <button onclick="closeTelemetryModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form onsubmit="handleSendTelemetry(event)" class="space-y-3 text-xs">
+                    <input type="hidden" id="modal-telemetry-lic-id">
+                    <div>
+                        <span class="text-slate-400 block mb-1">Target License:</span>
+                        <div id="modal-telemetry-lic-label" class="font-mono font-bold text-cyan-300 bg-slate-950 p-2 rounded border border-slate-800">...</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Active Seats Used</label>
+                            <input id="modal-telemetry-seats" type="number" min="0" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono">
+                            <p class="text-[10px] text-slate-500 mt-0.5">Licensed capacity: <span id="modal-telemetry-capacity" class="font-mono text-slate-300">0</span></p>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-semibold">Monthly Quota Consumed</label>
+                            <input id="modal-telemetry-quota" type="number" min="0" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono">
+                        </div>
+                    </div>
+                    <div class="p-3 bg-indigo-950/40 border border-indigo-700/50 rounded-xl text-[11px] text-indigo-300 space-y-1">
+                        <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-lightbulb text-amber-400"></i> Bot Trigger Tip:</div>
+                        <div>Push active seats to <span class="font-bold text-amber-300">&gt;= 85%</span> to trigger the Autonomous Expansion &amp; Upsell Bot.</div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        <button type="button" onclick="closeTelemetryModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                        <button type="submit" class="py-2 px-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer">
+                            <i class="fa-solid fa-paper-plane"></i> Ingest Telemetry Ping
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Order Filler Cloud Infrastructure Provisioning -->
+        <div id="modal-cloud-provision" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-amber-400">
+                        <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">CRM 3 Provisioning Bot: Dispatch Cloud Resources</h3>
+                    </div>
+                    <button onclick="closeCloudProvisionModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form onsubmit="handleCloudProvision(event)" class="space-y-3 text-xs">
+                    <input type="hidden" id="modal-provision-lic-id">
+                    <div>
+                        <span class="text-slate-400 block mb-1">Target License:</span>
+                        <div id="modal-provision-lic-label" class="font-mono font-bold text-amber-300 bg-slate-950 p-2 rounded border border-slate-800">...</div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Infrastructure &amp; Fulfillment Provider</label>
+                        <select id="modal-provision-provider" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100">
+                            <option value="amazon_aws" selected>Amazon Business Cloud / AWS VPC</option>
+                            <option value="digikey_hardware">DigiKey Hardware Security Tokens</option>
+                            <option value="grainger_infra">W.W. Grainger Data Center Hardware</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-semibold">Provisioning Specification</label>
+                        <input id="modal-provision-spec" type="text" value="Container Pod Allocation &amp; Enterprise API Token Vault" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-100">
+                    </div>
+                    <div class="p-3 bg-amber-950/40 border border-amber-700/50 rounded-xl text-[11px] text-amber-300 space-y-1">
+                        <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-robot"></i> Order Filler Bot Integration:</div>
+                        <div>This triggers the autonomous procurement agent to create a purchase order, assign tracking, and dispatch provisioning milestones.</div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        <button type="button" onclick="closeCloudProvisionModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                        <button type="submit" id="btn-submit-cloud-prov" class="py-2 px-4 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer">
+                            <i class="fa-solid fa-bolt"></i> Dispatch Order Filler Agent
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Expansion Proposal Results -->
+        <div id="modal-expansion-results" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-chart-line-up text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Autonomous License Expansion Bot Results</h3>
+                    </div>
+                    <button onclick="closeExpansionResultsModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div id="expansion-results-body" class="space-y-3 text-xs max-h-[65vh] overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeExpansionResultsModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Renewal Radar Results -->
+        <div id="modal-renewal-results" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-amber-400">
+                        <i class="fa-solid fa-shield-halved text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Autonomous Renewal &amp; Churn Radar Results</h3>
+                    </div>
+                    <button onclick="closeRenewalResultsModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div id="renewal-results-body" class="space-y-3 text-xs max-h-[65vh] overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeRenewalResultsModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Done</button>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -3073,6 +3409,8 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchSuppliers();
                     fetchPurchaseOrders();
                     fetchOrganizationSettings();
+                    loadSaaSMetrics();
+                    loadSaaSLicenses();
                 } catch(e) {
                     alert("Error authenticating: " + e.message);
                 }
@@ -3874,21 +4212,25 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 const viewClients = document.getElementById("view-clients");
                 const viewFulfillment = document.getElementById("view-fulfillment");
                 const viewSettings = document.getElementById("view-settings");
+                const viewSaas = document.getElementById("view-saas");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
                 const tabSettings = document.getElementById("tab-settings");
+                const tabSaas = document.getElementById("tab-saas");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 tabClients.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabFulfillment) tabFulfillment.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabSettings) tabSettings.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabSaas) tabSaas.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
                 if (viewFulfillment) viewFulfillment.classList.add("hidden");
                 if (viewSettings) viewSettings.classList.add("hidden");
+                if (viewSaas) viewSaas.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -3910,6 +4252,11 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     if (viewSettings) viewSettings.classList.remove("hidden");
                     if (tabSettings) tabSettings.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-purple-600 text-white shadow-md";
                     fetchOrganizationSettings();
+                } else if (mode === 'saas') {
+                    if (viewSaas) viewSaas.classList.remove("hidden");
+                    if (tabSaas) tabSaas.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-cyan-600 text-white shadow-md";
+                    loadSaaSMetrics();
+                    loadSaaSLicenses();
                 }
             }
 
@@ -6130,6 +6477,521 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }).join('');
                 } catch(e) {
                     console.error("Error fetching notification history:", e);
+                }
+            }
+
+            // ==============================================================================
+            // CRM 5: SaaS Licenses & Subscriptions Subsystem Handlers
+            // ==============================================================================
+
+            let saasLicenses = [];
+
+            async function loadSaaSMetrics() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/saas-licenses/metrics/overview", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const m = await res.json();
+                        const arrEl = document.getElementById("saas-kpi-arr");
+                        const navArrEl = document.getElementById("kpi-nav-saas-arr");
+                        const mrrEl = document.getElementById("saas-kpi-mrr");
+                        const seatsEl = document.getElementById("saas-kpi-seats");
+                        const utilEl = document.getElementById("saas-kpi-util");
+                        const healthEl = document.getElementById("saas-kpi-health");
+                        const badgeEl = document.getElementById("nav-badge-saas");
+
+                        const arrFmt = "$" + Number(m.total_arr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        const mrrFmt = "$" + Number(m.total_mrr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                        if (arrEl) arrEl.innerText = arrFmt;
+                        if (navArrEl) navArrEl.innerText = arrFmt;
+                        if (mrrEl) mrrEl.innerText = mrrFmt;
+                        if (seatsEl) seatsEl.innerText = `${m.total_active_seats} / ${m.total_licensed_seats}`;
+                        if (utilEl) utilEl.innerText = `${m.avg_seat_utilization_pct.toFixed(1)}%`;
+                        if (healthEl) {
+                            healthEl.innerText = `${m.at_risk_count + m.critical_count} At Risk`;
+                            healthEl.className = (m.at_risk_count + m.critical_count > 0)
+                                ? "text-xl font-black font-mono text-rose-400"
+                                : "text-xl font-black font-mono text-emerald-400";
+                        }
+                        if (badgeEl) badgeEl.innerText = m.active_licenses;
+                    }
+                } catch(e) {
+                    console.error("Error loading SaaS metrics:", e);
+                }
+            }
+
+            async function loadSaaSLicenses() {
+                if (!authToken) return;
+                const refreshIcon = document.getElementById("saas-refresh-icon");
+                if (refreshIcon) refreshIcon.classList.add("fa-spin");
+
+                try {
+                    const tierFilter = document.getElementById("filter-saas-tier")?.value || "";
+                    const riskFilter = document.getElementById("filter-saas-risk")?.value || "";
+                    let url = API_BASE + "/saas-licenses?";
+                    if (tierFilter) url += `plan_tier=${encodeURIComponent(tierFilter)}&`;
+                    if (riskFilter) url += `churn_risk=${encodeURIComponent(riskFilter)}&`;
+
+                    const res = await fetch(url, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        saasLicenses = await res.json();
+                        renderSaaSLicensesTable(saasLicenses);
+                    }
+                } catch(e) {
+                    console.error("Error loading SaaS licenses:", e);
+                    showToast("Error loading SaaS licenses", "rose");
+                } finally {
+                    if (refreshIcon) refreshIcon.classList.remove("fa-spin");
+                }
+            }
+
+            function renderSaaSLicensesTable(licenses) {
+                const tbody = document.getElementById("saas-licenses-tbody");
+                const countBadge = document.getElementById("saas-table-count");
+                if (!tbody) return;
+
+                if (countBadge) countBadge.innerText = `${licenses.length} License${licenses.length === 1 ? '' : 's'}`;
+
+                if (licenses.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="py-8 text-center text-slate-500 italic">
+                                No SaaS client licenses found matching the selected filters. Click "Issue New License" above to provision one.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = licenses.map(l => {
+                    const util = l.seat_utilization_pct || 0;
+                    let barColor = "bg-emerald-500";
+                    let utilTextColor = "text-emerald-400";
+                    if (util >= 90.0) {
+                        barColor = "bg-rose-500";
+                        utilTextColor = "text-rose-400 font-bold";
+                    } else if (util >= 75.0) {
+                        barColor = "bg-amber-500";
+                        utilTextColor = "text-amber-400 font-bold";
+                    }
+
+                    // Tier styling
+                    let tierBadge = "bg-slate-800 text-slate-300 border-slate-700";
+                    if (l.plan_tier === 'enterprise') tierBadge = "bg-purple-950 text-purple-300 border-purple-700";
+                    else if (l.plan_tier === 'pro') tierBadge = "bg-cyan-950 text-cyan-300 border-cyan-700";
+                    else if (l.plan_tier === 'starter') tierBadge = "bg-blue-950 text-blue-300 border-blue-700";
+
+                    // Health styling
+                    let healthBadge = "bg-emerald-950 text-emerald-300 border-emerald-700";
+                    if (l.churn_risk_level === 'critical') healthBadge = "bg-rose-950 text-rose-300 border-rose-700 animate-pulse";
+                    else if (l.churn_risk_level === 'at_risk') healthBadge = "bg-rose-950/70 text-rose-300 border-rose-800";
+                    else if (l.churn_risk_level === 'monitor') healthBadge = "bg-amber-950 text-amber-300 border-amber-700";
+
+                    // Renewal days text
+                    const daysLeft = l.days_until_renewal;
+                    let renewalText = "—";
+                    let renewalClass = "text-slate-400";
+                    if (daysLeft !== null && daysLeft !== undefined) {
+                        if (daysLeft <= 14) {
+                            renewalText = `${daysLeft}d left!`;
+                            renewalClass = "text-rose-400 font-bold font-mono";
+                        } else if (daysLeft <= 45) {
+                            renewalText = `${daysLeft} days`;
+                            renewalClass = "text-amber-300 font-mono";
+                        } else {
+                            renewalText = `${daysLeft} days`;
+                            renewalClass = "text-slate-300 font-mono";
+                        }
+                    }
+
+                    return `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="py-3 font-mono">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-cyan-400 select-all">${l.license_key}</span>
+                                    <button onclick="navigator.clipboard.writeText('${l.license_key}'); showToast('License key copied to clipboard!', 'emerald')" class="text-slate-500 hover:text-slate-300 cursor-pointer" title="Copy Key">
+                                        <i class="fa-regular fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                                <div class="text-[10px] text-slate-500 truncate max-w-[140px]">${l.product_name}</div>
+                            </td>
+                            <td class="py-3">
+                                <div class="font-semibold text-slate-200">${l.client_name || l.company_name || 'Client'}</div>
+                                <div class="text-[10px] text-slate-400">${l.contact_name || ''} ${l.contact_email ? `&bull; ${l.contact_email}` : ''}</div>
+                            </td>
+                            <td class="py-3">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold border ${tierBadge}">
+                                    ${l.plan_tier}
+                                </span>
+                                <div class="text-[10px] text-slate-500 mt-0.5 uppercase">${l.billing_interval}</div>
+                            </td>
+                            <td class="py-3">
+                                <div class="space-y-1 max-w-[180px]">
+                                    <div class="flex justify-between text-[10px]">
+                                        <span class="text-slate-400">${l.active_seats_used} / ${l.licensed_seats} seats</span>
+                                        <span class="${utilTextColor}">${util.toFixed(1)}%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                                        <div class="h-full ${barColor} rounded-full" style="width: ${Math.min(100, util)}%"></div>
+                                    </div>
+                                    <div class="text-[9px] text-slate-500 flex justify-between">
+                                        <span>API: ${Number(l.current_quota_used).toLocaleString()} / ${Number(l.monthly_quota_units).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 font-mono">
+                                <div class="font-bold text-emerald-400">$${Number(l.mrr).toLocaleString(undefined, {minimumFractionDigits: 2})}/mo</div>
+                                <div class="text-[10px] text-slate-400">$${Number(l.arr).toLocaleString(undefined, {minimumFractionDigits: 2})}/yr</div>
+                            </td>
+                            <td class="py-3">
+                                <span class="${renewalClass}">${renewalText}</span>
+                                <div class="text-[10px] text-slate-500">${l.auto_renew ? '<i class="fa-solid fa-arrows-rotate text-emerald-400 mr-0.5"></i>Auto-Renew' : 'Manual'}</div>
+                            </td>
+                            <td class="py-3">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold border ${healthBadge}" title="${l.health_rationale || ''}">
+                                    ${l.health_score}/100 • ${l.churn_risk_level}
+                                </span>
+                            </td>
+                            <td class="py-3 text-right">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button onclick="openTelemetryModal('${l.id}', '${l.license_key}', ${l.active_seats_used}, ${l.licensed_seats}, ${l.current_quota_used})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer" title="Inject live seat/quota telemetry">
+                                        <i class="fa-solid fa-satellite-dish text-cyan-400"></i> Telemetry
+                                    </button>
+                                    <button onclick="openCloudProvisionModal('${l.id}', '${l.license_key}', ${l.licensed_seats})" class="px-2 py-1 bg-amber-950 hover:bg-amber-900 border border-amber-700/60 text-amber-300 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer" title="Order Filler cloud container provisioning">
+                                        <i class="fa-solid fa-robot text-amber-400"></i> Provision
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // --- Modals and Actions for SaaS CRM ---
+
+            async function openIssueLicenseModal() {
+                const selectEl = document.getElementById("modal-lic-client");
+                if (selectEl) {
+                    selectEl.innerHTML = '<option value="">Loading client accounts...</option>';
+                    try {
+                        const res = await fetch(API_BASE + "/crm/clients", {
+                            headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                        });
+                        if (res.ok) {
+                            const clients = await res.json();
+                            if (clients.length === 0) {
+                                selectEl.innerHTML = '<option value="">No client accounts found. Convert a Lead first.</option>';
+                            } else {
+                                selectEl.innerHTML = '<option value="">Select an active client...</option>' +
+                                    clients.map(c => `<option value="${c.id}">${c.account_name} (${c.account_tier.toUpperCase()})</option>`).join('');
+                            }
+                        }
+                    } catch(e) {
+                        selectEl.innerHTML = '<option value="">Error loading clients</option>';
+                    }
+                }
+                const modal = document.getElementById("modal-issue-license");
+                if (modal) modal.classList.remove("hidden");
+            }
+
+            function closeIssueLicenseModal() {
+                const modal = document.getElementById("modal-issue-license");
+                if (modal) modal.classList.add("hidden");
+            }
+
+            async function handleIssueLicense(e) {
+                e.preventDefault();
+                const clientId = document.getElementById("modal-lic-client").value;
+                if (!clientId) {
+                    showToast("Please select a client account", "rose");
+                    return;
+                }
+
+                const payload = {
+                    client_id: clientId,
+                    plan_tier: document.getElementById("modal-lic-tier").value,
+                    billing_interval: document.getElementById("modal-lic-interval").value,
+                    licensed_seats: parseInt(document.getElementById("modal-lic-seats").value, 10),
+                    seat_unit_price: parseFloat(document.getElementById("modal-lic-seat-price").value),
+                    monthly_quota_units: parseInt(document.getElementById("modal-lic-quota").value, 10),
+                    overage_allowed: document.getElementById("modal-lic-overage").value === "true",
+                    notes: document.getElementById("modal-lic-notes").value
+                };
+
+                try {
+                    const res = await fetch(API_BASE + "/saas-licenses", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        closeIssueLicenseModal();
+                        showToast(`SaaS License ${data.license_key} provisioned successfully!`, "emerald");
+                        loadSaaSMetrics();
+                        loadSaaSLicenses();
+                    } else {
+                        const err = await res.json();
+                        showToast("Error: " + (err.detail || "Failed to provision license"), "rose");
+                    }
+                } catch(err) {
+                    console.error("Failed to issue license:", err);
+                    showToast("Network error issuing license", "rose");
+                }
+            }
+
+            function openTelemetryModal(licId, key, activeSeats, licensedSeats, quotaUsed) {
+                document.getElementById("modal-telemetry-lic-id").value = licId;
+                document.getElementById("modal-telemetry-lic-label").innerText = key;
+                document.getElementById("modal-telemetry-seats").value = activeSeats;
+                document.getElementById("modal-telemetry-capacity").innerText = `${licensedSeats} seats`;
+                document.getElementById("modal-telemetry-quota").value = quotaUsed;
+
+                const modal = document.getElementById("modal-telemetry-ping");
+                if (modal) modal.classList.remove("hidden");
+            }
+
+            function closeTelemetryModal() {
+                const modal = document.getElementById("modal-telemetry-ping");
+                if (modal) modal.classList.add("hidden");
+            }
+
+            async function handleSendTelemetry(e) {
+                e.preventDefault();
+                const licId = document.getElementById("modal-telemetry-lic-id").value;
+                const activeSeats = parseInt(document.getElementById("modal-telemetry-seats").value, 10);
+                const quotaUsed = parseInt(document.getElementById("modal-telemetry-quota").value, 10);
+
+                try {
+                    const res = await fetch(`${API_BASE}/saas-licenses/${licId}/telemetry`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ active_seats: activeSeats, quota_used: quotaUsed })
+                    });
+                    if (res.ok) {
+                        closeTelemetryModal();
+                        showToast("Telemetry ingested! Health score & utilization recalculated.", "emerald");
+                        loadSaaSMetrics();
+                        loadSaaSLicenses();
+                    } else {
+                        const err = await res.json();
+                        showToast("Error: " + (err.detail || "Failed to send telemetry"), "rose");
+                    }
+                } catch(err) {
+                    showToast("Error sending telemetry ping", "rose");
+                }
+            }
+
+            async function triggerExpansionAudit() {
+                showToast("Autonomous Expansion Bot scanning license telemetry...", "cyan");
+                try {
+                    const res = await fetch(API_BASE + "/saas-licenses/expansion-audit", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        showExpansionResults(data);
+                    } else {
+                        showToast("Expansion audit failed", "rose");
+                    }
+                } catch(e) {
+                    console.error("Error triggering expansion audit:", e);
+                    showToast("Network error running expansion audit", "rose");
+                }
+            }
+
+            function showExpansionResults(data) {
+                const body = document.getElementById("expansion-results-body");
+                const modal = document.getElementById("modal-expansion-results");
+                if (!body || !modal) return;
+
+                if (data.proposals_generated.length === 0) {
+                    body.innerHTML = `
+                        <div class="p-6 text-center text-slate-400 space-y-2">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-3xl"></i>
+                            <div class="font-bold text-white">Scanned ${data.total_licenses_scanned} active licenses.</div>
+                            <div class="text-xs">No accounts currently exceed the 85% seat or 90% quota expansion threshold. All clients are currently within healthy operational limits.</div>
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = `
+                        <div class="p-3 bg-emerald-950/40 border border-emerald-700/50 rounded-xl text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                            <span>Found ${data.expansion_candidates_found} Expansion Candidate(s) across ${data.total_licenses_scanned} scanned licenses:</span>
+                            <span class="font-mono font-bold text-emerald-400">+${data.proposals_generated.reduce((acc, p) => acc + p.arr_delta, 0).toLocaleString('en-US', {style:'currency', currency:'USD'})} ARR Potential</span>
+                        </div>
+                    ` + data.proposals_generated.map(p => `
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-bold text-slate-100 text-sm">${p.client_name}</div>
+                                    <div class="font-mono text-cyan-400 text-[11px]">${p.license_key} &bull; ${p.plan_tier.toUpperCase()}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-700">
+                                        ${p.seat_utilization_pct.toFixed(1)}% Capacity
+                                    </span>
+                                    <div class="text-emerald-400 font-mono font-bold text-xs mt-1">+${Number(p.arr_delta).toLocaleString('en-US', {style:'currency', currency:'USD'})} ARR</div>
+                                </div>
+                            </div>
+                            <div class="text-[11px] text-slate-300">
+                                Proposed Expansion: <span class="font-mono text-slate-100">${p.licensed_seats} &rarr; ${p.proposed_new_seats} Seats</span> 
+                                (${p.active_seats_used} currently active).
+                            </div>
+                            <div class="bg-slate-900 border border-slate-800/80 rounded-lg p-3 text-[11px] font-mono text-slate-300 whitespace-pre-wrap">
+${p.ai_drafted_outreach}
+                            </div>
+                            ${p.requires_hitl ? `
+                                <div class="p-2 bg-rose-950/60 border border-rose-800 rounded text-[11px] text-rose-300 flex items-center gap-2">
+                                    <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                                    <span>Discount guardrail triggered (&gt;10%). Routed to Manager HITL Queue for authorization.</span>
+                                </div>
+                            ` : `
+                                <div class="p-2 bg-emerald-950/60 border border-emerald-800 rounded text-[11px] text-emerald-300 flex items-center gap-2">
+                                    <i class="fa-solid fa-check text-emerald-400"></i>
+                                    <span>Catalog guardrails verified. Autonomous proposal prepared for dispatch.</span>
+                                </div>
+                            `}
+                        </div>
+                    `).join('');
+                }
+
+                modal.classList.remove("hidden");
+            }
+
+            function closeExpansionResultsModal() {
+                const modal = document.getElementById("modal-expansion-results");
+                if (modal) modal.classList.add("hidden");
+            }
+
+            async function triggerRenewalRadar() {
+                showToast("Autonomous Renewal Radar scanning expiring contracts...", "amber");
+                try {
+                    const res = await fetch(API_BASE + "/saas-licenses/renewal-radar", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        showRenewalResults(data);
+                    } else {
+                        showToast("Renewal radar scan failed", "rose");
+                    }
+                } catch(e) {
+                    console.error("Error triggering renewal radar:", e);
+                    showToast("Network error running renewal radar", "rose");
+                }
+            }
+
+            function showRenewalResults(data) {
+                const body = document.getElementById("renewal-results-body");
+                const modal = document.getElementById("modal-renewal-results");
+                if (!body || !modal) return;
+
+                if (data.items.length === 0) {
+                    body.innerHTML = `
+                        <div class="p-6 text-center text-slate-400 space-y-2">
+                            <i class="fa-solid fa-shield-check text-emerald-400 text-3xl"></i>
+                            <div class="font-bold text-white">All ${data.total_licenses_scanned} licenses are healthy &amp; active.</div>
+                            <div class="text-xs">No contracts are expiring within the next 60 days, and no accounts exhibit critical churn degradation signals.</div>
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = `
+                        <div class="p-3 bg-amber-950/40 border border-amber-700/50 rounded-xl text-amber-300 text-xs font-semibold flex items-center justify-between">
+                            <span>Scan Results: ${data.expiring_soon_count} Expiring Soon &bull; ${data.at_risk_count} At Risk</span>
+                            <span class="font-mono font-bold text-slate-200">${data.total_licenses_scanned} Total Checked</span>
+                        </div>
+                    ` + data.items.map(item => `
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-bold text-slate-100 text-sm">${item.client_name}</div>
+                                    <div class="font-mono text-cyan-400 text-[11px]">${item.license_key}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${item.auto_charged ? 'bg-emerald-950 text-emerald-300 border border-emerald-700' : 'bg-amber-950 text-amber-300 border border-amber-700'}">
+                                        ${item.days_until_renewal} Days to Renewal
+                                    </span>
+                                    <div class="text-slate-300 font-mono text-xs mt-1">$${Number(item.arr).toLocaleString(undefined, {minimumFractionDigits: 2})}/yr ARR</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-1 border-t border-slate-900 text-[11px]">
+                                <span class="text-slate-400">Health: <span class="font-bold text-slate-200">${item.health_score}/100 (${item.churn_risk_level})</span></span>
+                                <span class="font-semibold ${item.auto_charged ? 'text-emerald-400' : 'text-amber-300'}">
+                                    <i class="fa-solid ${item.auto_charged ? 'fa-circle-check' : 'fa-clock'} mr-1"></i>${item.action_recommended}
+                                </span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                modal.classList.remove("hidden");
+            }
+
+            function openCloudProvisionModal(licId, key, seats) {
+                document.getElementById("modal-provision-lic-id").value = licId;
+                document.getElementById("modal-provision-lic-label").innerText = `${key} (${seats} seats)`;
+                const modal = document.getElementById("modal-cloud-provision");
+                if (modal) modal.classList.remove("hidden");
+            }
+
+            function closeCloudProvisionModal() {
+                const modal = document.getElementById("modal-cloud-provision");
+                if (modal) modal.classList.add("hidden");
+            }
+
+            async function handleCloudProvision(e) {
+                e.preventDefault();
+                const licId = document.getElementById("modal-provision-lic-id").value;
+                const provider = document.getElementById("modal-provision-provider").value;
+                const spec = document.getElementById("modal-provision-spec").value;
+                const btn = document.getElementById("btn-submit-cloud-prov");
+
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Dispatching Order Filler Agent...`;
+                }
+
+                try {
+                    const res = await fetch(`${API_BASE}/saas-licenses/${licId}/provision-cloud`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ cloud_provider: provider, resource_spec: spec })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        closeCloudProvisionModal();
+                        showToast(`Order Filler Agent dispatched! PO #${data.po_number} (${data.supplier_name})`, "amber");
+                    } else {
+                        const err = await res.json();
+                        showToast("Error: " + (err.detail || "Cloud provisioning failed"), "rose");
+                    }
+                } catch(err) {
+                    console.error("Cloud provision error:", err);
+                    showToast("Network error dispatching cloud provisioning", "rose");
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Dispatch Order Filler Agent`;
+                    }
                 }
             }
 
