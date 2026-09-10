@@ -10,6 +10,20 @@ class Organization(Base, CommonMixin):
     slug = Column(String(100), unique=True, nullable=False, index=True)
     status = Column(String(50), default="active", nullable=False)
 
+    # White-Label Branding & Theme
+    brand_name = Column(String(255), nullable=True)
+    brand_logo_url = Column(String(500), nullable=True)
+    brand_accent_color = Column(String(50), default="#4f46e5", nullable=True)
+    support_email = Column(String(255), nullable=True)
+    support_phone = Column(String(100), nullable=True)
+    custom_footer_text = Column(String(500), nullable=True)
+    tracking_portal_notice = Column(Text, nullable=True)
+
+    # Merchant Payment Gateways (Stripe Connect / Custom Keys)
+    stripe_publishable_key = Column(String(255), nullable=True)
+    stripe_secret_key = Column(String(255), nullable=True)
+    stripe_webhook_secret = Column(String(255), nullable=True)
+
     # Relationships
     memberships = relationship("OrganizationMembership", back_populates="organization", cascade="all, delete-orphan")
     ai_config = relationship("AIConfiguration", back_populates="organization", uselist=False, cascade="all, delete-orphan")

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -22,6 +22,23 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import inspect, text
             inspector = inspect(sync_conn)
             tables = inspector.get_table_names()
+            if "organizations" in tables:
+                cols = [c["name"] for c in inspector.get_columns("organizations")]
+                org_cols = [
+                    ("brand_name", "VARCHAR(255)"),
+                    ("brand_logo_url", "VARCHAR(500)"),
+                    ("brand_accent_color", "VARCHAR(50) DEFAULT '#4f46e5'"),
+                    ("support_email", "VARCHAR(255)"),
+                    ("support_phone", "VARCHAR(100)"),
+                    ("custom_footer_text", "VARCHAR(500)"),
+                    ("tracking_portal_notice", "TEXT"),
+                    ("stripe_publishable_key", "VARCHAR(255)"),
+                    ("stripe_secret_key", "VARCHAR(255)"),
+                    ("stripe_webhook_secret", "VARCHAR(255)")
+                ]
+                for col_name, col_type in org_cols:
+                    if col_name not in cols:
+                        sync_conn.execute(text(f"ALTER TABLE organizations ADD COLUMN {col_name} {col_type}"))
             if "leads" in tables:
                 cols = [c["name"] for c in inspector.get_columns("leads")]
                 new_cols = [
@@ -85,6 +102,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(payments.router, prefix=prefix)
     app.include_router(public_tracking.router, prefix=prefix)
     app.include_router(replenishments.router, prefix=prefix)
+    app.include_router(organization_settings.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -119,8 +137,8 @@ async def customer_tracking_portal(order_number: str):
             <!-- Header Card -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-3.5">
-                    <div class="h-12 w-12 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xl shadow-lg">
-                        <i class="fa-solid fa-truck-ramp-box"></i>
+                    <div id="brand-logo-container" class="h-12 w-12 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xl shadow-lg shrink-0 overflow-hidden">
+                        <i class="fa-solid fa-truck-ramp-box" id="brand-default-icon"></i>
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
@@ -128,7 +146,7 @@ async def customer_tracking_portal(order_number: str):
                             <span id="badge-status" class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">Loading...</span>
                         </div>
                         <p class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
-                            <span>Acme Supply Delivery Tracking</span> • 
+                            <span id="text-brand-header">Acme Supply Delivery Tracking</span> • 
                             <span id="text-client-name" class="font-medium text-slate-300">Customer Recipient</span>
                         </p>
                     </div>
@@ -139,6 +157,12 @@ async def customer_tracking_portal(order_number: str):
                     </button>
                     <span id="badge-payment" class="px-3 py-1.5 rounded-lg text-xs font-bold font-mono">...</span>
                 </div>
+            </div>
+
+            <!-- Custom Tenant Notice Banner (shown if tenant provided custom text) -->
+            <div id="banner-tracking-notice" class="hidden p-4 rounded-2xl bg-indigo-950/40 border border-indigo-700/50 text-xs text-indigo-200 flex items-center gap-3 shadow-lg">
+                <i class="fa-solid fa-circle-info text-indigo-400 text-base shrink-0"></i>
+                <span id="text-tracking-notice-body"></span>
             </div>
 
             <!-- Interactive 5-Stage Stepper -->
@@ -217,8 +241,8 @@ async def customer_tracking_portal(order_number: str):
 
             <!-- Support Footer -->
             <div class="text-center text-xs text-slate-500 pt-2 pb-6 space-y-1">
-                <p>Acme Supply Autonomous Fulfillment • Questions? Contact <a href="mailto:support@therealbonz.com" class="text-indigo-400 hover:underline">support@therealbonz.com</a></p>
-                <p class="text-[11px] text-slate-600">Generated securely by AI Sales Platform</p>
+                <p><span id="text-footer-brand">Acme Supply</span> • Questions? Contact <a id="link-support-email" href="mailto:support@therealbonz.com" class="text-indigo-400 hover:underline">support@therealbonz.com</a> <span id="span-support-phone" class="hidden">• Phone: <span id="text-support-phone" class="text-slate-300 font-mono"></span></span></p>
+                <p id="text-footer-custom" class="text-[11px] text-slate-600">Generated securely by AI Sales Platform</p>
             </div>
         </div>
 
@@ -246,6 +270,54 @@ async def customer_tracking_portal(order_number: str):
             }
 
             function renderTrackingView(data) {
+                // White-label dynamic branding & theming
+                const brandName = data.brand_name || "Order Bot Distribution";
+                document.title = `Order #${orderNumber} Delivery Status • ${brandName}`;
+                const brandHeaderEl = document.getElementById("text-brand-header");
+                if (brandHeaderEl) brandHeaderEl.innerText = `${brandName} Delivery Tracking`;
+                const footerBrandEl = document.getElementById("text-footer-brand");
+                if (footerBrandEl) footerBrandEl.innerText = brandName;
+
+                if (data.brand_logo_url) {
+                    const logoBox = document.getElementById("brand-logo-container");
+                    if (logoBox) logoBox.innerHTML = `<img src="${data.brand_logo_url}" alt="${brandName}" class="h-full w-full object-contain p-1">`;
+                }
+
+                if (data.support_email) {
+                    const emailLink = document.getElementById("link-support-email");
+                    if (emailLink) {
+                        emailLink.href = "mailto:" + data.support_email;
+                        emailLink.innerText = data.support_email;
+                    }
+                }
+
+                if (data.support_phone) {
+                    const phoneSpan = document.getElementById("span-support-phone");
+                    const phoneText = document.getElementById("text-support-phone");
+                    if (phoneSpan && phoneText) {
+                        phoneSpan.classList.remove("hidden");
+                        phoneText.innerText = data.support_phone;
+                    }
+                }
+
+                if (data.tracking_portal_notice) {
+                    const noticeBanner = document.getElementById("banner-tracking-notice");
+                    const noticeText = document.getElementById("text-tracking-notice-body");
+                    if (noticeBanner && noticeText) {
+                        noticeBanner.classList.remove("hidden");
+                        noticeText.innerText = data.tracking_portal_notice;
+                    }
+                }
+
+                if (data.custom_footer_text) {
+                    const footerCustom = document.getElementById("text-footer-custom");
+                    if (footerCustom) footerCustom.innerText = data.custom_footer_text;
+                }
+
+                if (data.brand_accent_color) {
+                    document.documentElement.style.setProperty('--brand-accent', data.brand_accent_color);
+                }
+
                 // Header & Badges
                 document.getElementById("text-client-name").innerText = data.client_name || "Customer";
                 const isDelivered = data.is_delivered || data.current_status === "delivered";
@@ -381,11 +453,11 @@ async def customer_checkout_portal(session_id: str):
             <!-- Brand & Stripe Header -->
             <div class="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div class="flex items-center gap-2.5">
-                    <div class="h-9 w-9 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+                    <div id="checkout-logo-box" class="h-9 w-9 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
                     <div>
-                        <h1 class="font-bold text-sm text-slate-100">Acme Supply Checkout</h1>
+                        <h1 id="text-checkout-brand" class="font-bold text-sm text-slate-100">Acme Supply Checkout</h1>
                         <p class="text-[10px] text-slate-400">Encrypted 256-bit SSL Payment</p>
                     </div>
                 </div>
@@ -467,6 +539,25 @@ async def customer_checkout_portal(session_id: str):
                     if (res.ok) {
                         const data = await res.json();
                         currentOrderNumber = data.order_number;
+
+                        // Brand theming
+                        const brandName = data.brand_name || data.organization_name || "Merchant";
+                        document.title = `Secure Checkout • ${brandName}`;
+                        const brandTitle = document.getElementById("text-checkout-brand");
+                        if (brandTitle) brandTitle.innerText = `${brandName} Checkout`;
+
+                        if (data.brand_logo_url) {
+                            const logoBox = document.getElementById("checkout-logo-box");
+                            if (logoBox) logoBox.innerHTML = `<img src="${data.brand_logo_url}" alt="Logo" class="h-full w-full object-contain p-0.5">`;
+                        }
+
+                        if (data.brand_accent_color) {
+                            const btnPay = document.getElementById("btn-pay");
+                            if (btnPay) {
+                                btnPay.style.background = data.brand_accent_color;
+                            }
+                        }
+
                         document.getElementById("text-order-num").innerText = "#" + data.order_number;
                         document.getElementById("text-client-name").innerText = data.client_name;
                         document.getElementById("text-amount").innerText = "$" + data.amount.toFixed(2);
@@ -562,6 +653,9 @@ async def dashboard_home():
                 </div>
             </div>
             <div class="flex items-center space-x-4">
+                <button onclick="switchCrmMode('settings')" class="px-3 py-1.5 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 border border-purple-500/50 rounded-lg text-xs font-semibold text-purple-200 transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-palette text-purple-400"></i> White-Label &amp; Stripe
+                </button>
                 <span id="gemini-badge" class="px-3 py-1 text-xs rounded-full bg-emerald-950 border border-emerald-700/50 text-emerald-400 flex items-center gap-2">
                     <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Gemini 1.5 Pro Active
                 </span>
@@ -574,7 +668,7 @@ async def dashboard_home():
         <!-- Dual CRM Switcher Header Bar -->
         <div class="border-b border-slate-800 bg-slate-950/80 px-6 py-3 sticky top-0 z-30 backdrop-blur">
             <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-                <!-- Switcher Tabs (3 Modes) -->
+                <!-- Switcher Tabs (4 Modes) -->
                 <div class="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
                     <button id="tab-prospects" onclick="switchCrmMode('prospects')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-md">
                         <i class="fa-solid fa-crosshairs text-indigo-200"></i>
@@ -589,6 +683,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-truck-fast text-amber-400"></i>
                         <span>⚡ CRM 3: AI Order Filler &amp; Logistics</span>
                         <span id="nav-badge-shipments" class="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/80 text-amber-300 font-mono border border-amber-700/50">0</span>
+                    </button>
+                    <button id="tab-settings" onclick="switchCrmMode('settings')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-palette text-purple-400"></i>
+                        <span>⚙️ CRM 4: Brand &amp; Stripe Connect</span>
+                        <span id="nav-badge-payment-status" class="px-2 py-0.5 rounded-full text-[10px] bg-purple-950/80 text-purple-300 font-mono border border-purple-700/50">Ready</span>
                     </button>
                 </div>
 
@@ -1761,6 +1860,251 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             </div>
         </div>
 
+        <!-- CRM 4: Multi-Tenant White-Labeling & Stripe Connect Hub -->
+        <div id="view-settings" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-purple-950/40 via-indigo-950/40 to-slate-900 border border-purple-500/40 rounded-2xl p-5 shadow-2xl space-y-4 ring-1 ring-purple-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center text-xl shadow-lg shadow-purple-500/20 shrink-0">
+                            <i class="fa-solid fa-palette"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="font-black text-xl text-white tracking-wide">Multi-Tenant White-Labeling &amp; Stripe Connect</h1>
+                                <span id="badge-tenant-live" class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-purple-950 text-purple-300 border border-purple-700/50">
+                                    Enterprise Tenant
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Customize your client-facing brand identity, custom portal styling, and configure your direct merchant Stripe payment gateways.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <button onclick="fetchOrganizationSettings()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate" id="btn-settings-refresh-icon"></i> Reload
+                        </button>
+                        <button onclick="saveOrganizationSettings()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-purple-600/30 cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk"></i> Save All Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status Ribbon -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <span class="text-slate-400"><i class="fa-solid fa-building text-purple-400 mr-1.5"></i>Active Tenant:</span>
+                        <span id="label-settings-org-id" class="font-mono font-bold text-slate-200 text-[11px]">Loading...</span>
+                    </div>
+                    <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <span class="text-slate-400"><i class="fa-solid fa-credit-card text-emerald-400 mr-1.5"></i>Payment Gateway:</span>
+                        <span id="label-settings-payment-mode" class="font-semibold text-emerald-400 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check"></i> Simulation Ready
+                        </span>
+                    </div>
+                    <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <span class="text-slate-400"><i class="fa-solid fa-eye text-cyan-400 mr-1.5"></i>Portal Theme:</span>
+                        <span id="label-settings-accent-preview" class="font-mono font-semibold text-cyan-300 flex items-center gap-1.5">
+                            <span id="swatch-accent-small" class="h-3 w-3 rounded-full inline-block bg-indigo-600"></span> <span id="text-accent-hex-val">#4f46e5</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Form & Real-Time Preview -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left 2 Cols: Configuration Inputs -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Brand & Portal Styling Section -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <h2 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-brush text-purple-400"></i> Corporate Brand &amp; Portal Theming
+                            </h2>
+                            <span class="text-[11px] text-slate-500">Public Customer Facing</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Tenant Business Name</label>
+                                <input type="text" id="setting-org-name" placeholder="Acme Logistics Inc" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Customer-Facing Brand Name</label>
+                                <input type="text" id="setting-brand-name" placeholder="Acme Supply Co." oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Brand Logo URL</label>
+                                <input type="text" id="setting-brand-logo-url" placeholder="https://example.com/logo.png" oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Brand Accent Color</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" id="setting-accent-picker" value="#4f46e5" oninput="syncAccentColorFromPicker(this.value)" class="h-9 w-12 rounded-lg bg-slate-950 border border-slate-700 cursor-pointer p-0.5">
+                                    <input type="text" id="setting-accent-hex" value="#4f46e5" oninput="syncAccentColorFromText(this.value)" placeholder="#4f46e5" class="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono text-xs focus:outline-none focus:border-purple-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Support Email Address</label>
+                                <input type="email" id="setting-support-email" placeholder="support@acmesupply.com" oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Support Phone Number</label>
+                                <input type="text" id="setting-support-phone" placeholder="+1 (800) 555-0199" oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs">
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Public Tracking Portal Custom Notice (Optional)</label>
+                                <textarea id="setting-tracking-notice" rows="2" placeholder="e.g. Orders placed after 4 PM EST ship the next business morning. Need emergency expedited dispatch? Call our hotline." oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold">Custom Invoicing &amp; Portal Footer Note</label>
+                                <input type="text" id="setting-custom-footer" placeholder="Thank you for partnering with Acme Supply Co. Direct B2B Distribution Division." oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stripe Connect & Payment Gateway Section -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <div class="h-6 w-6 rounded bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+                                    <i class="fa-brands fa-stripe"></i>
+                                </div>
+                                <h2 class="font-bold text-sm text-slate-200">Merchant Stripe Connect &amp; Direct Gateways</h2>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-950 text-indigo-300 border border-indigo-700/50">
+                                Direct Deposit Mode
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-400">
+                            Configure your Stripe merchant API keys so replenishment orders and hosted checkout payments deposit directly into your company's merchant bank account. If left blank, the platform uses frictionless local simulation.
+                        </p>
+
+                        <div class="space-y-4 text-xs">
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold flex items-center justify-between">
+                                    <span>Stripe Publishable Key</span>
+                                    <span class="text-[10px] text-slate-500 font-normal">Begins with pk_live_ or pk_test_</span>
+                                </label>
+                                <input type="text" id="setting-stripe-pub-key" placeholder="pk_live_51M..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono focus:outline-none focus:border-indigo-500 text-xs">
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold flex items-center justify-between">
+                                    <span>Stripe Secret Key</span>
+                                    <span class="text-[10px] text-slate-500 font-normal">Encrypted at rest • Begins with sk_live_ or sk_test_</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="password" id="setting-stripe-sec-key" placeholder="••••••••••••••••••••••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono focus:outline-none focus:border-indigo-500 text-xs pr-10">
+                                    <button type="button" onclick="toggleStripeSecretVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer">
+                                        <i class="fa-solid fa-eye" id="icon-toggle-secret"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-400 mb-1.5 font-semibold flex items-center justify-between">
+                                    <span>Stripe Webhook Signing Secret</span>
+                                    <span class="text-[10px] text-slate-500 font-normal">Begins with whsec_</span>
+                                </label>
+                                <input type="password" id="setting-stripe-webhook-sec" placeholder="whsec_..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono focus:outline-none focus:border-indigo-500 text-xs">
+                            </div>
+
+                            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-400 font-semibold text-[11px]"><i class="fa-solid fa-network-wired text-indigo-400 mr-1"></i> Your Stripe Webhook Endpoint URL:</span>
+                                    <button onclick="copyWebhookEndpointUrl()" class="text-indigo-400 hover:text-indigo-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer">
+                                        <i class="fa-solid fa-copy"></i> Copy URL
+                                    </button>
+                                </div>
+                                <div class="font-mono text-[11px] text-slate-300 bg-slate-900 p-2 rounded-lg border border-slate-800/80 break-all select-all" id="text-webhook-url-display">
+                                    https://therealbonz.com/JsProject/api/v1/payments/stripe/webhook
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Col: Interactive Live Customer Experience Preview -->
+                <div class="space-y-6">
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl sticky top-20">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-desktop text-cyan-400"></i> Live Customer Experience Preview
+                            </h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-semibold">
+                                Live Interactive
+                            </span>
+                        </div>
+
+                        <!-- Mini Customer Tracking Portal Card -->
+                        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-3 shadow-inner">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div id="preview-logo-box" class="h-8 w-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
+                                        <i class="fa-solid fa-truck-ramp-box" id="preview-default-icon"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-xs text-white" id="preview-brand-name">Acme Supply Co.</div>
+                                        <div class="text-[10px] text-slate-400">Delivery Tracking #SO-SAMPLE</div>
+                                    </div>
+                                </div>
+                                <span id="preview-status-pill" class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">
+                                    In Transit (60%)
+                                </span>
+                            </div>
+
+                            <div id="preview-notice-box" class="hidden p-2 rounded-lg bg-indigo-950/40 border border-indigo-800/50 text-[10px] text-indigo-200">
+                                Notice will appear here
+                            </div>
+
+                            <!-- Mini Stepper Bar -->
+                            <div class="space-y-1 pt-1">
+                                <div class="flex justify-between text-[10px] text-slate-400">
+                                    <span>Carrier: FedEx Freight</span>
+                                    <span class="font-mono text-emerald-400">On Schedule</span>
+                                </div>
+                                <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="preview-progress-bar" class="h-full bg-indigo-500 rounded-full" style="width: 60%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini Hosted Stripe Checkout Card -->
+                        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-3 shadow-inner">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-slate-400">Sample Restock Order:</span>
+                                <span class="font-bold font-mono text-emerald-400">$1,485.00</span>
+                            </div>
+                            <button id="preview-btn-pay" class="w-full py-2.5 bg-indigo-600 hover:opacity-90 text-white font-bold rounded-xl text-xs shadow-lg flex items-center justify-center gap-2 cursor-pointer transition">
+                                <i class="fa-solid fa-lock text-[11px]"></i> <span>Pay with <span id="preview-btn-brand-name">Acme Supply Co.</span></span>
+                            </button>
+                            <div class="text-center text-[10px] text-slate-500">
+                                Support: <span id="preview-support-email" class="text-indigo-400">support@acmesupply.com</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2">
+                            <button onclick="saveOrganizationSettings()" class="w-full py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-xl shadow-purple-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                                <i class="fa-solid fa-check-double"></i> Save Brand &amp; Gateway Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Executive Closer Briefing Modal -->
         <div id="modal-closer-briefing" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
             <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
@@ -1828,6 +2172,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchProcurementStats();
                     fetchSuppliers();
                     fetchPurchaseOrders();
+                    fetchOrganizationSettings();
                 } catch(e) {
                     alert("Error authenticating: " + e.message);
                 }
@@ -2628,18 +2973,22 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 const viewProspects = document.getElementById("view-prospects");
                 const viewClients = document.getElementById("view-clients");
                 const viewFulfillment = document.getElementById("view-fulfillment");
+                const viewSettings = document.getElementById("view-settings");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
+                const tabSettings = document.getElementById("tab-settings");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 tabClients.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabFulfillment) tabFulfillment.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabSettings) tabSettings.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
                 if (viewFulfillment) viewFulfillment.classList.add("hidden");
+                if (viewSettings) viewSettings.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -2657,6 +3006,10 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchSuppliers();
                     fetchPurchaseOrders();
                     fetchAllSalesForFulfillmentSelector();
+                } else if (mode === 'settings') {
+                    if (viewSettings) viewSettings.classList.remove("hidden");
+                    if (tabSettings) tabSettings.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-purple-600 text-white shadow-md";
+                    fetchOrganizationSettings();
                 }
             }
 
@@ -4113,6 +4466,232 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     }
                 } catch(err) {
                     alert("Error dispatching shipment: " + err.message);
+                }
+            }
+
+            // ==============================================================================
+            // CRM 4: Multi-Tenant White-Labeling & Stripe Connect Handlers
+            // ==============================================================================
+
+            let cachedOrgSettings = null;
+
+            async function fetchOrganizationSettings() {
+                if (!authToken) return;
+                const icon = document.getElementById("btn-settings-refresh-icon");
+                if (icon) icon.classList.add("fa-spin");
+
+                try {
+                    const res = await fetch(API_BASE + "/orgs/settings", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    cachedOrgSettings = data;
+
+                    // Populate form fields
+                    const orgInput = document.getElementById("setting-org-name");
+                    if (orgInput) orgInput.value = data.name || "";
+                    const brandInput = document.getElementById("setting-brand-name");
+                    if (brandInput) brandInput.value = data.brand_name || "";
+                    const logoInput = document.getElementById("setting-brand-logo-url");
+                    if (logoInput) logoInput.value = data.brand_logo_url || "";
+                    
+                    const accentColor = data.brand_accent_color || "#4f46e5";
+                    const picker = document.getElementById("setting-accent-picker");
+                    if (picker) picker.value = accentColor;
+                    const hexInput = document.getElementById("setting-accent-hex");
+                    if (hexInput) hexInput.value = accentColor;
+                    
+                    const emailInput = document.getElementById("setting-support-email");
+                    if (emailInput) emailInput.value = data.support_email || "";
+                    const phoneInput = document.getElementById("setting-support-phone");
+                    if (phoneInput) phoneInput.value = data.support_phone || "";
+                    const noticeInput = document.getElementById("setting-tracking-notice");
+                    if (noticeInput) noticeInput.value = data.tracking_portal_notice || "";
+                    const footerInput = document.getElementById("setting-custom-footer");
+                    if (footerInput) footerInput.value = data.custom_footer_text || "";
+
+                    const pubKeyInput = document.getElementById("setting-stripe-pub-key");
+                    if (pubKeyInput) pubKeyInput.value = data.stripe_publishable_key || "";
+                    const secInput = document.getElementById("setting-stripe-sec-key");
+                    if (secInput) {
+                        if (data.has_stripe_secret && data.masked_stripe_secret) {
+                            secInput.value = data.masked_stripe_secret;
+                        } else {
+                            secInput.value = "";
+                        }
+                    }
+
+                    const webhookInput = document.getElementById("setting-stripe-webhook-sec");
+                    if (webhookInput) {
+                        if (data.has_stripe_webhook_secret) {
+                            webhookInput.value = "whsec_••••••••••••••••";
+                        } else {
+                            webhookInput.value = "";
+                        }
+                    }
+
+                    // Status ribbons
+                    const labelOrg = document.getElementById("label-settings-org-id");
+                    if (labelOrg) labelOrg.innerText = data.brand_name || data.name || data.slug || "Active";
+                    const modeLabel = document.getElementById("label-settings-payment-mode");
+                    const navBadge = document.getElementById("nav-badge-payment-status");
+                    if (data.is_payment_configured) {
+                        if (modeLabel) {
+                            modeLabel.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Direct Stripe Live`;
+                            modeLabel.className = "font-semibold text-emerald-400 flex items-center gap-1";
+                        }
+                        if (navBadge) {
+                            navBadge.innerText = "Stripe Live";
+                            navBadge.className = "px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/80 text-emerald-300 font-mono border border-emerald-700/50";
+                        }
+                    } else {
+                        if (modeLabel) {
+                            modeLabel.innerHTML = `<i class="fa-solid fa-bolt text-indigo-400"></i> Simulation Ready`;
+                            modeLabel.className = "font-semibold text-indigo-300 flex items-center gap-1";
+                        }
+                        if (navBadge) {
+                            navBadge.innerText = "Sim Ready";
+                            navBadge.className = "px-2 py-0.5 rounded-full text-[10px] bg-purple-950/80 text-purple-300 font-mono border border-purple-700/50";
+                        }
+                    }
+
+                    updateLiveBrandPreview();
+                } catch(e) {
+                    console.error("Error fetching organization settings:", e);
+                } finally {
+                    if (icon) icon.classList.remove("fa-spin");
+                }
+            }
+
+            function syncAccentColorFromPicker(val) {
+                const hexInput = document.getElementById("setting-accent-hex");
+                if (hexInput) hexInput.value = val;
+                updateLiveBrandPreview();
+            }
+
+            function syncAccentColorFromText(val) {
+                if (val && !val.startsWith("#")) val = "#" + val;
+                if (val.length === 7) {
+                    const picker = document.getElementById("setting-accent-picker");
+                    if (picker) picker.value = val;
+                }
+                updateLiveBrandPreview();
+            }
+
+            function updateLiveBrandPreview() {
+                const brandName = (document.getElementById("setting-brand-name")?.value) || (document.getElementById("setting-org-name")?.value) || "Acme Supply Co.";
+                const logoUrl = document.getElementById("setting-brand-logo-url")?.value || "";
+                const accentColor = document.getElementById("setting-accent-hex")?.value || "#4f46e5";
+                const supportEmail = document.getElementById("setting-support-email")?.value || "support@acmesupply.com";
+                const trackingNotice = document.getElementById("setting-tracking-notice")?.value || "";
+
+                // Live Preview Updates
+                const previewBrand = document.getElementById("preview-brand-name");
+                if (previewBrand) previewBrand.innerText = brandName;
+                const previewBtnBrand = document.getElementById("preview-btn-brand-name");
+                if (previewBtnBrand) previewBtnBrand.innerText = brandName;
+                const previewEmail = document.getElementById("preview-support-email");
+                if (previewEmail) previewEmail.innerText = supportEmail;
+
+                // Swatch ribbons
+                const swatchSmall = document.getElementById("swatch-accent-small");
+                if (swatchSmall) swatchSmall.style.backgroundColor = accentColor;
+                const textAccent = document.getElementById("text-accent-hex-val");
+                if (textAccent) textAccent.innerText = accentColor;
+
+                // Notice Box
+                const noticeBox = document.getElementById("preview-notice-box");
+                if (noticeBox) {
+                    if (trackingNotice.trim()) {
+                        noticeBox.classList.remove("hidden");
+                        noticeBox.innerText = trackingNotice;
+                    } else {
+                        noticeBox.classList.add("hidden");
+                    }
+                }
+
+                // Logo box
+                const logoBox = document.getElementById("preview-logo-box");
+                if (logoBox) {
+                    if (logoUrl.trim()) {
+                        logoBox.innerHTML = `<img src="${logoUrl}" alt="Logo" class="h-full w-full object-contain p-0.5">`;
+                    } else {
+                        logoBox.innerHTML = `<i class="fa-solid fa-truck-ramp-box text-indigo-400"></i>`;
+                    }
+                }
+
+                // Button and bar theme
+                const btnPay = document.getElementById("preview-btn-pay");
+                if (btnPay) btnPay.style.backgroundColor = accentColor;
+                const progBar = document.getElementById("preview-progress-bar");
+                if (progBar) progBar.style.backgroundColor = accentColor;
+            }
+
+            function toggleStripeSecretVisibility() {
+                const input = document.getElementById("setting-stripe-sec-key");
+                const icon = document.getElementById("icon-toggle-secret");
+                if (!input || !icon) return;
+                if (input.type === "password") {
+                    input.type = "text";
+                    icon.classList.remove("fa-eye");
+                    icon.classList.add("fa-eye-slash");
+                } else {
+                    input.type = "password";
+                    icon.classList.remove("fa-eye-slash");
+                    icon.classList.add("fa-eye");
+                }
+            }
+
+            function copyWebhookEndpointUrl() {
+                const urlEl = document.getElementById("text-webhook-url-display");
+                const url = urlEl ? urlEl.innerText.trim() : "https://therealbonz.com/JsProject/api/v1/payments/stripe/webhook";
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast("Webhook URL Copied!", "Copied Stripe webhook listener endpoint to clipboard.", "fa-copy", "info");
+                }).catch(() => {
+                    prompt("Copy your Stripe Webhook URL:", url);
+                });
+            }
+
+            async function saveOrganizationSettings() {
+                if (!authToken) return;
+
+                const payload = {
+                    name: document.getElementById("setting-org-name")?.value.trim() || undefined,
+                    brand_name: document.getElementById("setting-brand-name")?.value.trim() || undefined,
+                    brand_logo_url: document.getElementById("setting-brand-logo-url")?.value.trim() || undefined,
+                    brand_accent_color: document.getElementById("setting-accent-hex")?.value.trim() || undefined,
+                    support_email: document.getElementById("setting-support-email")?.value.trim() || undefined,
+                    support_phone: document.getElementById("setting-support-phone")?.value.trim() || undefined,
+                    tracking_portal_notice: document.getElementById("setting-tracking-notice")?.value.trim() || undefined,
+                    custom_footer_text: document.getElementById("setting-custom-footer")?.value.trim() || undefined,
+                    stripe_publishable_key: document.getElementById("setting-stripe-pub-key")?.value.trim() || undefined,
+                    stripe_secret_key: document.getElementById("setting-stripe-sec-key")?.value.trim() || undefined,
+                    stripe_webhook_secret: document.getElementById("setting-stripe-webhook-sec")?.value.trim() || undefined,
+                };
+
+                try {
+                    const res = await fetch(API_BASE + "/orgs/settings", {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        const updated = await res.json();
+                        cachedOrgSettings = updated;
+                        showToast("Settings Saved!", "White-Label branding and payment configuration updated.", "fa-check", "success");
+                        fetchOrganizationSettings();
+                    } else {
+                        const err = await res.json();
+                        alert("Failed to save settings: " + (err.detail || res.statusText));
+                    }
+                } catch(err) {
+                    alert("Error saving settings: " + err.message);
                 }
             }
 

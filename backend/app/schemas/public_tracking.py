@@ -18,5 +18,12 @@ class PublicOrderTrackingResponse(BaseModel):
     destination_type: Optional[str] = None
     history_events: List[Dict[str, Any]] = []
     stripe_checkout_url: Optional[str] = None
+    brand_name: Optional[str] = "Order Bot Distribution"
+    brand_logo_url: Optional[str] = None
+    brand_accent_color: Optional[str] = "#4f46e5"
+    support_email: Optional[str] = "support@therealbonz.com"
+    support_phone: Optional[str] = None
+    custom_footer_text: Optional[str] = None
+    tracking_portal_notice: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

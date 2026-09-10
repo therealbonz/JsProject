@@ -49,7 +49,7 @@ async def create_stripe_checkout(
     if payload.customer_email:
         sale.customer_email = payload.customer_email
 
-    stripe_key = getattr(settings, "STRIPE_SECRET_KEY", None)
+    stripe_key = org.stripe_secret_key or getattr(settings, "STRIPE_SECRET_KEY", None)
     is_simulation = not bool(stripe_key and str(stripe_key).startswith("sk_"))
 
     session_id = f"cs_test_{uuid.uuid4().hex[:20]}"
@@ -299,9 +299,10 @@ async def get_checkout_session(
     if not sale:
         raise HTTPException(status_code=404, detail="Checkout session not found")
 
-    org_stmt = select(Organization.name).where(Organization.id == sale.organization_id)
+    org_stmt = select(Organization).where(Organization.id == sale.organization_id)
     org_res = await db.execute(org_stmt)
-    org_name = org_res.scalar_one_or_none() or "Supplier"
+    org = org_res.scalar_one_or_none()
+    org_name = (org.brand_name or org.name) if org else "Supplier"
 
     return {
         "session_id": session_id,
@@ -310,5 +311,11 @@ async def get_checkout_session(
         "items_summary": sale.items_summary,
         "client_name": sale.client.account_name if sale.client else "Client",
         "organization_name": org_name,
+        "brand_name": org_name,
+        "brand_logo_url": org.brand_logo_url if org else None,
+        "brand_accent_color": (org.brand_accent_color or "#4f46e5") if org else "#4f46e5",
+        "support_email": (org.support_email or "support@therealbonz.com") if org else "support@therealbonz.com",
+        "support_phone": org.support_phone if org else None,
+        "custom_footer_text": org.custom_footer_text if org else None,
         "payment_status": sale.payment_status
     }

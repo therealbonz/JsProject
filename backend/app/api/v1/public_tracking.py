@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.models.tenant import Organization
 from app.models.crm import ClientSale, ClientAccount
 from app.models.procurement import PurchaseOrder, ShipmentTracking
 from app.schemas.public_tracking import PublicOrderTrackingResponse
@@ -96,6 +97,20 @@ async def get_public_order_tracking(
             is_delivered = False
         history_events = []
 
+    # Retrieve Organization branding if available
+    org = None
+    if sale.organization_id:
+        org_res = await db.execute(select(Organization).where(Organization.id == sale.organization_id))
+        org = org_res.scalar_one_or_none()
+
+    brand_name = (org.brand_name or org.name) if org else "Order Bot Distribution"
+    brand_logo_url = org.brand_logo_url if org else None
+    brand_accent_color = (org.brand_accent_color or "#4f46e5") if org else "#4f46e5"
+    support_email = (org.support_email or "support@therealbonz.com") if org else "support@therealbonz.com"
+    support_phone = org.support_phone if org else None
+    custom_footer_text = org.custom_footer_text if org else None
+    tracking_portal_notice = org.tracking_portal_notice if org else None
+
     return PublicOrderTrackingResponse(
         order_number=sale.order_number,
         client_name=sale.client.account_name if sale.client else "Client Customer",
@@ -112,4 +127,11 @@ async def get_public_order_tracking(
         destination_type=po.destination_type if po else "customer_dropship",
         history_events=history_events,
         stripe_checkout_url=sale.stripe_checkout_url,
+        brand_name=brand_name,
+        brand_logo_url=brand_logo_url,
+        brand_accent_color=brand_accent_color,
+        support_email=support_email,
+        support_phone=support_phone,
+        custom_footer_text=custom_footer_text,
+        tracking_portal_notice=tracking_portal_notice,
     )
