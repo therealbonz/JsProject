@@ -1,4 +1,5 @@
 import random
+import uuid
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -7,7 +8,7 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.api.deps import get_current_tenant
+from app.api.deps import get_current_tenant, require_roles
 from app.models.tenant import User, Organization
 from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, InventoryItem
 from app.models.crm import ClientSale, ClientAccount
@@ -17,7 +18,12 @@ from app.schemas.procurement import (
     ShipmentTrackingBrief, ShipmentAdvanceRequest, DispatchShipmentRequest,
     ProcurementStatsResponse
 )
+from app.schemas.edi_dropship import (
+    EDI850ExportResponse, EDI856ASNWebhookPayload, EDISimulateASNRequest, EDIWebhookReceipt
+)
 from app.services.order_filler.agent import order_filler_agent
+from app.services.edi_service import edi_service
+from app.services.audit_service import audit_service
 
 router = APIRouter(prefix="/fulfillment", tags=["Order Fulfillment & Supply Chain"])
 
@@ -439,3 +445,149 @@ async def get_procurement_stats(
         "dropship_orders_count": dropship_orders,
         "warehouse_orders_count": warehouse_orders
     }
+
+@router.get("/orders/{po_id}/edi-850", response_model=EDI850ExportResponse)
+async def get_edi_850_document(
+    po_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generate standard ANSI ASC X12 EDI 850 purchase order document
+    and modern REST API dropship JSON payload.
+    """
+    user, org, role = tenant_context
+    stmt = select(PurchaseOrder).options(
+        selectinload(PurchaseOrder.supplier),
+        selectinload(PurchaseOrder.client_sale)
+    ).where(PurchaseOrder.id == po_id, PurchaseOrder.organization_id == org.id)
+    res = await db.execute(stmt)
+    po = res.scalar_one_or_none()
+
+    if not po:
+        raise HTTPException(status_code=404, detail=f"Purchase order {po_id} not found.")
+
+    edi_result = edi_service.generate_edi_850(po=po, supplier=po.supplier, organization=org)
+
+    await audit_service.log_event(
+        db=db,
+        org_id=org.id,
+        action="edi.850_generated",
+        actor_type="user",
+        actor_id=user.id,
+        actor_email=user.email,
+        actor_role=role,
+        target_entity="purchase_order",
+        target_id=po.id,
+        status="success",
+        payload={"po_number": po.po_number, "supplier_code": po.supplier.code if po.supplier else "unknown"}
+    )
+    await db.commit()
+
+    return edi_result
+
+@router.post("/orders/{po_id}/dispatch-edi")
+async def dispatch_edi_850_order(
+    po_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(require_roles(["admin", "fulfillment_specialist"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Simulate electronic dispatch of EDI 850 purchase order to supplier fulfillment gateway.
+    """
+    user, org, role = tenant_context
+    stmt = select(PurchaseOrder).options(
+        selectinload(PurchaseOrder.supplier)
+    ).where(PurchaseOrder.id == po_id, PurchaseOrder.organization_id == org.id)
+    res = await db.execute(stmt)
+    po = res.scalar_one_or_none()
+
+    if not po:
+        raise HTTPException(status_code=404, detail=f"Purchase order {po_id} not found.")
+
+    edi_data = edi_service.generate_edi_850(po, po.supplier, org)
+    now = datetime.now(timezone.utc)
+
+    # In production, this dispatches via AS2 / SFTP / REST webhook
+    dispatch_receipt = {
+        "success": True,
+        "transmission_id": f"EDI-X12-TX-{uuid.uuid4().hex[:12].upper()}",
+        "protocol": "AS2_REST_STREAM",
+        "po_number": po.po_number,
+        "vendor": po.supplier.name if po.supplier else "Partner Vendor",
+        "status": "acknowledged_by_vendor",
+        "timestamp": now.isoformat()
+    }
+
+    await audit_service.log_event(
+        db=db,
+        org_id=org.id,
+        action="edi.850_dispatched",
+        actor_type="user",
+        actor_id=user.id,
+        actor_email=user.email,
+        actor_role=role,
+        target_entity="purchase_order",
+        target_id=po.id,
+        status="success",
+        payload=dispatch_receipt
+    )
+    await db.commit()
+
+    return dispatch_receipt
+
+@router.post("/edi-856/webhook", response_model=EDIWebhookReceipt)
+async def receive_edi_856_asn_webhook(
+    payload: EDI856ASNWebhookPayload,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Inbound EDI 856 Advance Ship Notice (ASN) webhook receiver.
+    Ingests vendor shipping notifications, carrier tracking numbers, and updates parcels in real time.
+    """
+    user, org, role = tenant_context
+    try:
+        receipt = await edi_service.process_edi_856_asn(
+            db=db,
+            org_id=org.id,
+            payload=payload.model_dump(),
+            actor_email=user.email
+        )
+        return receipt
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
+@router.post("/edi-856/simulate", response_model=EDIWebhookReceipt)
+async def simulate_edi_856_asn(
+    payload: EDISimulateASNRequest,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Simulate an incoming EDI 856 ASN webhook for testing real-time tracking updates in the console.
+    """
+    user, org, role = tenant_context
+    stmt = select(PurchaseOrder).where(PurchaseOrder.id == payload.po_id, PurchaseOrder.organization_id == org.id)
+    res = await db.execute(stmt)
+    po = res.scalar_one_or_none()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found.")
+
+    asn_payload = {
+        "po_number": po.po_number,
+        "carrier": payload.carrier or "UPS",
+        "tracking_number": payload.tracking_number or f"1Z{random.randint(10000000, 99999999)}",
+        "shipment_status": payload.shipment_status or "in_transit",
+        "current_location": payload.current_location or "Louisville Regional Distribution Hub, KY",
+        "status_event_description": payload.status_event_description or "Simulated Advance Ship Notice: Package en route to destination."
+    }
+
+    receipt = await edi_service.process_edi_856_asn(
+        db=db,
+        org_id=org.id,
+        payload=asn_payload,
+        actor_email=user.email
+    )
+    return receipt
+

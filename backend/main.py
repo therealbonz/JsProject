@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -98,6 +98,17 @@ async def lifespan(app: FastAPI):
                 for col_name, col_type in client_cols:
                     if col_name not in cols:
                         sync_conn.execute(text(f"ALTER TABLE client_accounts ADD COLUMN {col_name} {col_type}"))
+            if "audit_logs" in tables:
+                cols = [c["name"] for c in inspector.get_columns("audit_logs")]
+                audit_cols = [
+                    ("actor_email", "VARCHAR(255)"),
+                    ("actor_role", "VARCHAR(50)"),
+                    ("status", "VARCHAR(50) DEFAULT 'success'"),
+                    ("ip_address", "VARCHAR(100)")
+                ]
+                for col_name, col_type in audit_cols:
+                    if col_name not in cols:
+                        sync_conn.execute(text(f"ALTER TABLE audit_logs ADD COLUMN {col_name} {col_type}"))
         await conn.run_sync(migrate_sqlite_columns)
     logger.info("Database initialized successfully.")
     yield
@@ -137,6 +148,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(customer_portal.router, prefix=prefix)
     app.include_router(forecasting.router, prefix=prefix)
     app.include_router(saas_licenses.router, prefix=prefix)
+    app.include_router(team.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1388,6 +1400,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-server text-cyan-400"></i>
                         <span>🚀 CRM 5: SaaS Licenses</span>
                         <span id="nav-badge-saas" class="px-2 py-0.5 rounded-full text-[10px] bg-cyan-950/80 text-cyan-300 font-mono border border-cyan-700/50">0</span>
+                    </button>
+                    <button id="tab-team" onclick="switchCrmMode('team')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-users-gear text-emerald-400"></i>
+                        <span>👥 CRM 6: Team &amp; Audit Security</span>
+                        <span id="nav-badge-team" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/80 text-emerald-300 font-mono border border-emerald-700/50">1</span>
                     </button>
                 </div>
 
@@ -3359,6 +3376,336 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             </div>
         </div>
 
+        <!-- ============================================================================== -->
+        <!-- CRM 6: Team RBAC & Enterprise Audit Security Hub -->
+        <!-- ============================================================================== -->
+        <div id="view-team" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-indigo-950/60 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl space-y-4 ring-1 ring-emerald-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/20 shrink-0">
+                            <i class="fa-solid fa-users-gear"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-black text-white tracking-wide">CRM 6: Team RBAC &amp; Audit Security</h2>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50 uppercase tracking-wider">Enterprise RBAC</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Granular tenant role assignments, route authorization enforcement, and immutable compliance audit trails.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <button onclick="openInviteTeamModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-user-plus"></i> Invite Team Member
+                        </button>
+                        <button onclick="exportAuditTrailCsv()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-file-csv text-emerald-400"></i> Export Audit CSV
+                        </button>
+                        <button onclick="fetchTeamMembers(); fetchAuditTrailOverview();" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Metric Cards Strip -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-9 w-9 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-800/50 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Team Members</span>
+                            <span id="kpi-team-total" class="text-lg font-black text-white font-mono">0</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-9 w-9 rounded-lg bg-indigo-950/80 text-indigo-400 border border-indigo-800/50 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Admins</span>
+                            <span id="kpi-team-admins" class="text-lg font-black text-indigo-300 font-mono">0</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-9 w-9 rounded-lg bg-cyan-950/80 text-cyan-400 border border-cyan-800/50 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Audit Events</span>
+                            <span id="kpi-audit-total" class="text-lg font-black text-cyan-300 font-mono">0</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-9 w-9 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/50 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-shield-check"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Recent Activity</span>
+                            <span id="kpi-audit-today" class="text-lg font-black text-purple-300 font-mono">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Capability Badges Preview -->
+                <div class="pt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Supported Roles:</span>
+                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700/60 flex items-center gap-1.5">
+                        <i class="fa-solid fa-crown text-indigo-400"></i> Tenant Admin
+                    </span>
+                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-700/60 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-tie text-emerald-400"></i> Sales Manager
+                    </span>
+                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-purple-950 text-purple-300 border border-purple-700/60 flex items-center gap-1.5">
+                        <i class="fa-solid fa-headset text-purple-400"></i> Sales Rep
+                    </span>
+                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-950 text-amber-300 border border-amber-700/60 flex items-center gap-1.5">
+                        <i class="fa-solid fa-truck-ramp-box text-amber-400"></i> Fulfillment Specialist
+                    </span>
+                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-sky-950 text-sky-300 border border-sky-700/60 flex items-center gap-1.5">
+                        <i class="fa-solid fa-credit-card text-sky-400"></i> Billing Officer
+                    </span>
+                    <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-eye text-slate-400"></i> Auditor / Viewer
+                    </span>
+                </div>
+            </div>
+
+            <!-- Two Sub-Sections: Team Roster & Audit Explorer -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Team Members Roster (5 cols) -->
+                <div class="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2 text-white font-bold text-sm">
+                            <i class="fa-solid fa-address-book text-emerald-400"></i>
+                            <span>Organization Team Roster</span>
+                        </div>
+                        <span id="badge-team-count" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">0 Members</span>
+                    </div>
+                    <div id="team-roster-list" class="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                        <!-- Populated by fetchTeamMembers() -->
+                        <div class="p-8 text-center text-slate-500 italic">Loading team members...</div>
+                    </div>
+                </div>
+
+                <!-- Audit Trail Explorer (7 cols) -->
+                <div class="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2 text-white font-bold text-sm">
+                            <i class="fa-solid fa-shield-halved text-cyan-400"></i>
+                            <span>Immutable Audit Trail Explorer</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="select-audit-filter-action" onchange="filterAuditLogs()" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 cursor-pointer">
+                                <option value="">All Actions</option>
+                                <option value="team">Team &amp; Auth</option>
+                                <option value="edi">EDI &amp; Dropship</option>
+                                <option value="hitl">HITL Approvals</option>
+                                <option value="procurement">Procurement</option>
+                                <option value="billing">Billing</option>
+                            </select>
+                            <select id="select-audit-filter-status" onchange="filterAuditLogs()" class="bg-slate-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 cursor-pointer">
+                                <option value="">All Statuses</option>
+                                <option value="success">Success</option>
+                                <option value="denied">Denied</option>
+                                <option value="warning">Warning</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="audit-logs-table-container" class="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                        <!-- Populated dynamically -->
+                        <div class="p-8 text-center text-slate-500 italic">Loading audit trail records...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Invite Team Member -->
+        <div id="modal-invite-team" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-user-plus text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Invite Team Member</h3>
+                    </div>
+                    <button onclick="closeInviteTeamModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Full Name</label>
+                        <input id="in-invite-name" type="text" placeholder="e.g. Alex Morgan" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Email Address</label>
+                        <input id="in-invite-email" type="email" placeholder="alex@company.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Assigned Role</label>
+                        <select id="in-invite-role" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 cursor-pointer">
+                            <option value="sales_rep">Sales Representative (Outreach &amp; Leads)</option>
+                            <option value="sales_manager">Sales Operations Manager (Pipeline &amp; HITL)</option>
+                            <option value="fulfillment_specialist">Fulfillment Specialist (EDI &amp; Procurement)</option>
+                            <option value="billing_officer">Finance &amp; Billing Officer (Subscriptions)</option>
+                            <option value="viewer">Viewer (Read-Only Access)</option>
+                            <option value="admin">Tenant Administrator (Full Platform Access)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Temporary Password (Optional)</label>
+                        <input id="in-invite-password" type="password" placeholder="Leave empty for auto-generated temporary key" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeInviteTeamModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                    <button onclick="submitInviteTeamMember()" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane"></i> Send Invitation
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Change Role / Edit Member -->
+        <div id="modal-change-role" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-user-pen text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Update Member Role</h3>
+                    </div>
+                    <button onclick="closeChangeRoleModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <input type="hidden" id="edit-member-id">
+                <div class="space-y-3 text-xs">
+                    <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                        <span class="text-slate-400 block text-[11px]">Member:</span>
+                        <span id="edit-member-display" class="font-bold text-white text-xs"></span>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">New Role Assignment</label>
+                        <select id="edit-member-role-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 cursor-pointer">
+                            <option value="sales_rep">Sales Representative</option>
+                            <option value="sales_manager">Sales Operations Manager</option>
+                            <option value="fulfillment_specialist">Fulfillment Specialist</option>
+                            <option value="billing_officer">Billing Officer</option>
+                            <option value="viewer">Viewer (Read-Only)</option>
+                            <option value="admin">Tenant Administrator</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeChangeRoleModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                    <button onclick="submitChangeRole()" class="py-2 px-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i> Save Role
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Audit Log Payload Inspector -->
+        <div id="modal-audit-payload" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-cyan-400">
+                        <i class="fa-solid fa-code text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Audit Event Payload Details</h3>
+                    </div>
+                    <button onclick="closeAuditPayloadModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div id="audit-payload-content" class="space-y-3 text-xs max-h-[60vh] overflow-y-auto font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-300">
+                    <!-- Dynamic JSON payload -->
+                </div>
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeAuditPayloadModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: EDI 850 Document Inspector -->
+        <div id="modal-edi-850" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-file-invoice text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">ANSI ASC X12 EDI 850 &amp; Dropship Payload</h3>
+                    </div>
+                    <button onclick="closeEdi850Modal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <input type="hidden" id="edi-current-po-id">
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs">
+                    <button id="btn-tab-edi-x12" onclick="switchEdiTab('x12')" class="px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white cursor-pointer">ASC X12 (EDI 850)</button>
+                    <button id="btn-tab-edi-json" onclick="switchEdiTab('json')" class="px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white cursor-pointer">REST Dropship JSON</button>
+                    <div class="ml-auto flex items-center gap-2">
+                        <button onclick="copyEdiPayload()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-copy"></i> Copy
+                        </button>
+                        <button id="btn-dispatch-edi-action" onclick="dispatchEdiOrder()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded text-[11px] flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-paper-plane"></i> Dispatch to Vendor
+                        </button>
+                    </div>
+                </div>
+                <div id="edi-x12-container" class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-amber-300 max-h-[55vh] overflow-y-auto whitespace-pre">
+                </div>
+                <div id="edi-json-container" class="hidden bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-cyan-300 max-h-[55vh] overflow-y-auto whitespace-pre">
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Simulate Vendor ASN (EDI 856) -->
+        <div id="modal-simulate-asn" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-amber-400">
+                        <i class="fa-solid fa-satellite-dish text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Simulate Vendor ASN (EDI 856)</h3>
+                    </div>
+                    <button onclick="closeSimulateAsnModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <input type="hidden" id="asn-po-id">
+                <div class="space-y-3 text-xs">
+                    <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                        <span class="text-slate-400 block text-[11px]">Purchase Order:</span>
+                        <span id="asn-po-number-display" class="font-mono font-bold text-amber-300 text-sm"></span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Carrier</label>
+                            <select id="in-asn-carrier" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 cursor-pointer">
+                                <option value="UPS">UPS Ground</option>
+                                <option value="FedEx">FedEx Express</option>
+                                <option value="USPS">USPS Priority</option>
+                                <option value="Freight">Commercial Freight</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Shipment Status</label>
+                            <select id="in-asn-status" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 cursor-pointer">
+                                <option value="in_transit">In Transit</option>
+                                <option value="out_for_delivery">Out for Delivery</option>
+                                <option value="delivered">Delivered</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Current Location</label>
+                        <input id="in-asn-location" type="text" value="Louisville Regional Distribution Hub, KY" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Transit Event Note</label>
+                        <input id="in-asn-note" type="text" value="Departed sorting facility en route to destination" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeSimulateAsnModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                    <button onclick="submitSimulateAsn()" class="py-2 px-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane"></i> Ingest ASN Webhook
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -3411,6 +3758,8 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchOrganizationSettings();
                     loadSaaSMetrics();
                     loadSaaSLicenses();
+                    fetchTeamMembers();
+                    fetchAuditTrailOverview();
                 } catch(e) {
                     alert("Error authenticating: " + e.message);
                 }
@@ -4213,11 +4562,13 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 const viewFulfillment = document.getElementById("view-fulfillment");
                 const viewSettings = document.getElementById("view-settings");
                 const viewSaas = document.getElementById("view-saas");
+                const viewTeam = document.getElementById("view-team");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
                 const tabSettings = document.getElementById("tab-settings");
                 const tabSaas = document.getElementById("tab-saas");
+                const tabTeam = document.getElementById("tab-team");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -4225,12 +4576,14 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 if (tabFulfillment) tabFulfillment.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabSettings) tabSettings.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabSaas) tabSaas.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabTeam) tabTeam.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
                 if (viewFulfillment) viewFulfillment.classList.add("hidden");
                 if (viewSettings) viewSettings.classList.add("hidden");
                 if (viewSaas) viewSaas.classList.add("hidden");
+                if (viewTeam) viewTeam.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -4257,6 +4610,12 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     if (tabSaas) tabSaas.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-cyan-600 text-white shadow-md";
                     loadSaaSMetrics();
                     loadSaaSLicenses();
+                } else if (mode === 'team') {
+                    if (viewTeam) viewTeam.classList.remove("hidden");
+                    if (tabTeam) tabTeam.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-emerald-600 text-white shadow-md";
+                    fetchTeamMembers();
+                    fetchAuditTrailOverview();
+                    fetchAuditTrailLogs();
                 }
             }
 
@@ -5737,6 +6096,17 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                         actionsCell = `<span class="text-slate-600 text-[10px]">-</span>`;
                     }
 
+                    const ediActionButtons = `
+                        <div class="flex items-center justify-end gap-1.5 mt-1">
+                            <button onclick="openEdi850Modal('${po.id}')" title="Inspect ANSI ASC X12 EDI 850" class="px-2 py-0.5 bg-indigo-950/90 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/50 font-bold rounded text-[10px] cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-file-code"></i> EDI
+                            </button>
+                            <button onclick="openSimulateAsnModal('${po.id}', '${escapeHtml(po.po_number)}')" title="Simulate Inbound EDI 856 ASN Webhook" class="px-2 py-0.5 bg-amber-950/90 hover:bg-amber-900 text-amber-300 border border-amber-700/50 font-bold rounded text-[10px] cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-satellite-dish"></i> ASN
+                            </button>
+                        </div>
+                    `;
+
                     return `
                         <tr class="hover:bg-slate-900/60 transition border-b border-slate-800/60">
                             <td class="p-2.5 align-top">${saleCell}</td>
@@ -5746,7 +6116,10 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             <td class="p-2.5 align-top">${dropShipCell}</td>
                             <td class="p-2.5 align-top">${trackingCell}</td>
                             <td class="p-2.5 align-top">${statusCell}</td>
-                            <td class="p-2.5 align-top text-right">${actionsCell}</td>
+                            <td class="p-2.5 align-top text-right">
+                                ${actionsCell}
+                                ${ediActionButtons}
+                            </td>
                         </tr>
                     `;
                 }).join("");
@@ -6992,6 +7365,418 @@ ${p.ai_drafted_outreach}
                         btn.disabled = false;
                         btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Dispatch Order Filler Agent`;
                     }
+                }
+            }
+
+            // ==============================================================================
+            // CRM 6: Team RBAC & Audit Security Handlers
+            // ==============================================================================
+            let allTeamMembers = [];
+            let allAuditLogs = [];
+            let currentEdiPoId = null;
+            let currentEdiData = null;
+
+            async function fetchTeamMembers() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/team/members", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    allTeamMembers = await res.json();
+                    
+                    const countElem = document.getElementById("badge-team-count");
+                    if (countElem) countElem.innerText = `${allTeamMembers.length} Members`;
+                    const navBadge = document.getElementById("nav-badge-team");
+                    if (navBadge) navBadge.innerText = allTeamMembers.length;
+                    const kpiTotal = document.getElementById("kpi-team-total");
+                    if (kpiTotal) kpiTotal.innerText = allTeamMembers.length;
+
+                    const adminCount = allTeamMembers.filter(m => m.role === 'admin' || m.role === 'super_admin').length;
+                    const kpiAdmins = document.getElementById("kpi-team-admins");
+                    if (kpiAdmins) kpiAdmins.innerText = adminCount;
+
+                    renderTeamRoster(allTeamMembers);
+                } catch(e) {
+                    console.error("Error fetching team members:", e);
+                }
+            }
+
+            function renderTeamRoster(members) {
+                const container = document.getElementById("team-roster-list");
+                if (!container) return;
+                if (!members || members.length === 0) {
+                    container.innerHTML = `<div class="p-6 text-center text-slate-500 italic">No team members found.</div>`;
+                    return;
+                }
+
+                const roleBadges = {
+                    'admin': 'bg-indigo-950 text-indigo-300 border-indigo-700/60',
+                    'super_admin': 'bg-indigo-950 text-indigo-300 border-indigo-700/60',
+                    'sales_manager': 'bg-emerald-950 text-emerald-300 border-emerald-700/60',
+                    'sales_rep': 'bg-purple-950 text-purple-300 border-purple-700/60',
+                    'fulfillment_specialist': 'bg-amber-950 text-amber-300 border-amber-700/60',
+                    'billing_officer': 'bg-sky-950 text-sky-300 border-sky-700/60',
+                    'viewer': 'bg-slate-900 text-slate-400 border-slate-700'
+                };
+
+                let html = "";
+                members.forEach(m => {
+                    const badgeClass = roleBadges[m.role] || 'bg-slate-800 text-slate-300 border-slate-700';
+                    const initial = (m.full_name || m.email || "U")[0].toUpperCase();
+                    html += `
+                        <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="h-9 w-9 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 font-bold text-sm flex items-center justify-center shrink-0 font-mono">
+                                    ${escapeHtml(initial)}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-white text-xs">${escapeHtml(m.full_name || 'Team Member')}</span>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeClass} uppercase">${escapeHtml(m.role.replace(/_/g, ' '))}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-0.5 font-mono">${escapeHtml(m.email)}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button onclick="openChangeRoleModal('${m.id}', '${m.role}', '${escapeHtml(m.full_name || m.email)}')" class="p-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer">
+                                    <i class="fa-solid fa-user-gear"></i> Role
+                                </button>
+                                ${m.role !== 'admin' && m.role !== 'super_admin' ? `
+                                    <button onclick="removeTeamMember('${m.id}', '${escapeHtml(m.email)}')" class="p-1.5 px-2 bg-rose-950/50 hover:bg-rose-900 text-rose-300 border border-rose-800/40 rounded text-[11px] font-semibold cursor-pointer">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+
+            async function fetchAuditTrailOverview() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/team/audit-logs/overview", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const totalElem = document.getElementById("kpi-audit-total");
+                    if (totalElem) totalElem.innerText = data.total_events || 0;
+                    const todayElem = document.getElementById("kpi-audit-today");
+                    if (todayElem) todayElem.innerText = data.today_events || 0;
+                    allAuditLogs = data.recent_logs || [];
+                    renderAuditLogs(allAuditLogs);
+                } catch(e) {
+                    console.error("Error fetching audit overview:", e);
+                }
+            }
+
+            async function fetchAuditTrailLogs(actionFilter, statusFilter) {
+                if (!authToken) return;
+                try {
+                    let url = API_BASE + "/team/audit-logs?limit=100";
+                    if (actionFilter) url += `&action=${encodeURIComponent(actionFilter)}`;
+                    if (statusFilter) url += `&status_filter=${encodeURIComponent(statusFilter)}`;
+                    const res = await fetch(url, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    allAuditLogs = await res.json();
+                    renderAuditLogs(allAuditLogs);
+                } catch(e) {
+                    console.error("Error fetching audit logs:", e);
+                }
+            }
+
+            function filterAuditLogs() {
+                const action = document.getElementById("select-audit-filter-action").value;
+                const status = document.getElementById("select-audit-filter-status").value;
+                fetchAuditTrailLogs(action, status);
+            }
+
+            function renderAuditLogs(logs) {
+                const container = document.getElementById("audit-logs-table-container");
+                if (!container) return;
+                if (!logs || logs.length === 0) {
+                    container.innerHTML = `<div class="p-6 text-center text-slate-500 italic">No audit records matching criteria.</div>`;
+                    return;
+                }
+
+                let html = "";
+                logs.forEach(log => {
+                    const statusColors = {
+                        'success': 'bg-emerald-950 text-emerald-400 border-emerald-800/60',
+                        'denied': 'bg-rose-950 text-rose-400 border-rose-800/60',
+                        'warning': 'bg-amber-950 text-amber-400 border-amber-800/60'
+                    };
+                    const badgeClass = statusColors[log.status] || 'bg-slate-800 text-slate-300 border-slate-700';
+                    const timeStr = log.created_at ? new Date(log.created_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'}) : 'Just now';
+
+                    html += `
+                        <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition flex items-center justify-between gap-3 text-xs">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-bold text-cyan-300">${escapeHtml(log.action)}</span>
+                                    <span class="px-2 py-0.2 rounded text-[10px] border ${badgeClass} font-semibold uppercase tracking-wider">${escapeHtml(log.status || 'success')}</span>
+                                    <span class="text-slate-500 text-[10px] font-mono">${escapeHtml(timeStr)}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-400 flex items-center gap-2">
+                                    <span>Actor: <strong class="text-slate-300">${escapeHtml(log.actor_email || log.actor_type || 'system')}</strong> (${escapeHtml(log.actor_role || 'system')})</span>
+                                    ${log.target_entity ? `<span class="text-slate-600">•</span><span>Target: <span class="font-mono text-slate-300">${escapeHtml(log.target_entity)}</span></span>` : ''}
+                                </div>
+                            </div>
+                            <button onclick="viewAuditPayload('${log.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded text-[11px] font-mono font-semibold flex items-center gap-1 cursor-pointer shrink-0">
+                                <i class="fa-solid fa-code"></i> Payload
+                            </button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+
+            function openInviteTeamModal() {
+                document.getElementById("in-invite-name").value = "";
+                document.getElementById("in-invite-email").value = "";
+                document.getElementById("in-invite-password").value = "";
+                document.getElementById("modal-invite-team").classList.remove("hidden");
+            }
+            function closeInviteTeamModal() {
+                document.getElementById("modal-invite-team").classList.add("hidden");
+            }
+
+            async function submitInviteTeamMember() {
+                const name = document.getElementById("in-invite-name").value.trim();
+                const email = document.getElementById("in-invite-email").value.trim();
+                const role = document.getElementById("in-invite-role").value;
+                const pwd = document.getElementById("in-invite-password").value.trim();
+
+                if (!name || !email) {
+                    alert("Please provide both name and email address.");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(API_BASE + "/team/invite", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ full_name: name, email: email, role: role, password: pwd || undefined })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error inviting member: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    closeInviteTeamModal();
+                    await fetchTeamMembers();
+                    await fetchAuditTrailOverview();
+                    showToast("Team Member Invited", `${name} enrolled as ${role.toUpperCase().replace(/_/g, ' ')}.`, "fa-user-check", "success");
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function openChangeRoleModal(membershipId, role, displayName) {
+                document.getElementById("edit-member-id").value = membershipId;
+                document.getElementById("edit-member-display").innerText = displayName;
+                document.getElementById("edit-member-role-select").value = role;
+                document.getElementById("modal-change-role").classList.remove("hidden");
+            }
+            function closeChangeRoleModal() {
+                document.getElementById("modal-change-role").classList.add("hidden");
+            }
+
+            async function submitChangeRole() {
+                const memId = document.getElementById("edit-member-id").value;
+                const newRole = document.getElementById("edit-member-role-select").value;
+                try {
+                    const res = await fetch(API_BASE + "/team/members/" + memId, {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ role: newRole })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error updating role: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    closeChangeRoleModal();
+                    await fetchTeamMembers();
+                    await fetchAuditTrailOverview();
+                    showToast("Role Updated", `Permissions updated to ${newRole.toUpperCase()}.`, "fa-check", "success");
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function removeTeamMember(membershipId, email) {
+                if (!confirm(`Are you sure you want to remove ${email} from this organization?`)) return;
+                try {
+                    const res = await fetch(API_BASE + "/team/members/" + membershipId, {
+                        method: "DELETE",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error removing member: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    await fetchTeamMembers();
+                    await fetchAuditTrailOverview();
+                    showToast("Member Removed", `${email} has been removed.`, "fa-user-minus", "info");
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function viewAuditPayload(logId) {
+                const log = allAuditLogs.find(l => l.id === logId);
+                if (!log) return;
+                const content = document.getElementById("audit-payload-content");
+                content.innerText = JSON.stringify(log, null, 2);
+                document.getElementById("modal-audit-payload").classList.remove("hidden");
+            }
+            function closeAuditPayloadModal() {
+                document.getElementById("modal-audit-payload").classList.add("hidden");
+            }
+
+            async function exportAuditTrailCsv() {
+                if (!authToken) return;
+                window.open(API_BASE + "/team/audit-logs/export?format=csv", "_blank");
+            }
+
+            // ==============================================================================
+            // EDI 850 and EDI 856 ASN Webhook Simulation Handlers
+            // ==============================================================================
+            async function openEdi850Modal(poId) {
+                if (!authToken) return;
+                currentEdiPoId = poId;
+                document.getElementById("edi-current-po-id").value = poId;
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/orders/" + poId + "/edi-850", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error generating EDI 850: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    currentEdiData = await res.json();
+                    document.getElementById("edi-x12-container").innerText = currentEdiData.edi_x12_payload;
+                    document.getElementById("edi-json-container").innerText = JSON.stringify(currentEdiData.dropship_json_payload, null, 2);
+                    switchEdiTab('x12');
+                    document.getElementById("modal-edi-850").classList.remove("hidden");
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function closeEdi850Modal() {
+                document.getElementById("modal-edi-850").classList.add("hidden");
+            }
+
+            function switchEdiTab(tab) {
+                const btnX12 = document.getElementById("btn-tab-edi-x12");
+                const btnJson = document.getElementById("btn-tab-edi-json");
+                const contX12 = document.getElementById("edi-x12-container");
+                const contJson = document.getElementById("edi-json-container");
+
+                if (tab === 'x12') {
+                    btnX12.className = "px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white cursor-pointer";
+                    btnJson.className = "px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white cursor-pointer";
+                    contX12.classList.remove("hidden");
+                    contJson.classList.add("hidden");
+                } else {
+                    btnJson.className = "px-3 py-1.5 rounded-lg font-bold bg-indigo-600 text-white cursor-pointer";
+                    btnX12.className = "px-3 py-1.5 rounded-lg font-bold text-slate-400 hover:text-white cursor-pointer";
+                    contJson.classList.remove("hidden");
+                    contX12.classList.add("hidden");
+                }
+            }
+
+            function copyEdiPayload() {
+                const contX12 = document.getElementById("edi-x12-container");
+                const contJson = document.getElementById("edi-json-container");
+                const text = contX12.classList.contains("hidden") ? contJson.innerText : contX12.innerText;
+                navigator.clipboard.writeText(text);
+                showToast("Copied to Clipboard", "EDI payload copied successfully.", "fa-copy", "success");
+            }
+
+            async function dispatchEdiOrder() {
+                const poId = document.getElementById("edi-current-po-id").value;
+                if (!poId) return;
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/orders/" + poId + "/dispatch-edi", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error dispatching EDI: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    const data = await res.json();
+                    showToast("EDI 850 Transmitted", `Transmission ${data.transmission_id} acknowledged by vendor gateway.`, "fa-satellite-dish", "success");
+                    closeEdi850Modal();
+                    await fetchAuditTrailOverview();
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function openSimulateAsnModal(poId, poNumber) {
+                document.getElementById("asn-po-id").value = poId;
+                document.getElementById("asn-po-number-display").innerText = poNumber;
+                document.getElementById("modal-simulate-asn").classList.remove("hidden");
+            }
+            function closeSimulateAsnModal() {
+                document.getElementById("modal-simulate-asn").classList.add("hidden");
+            }
+
+            async function submitSimulateAsn() {
+                const poId = document.getElementById("asn-po-id").value;
+                const carrier = document.getElementById("in-asn-carrier").value;
+                const status = document.getElementById("in-asn-status").value;
+                const loc = document.getElementById("in-asn-location").value;
+                const note = document.getElementById("in-asn-note").value;
+
+                try {
+                    const res = await fetch(API_BASE + "/fulfillment/edi-856/simulate", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            po_id: poId,
+                            carrier: carrier,
+                            shipment_status: status,
+                            current_location: loc,
+                            status_event_description: note
+                        })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error simulating ASN: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    const receipt = await res.json();
+                    closeSimulateAsnModal();
+                    await fetchPurchaseOrders();
+                    await fetchAuditTrailOverview();
+                    showToast("ASN Ingested Successfully", `PO #${receipt.po_number} tracking updated to ${receipt.carrier} ${receipt.tracking_number} (${receipt.shipment_status.toUpperCase()}).`, "fa-truck-fast", "success");
+                } catch(e) {
+                    alert("Error: " + e.message);
                 }
             }
 

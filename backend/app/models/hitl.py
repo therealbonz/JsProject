@@ -37,11 +37,15 @@ class AgentTask(Base, CommonMixin, TenantMixin):
 class AuditLog(Base, CommonMixin, TenantMixin):
     __tablename__ = "audit_logs"
 
-    actor_type = Column(String(50), nullable=False)  # ai_agent, human_rep, system
+    actor_type = Column(String(50), nullable=False)  # user, ai_agent, supplier_webhook, system
     actor_id = Column(String(100), nullable=True)
-    action = Column(String(100), nullable=False, index=True)  # email_sent, lead_scored, discount_requested, hitl_approved, conversation_takeover
+    actor_email = Column(String(255), nullable=True, index=True)
+    actor_role = Column(String(50), nullable=True)
+    action = Column(String(100), nullable=False, index=True)  # auth.*, crm.*, procurement.*, edi.*, hitl.*, billing.*, team.*
     target_entity = Column(String(50), nullable=True)
     target_id = Column(String(36), nullable=True)
+    status = Column(String(50), default="success", nullable=False, index=True)  # success, denied, warning
+    ip_address = Column(String(100), nullable=True)
     payload = Column(JSON, default=dict, nullable=False)
 
 class ComplianceDNC(Base, CommonMixin, TenantMixin):
