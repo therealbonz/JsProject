@@ -31,7 +31,12 @@ The platform automates the B2B sales lifecycle across account research, lead qua
    - Automated purchase order execution, spend guardrail enforcement (\$500 default auto-approval limit), and HITL manager approval queue.
    - Real-time carrier tracking (UPS, FedEx, USPS, Freight) with interactive 5-stage milestone timeline and outbound customer delivery dispatching.
 
-6. **Local-First & Production-Ready**:
+6. **Developer API Platform & Outbound Webhook Subscriptions (CRM 8)**:
+   - Scoped cryptographic API keys (`jsp_live_...`) with SHA-256 storage and granular access permissions (`sales:read`, `sales:write`, `webhooks:manage`).
+   - High-throughput outbound webhook dispatching with HMAC-SHA256 digital signatures (`X-JsProject-Signature`) and anti-replay timestamp verification.
+   - Comprehensive event catalog (`order.created`, `payment.succeeded`, `shipment.updated`, `shipment.delivered`, `license.provisioned`, `restock.triggered`) and interactive diagnostic test ping console.
+
+7. **Local-First & Production-Ready**:
    - Works immediately out-of-the-box with an embedded local database and simulation fallbacks.
    - Plugs directly into PostgreSQL via `docker compose up -d` or native Postgres.
    - Includes a built-in interactive Web Console at `http://127.0.0.1:8000/`.

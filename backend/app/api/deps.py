@@ -1,3 +1,5 @@
+import hashlib
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -6,13 +8,59 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.tenant import User, Organization, OrganizationMembership
+from app.models.developer import ApiKey
 
 security = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
     db: AsyncSession = Depends(get_db)
 ) -> User:
+    if x_api_key:
+        hashed = hashlib.sha256(x_api_key.strip().encode()).hexdigest()
+        stmt = select(ApiKey).where(ApiKey.hashed_key == hashed, ApiKey.is_active == True)
+        api_key = (await db.execute(stmt)).scalar_one_or_none()
+        now = datetime.now(timezone.utc)
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or revoked API key",
+                headers={"WWW-Authenticate": "ApiKey"},
+            )
+        if api_key.expires_at:
+            exp = api_key.expires_at if api_key.expires_at.tzinfo else api_key.expires_at.replace(tzinfo=timezone.utc)
+            if exp < now:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="API key has expired",
+                    headers={"WWW-Authenticate": "ApiKey"},
+                )
+        api_key.last_used_at = now
+        db.add(api_key)
+        await db.commit()
+
+        if api_key.created_by_user_id:
+            user_stmt = select(User).where(User.id == api_key.created_by_user_id)
+            user = (await db.execute(user_stmt)).scalar_one_or_none()
+            if user:
+                return user
+        # Fallback to org admin user
+        mem_stmt = select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == api_key.organization_id,
+            OrganizationMembership.role == "admin"
+        )
+        mem = (await db.execute(mem_stmt)).scalars().first()
+        if mem:
+            u_stmt = select(User).where(User.id == mem.user_id)
+            user = (await db.execute(u_stmt)).scalar_one_or_none()
+            if user:
+                return user
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key owner not found",
+        )
+
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -48,14 +96,25 @@ async def get_current_user(
 
 async def get_current_tenant(
     current_user: User = Depends(get_current_user),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
     x_organization_id: Optional[str] = Header(None, alias="X-Organization-Id"),
     db: AsyncSession = Depends(get_db)
 ) -> tuple[User, Organization, str]:
     """
     Enforces multi-tenant scoping.
-    Determines active organization and validates user membership.
+    Determines active organization and validates user membership or API key authorization.
     Returns (user, organization, role).
     """
+    if x_api_key:
+        hashed = hashlib.sha256(x_api_key.strip().encode()).hexdigest()
+        stmt = select(ApiKey).where(ApiKey.hashed_key == hashed, ApiKey.is_active == True)
+        api_key = (await db.execute(stmt)).scalar_one_or_none()
+        if api_key:
+            org_stmt = select(Organization).where(Organization.id == api_key.organization_id, Organization.status == "active")
+            org = (await db.execute(org_stmt)).scalar_one_or_none()
+            if org:
+                return current_user, org, "admin"
+
     # Look for membership
     if x_organization_id:
         stmt = select(OrganizationMembership, Organization).join(

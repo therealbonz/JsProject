@@ -27,7 +27,11 @@ from app.schemas.crm import (
 from app.services.stripe_recurring_service import StripeRecurringService
 from app.services.notification_service import NotificationService
 from app.services.replenishment_service import ReplenishmentService
+import logging
 from app.services.order_filler.agent import OrderFillerAgent
+from app.services.webhook_service import WebhookService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm", tags=["CRM & Pipeline"])
 
@@ -844,6 +848,27 @@ async def log_client_sale(
 
     await db.commit()
     await db.refresh(sale)
+
+    # Dispatch outbound order.created webhook
+    try:
+        await WebhookService.dispatch_event(
+            db=db,
+            org_id=org.id,
+            event_name="order.created",
+            payload={
+                "sale_id": sale.id,
+                "order_number": sale.order_number,
+                "amount": sale.amount,
+                "client_id": client.id,
+                "client_name": client.account_name,
+                "status": sale.status,
+                "payment_status": sale.payment_status,
+                "created_at": sale.created_at.isoformat() if sale.created_at else now.isoformat()
+            }
+        )
+    except Exception as wh_err:
+        logger.warning(f"Failed to dispatch order.created webhook: {wh_err}")
+
     return sale
 
 @router.get("/sales", response_model=List[ClientSaleResponse])

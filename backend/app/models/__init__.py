@@ -5,6 +5,7 @@ from app.models.crm import Company, Contact, Lead, Opportunity, Product, Knowled
 from app.models.conversation import Conversation, Message
 from app.models.hitl import HumanAssistanceRequest, AgentTask, AuditLog, ComplianceDNC
 from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, InventoryItem
+from app.models.developer import ApiKey, WebhookSubscription, WebhookDeliveryLog
 
 __all__ = [
     "Base",
@@ -37,5 +38,8 @@ __all__ = [
     "PurchaseOrder",
     "ShipmentTracking",
     "InventoryItem",
+    "ApiKey",
+    "WebhookSubscription",
+    "WebhookDeliveryLog",
 ]
 

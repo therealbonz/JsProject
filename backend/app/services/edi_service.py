@@ -285,6 +285,35 @@ class EDIService:
         await db.commit()
         await db.refresh(po)
 
+        # 5. Dispatch Outbound Developer Webhooks
+        try:
+            from app.services.webhook_service import WebhookService
+            shipment_payload = {
+                "po_number": po.po_number,
+                "order_number": po.client_sale.order_number if po.client_sale else None,
+                "carrier": carrier,
+                "tracking_number": tracking_num,
+                "tracking_url": tracking_url,
+                "shipment_status": shipment_status,
+                "location": location,
+                "timestamp": now.isoformat()
+            }
+            await WebhookService.dispatch_event(
+                db=db,
+                org_id=org_id,
+                event_name="shipment.updated",
+                payload=shipment_payload
+            )
+            if shipment_status == "delivered":
+                await WebhookService.dispatch_event(
+                    db=db,
+                    org_id=org_id,
+                    event_name="shipment.delivered",
+                    payload=shipment_payload
+                )
+        except Exception as wh_err:
+            logger.warning(f"Failed to dispatch outbound shipment webhook: {wh_err}")
+
         return {
             "success": True,
             "message": f"EDI 856 ASN successfully processed for PO #{po.po_number}. Tracking updated to {carrier} {tracking_num}.",

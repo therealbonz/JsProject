@@ -15,6 +15,7 @@ from app.schemas.crm import StripeCheckoutCreateRequest, StripeCheckoutResponse
 from app.services.order_filler.agent import OrderFillerAgent
 from app.services.notification_service import NotificationService
 from app.services.replenishment_service import ReplenishmentService
+from app.services.webhook_service import WebhookService
 from app.api.deps import get_current_tenant
 
 logger = logging.getLogger(__name__)
@@ -146,6 +147,23 @@ async def simulate_customer_payment(
         channel="email"
     )
 
+    # 1b. Dispatch Outbound Webhook to Developers
+    try:
+        await WebhookService.dispatch_event(
+            db=db,
+            org_id=sale.organization_id,
+            event_name="payment.succeeded",
+            payload={
+                "sale_id": sale.id,
+                "order_number": sale.order_number,
+                "amount": sale.amount,
+                "payment_status": sale.payment_status,
+                "client_name": sale.client.account_name if sale.client else None,
+            }
+        )
+    except Exception as wh_err:
+        logger.warning(f"Failed to dispatch payment.succeeded webhook: {wh_err}")
+
     auto_fulfilled = False
     po_data = None
 
@@ -252,6 +270,23 @@ async def stripe_webhook(
             event_type="payment_received",
             channel="email"
         )
+
+        # Dispatch Outbound Webhook to Developers
+        try:
+            await WebhookService.dispatch_event(
+                db=db,
+                org_id=sale.organization_id,
+                event_name="payment.succeeded",
+                payload={
+                    "sale_id": sale.id,
+                    "order_number": sale.order_number,
+                    "amount": sale.amount,
+                    "payment_status": sale.payment_status,
+                    "client_name": sale.client.account_name if sale.client else None,
+                }
+            )
+        except Exception as wh_err:
+            logger.warning(f"Failed to dispatch payment.succeeded webhook: {wh_err}")
 
         # Auto-fulfill dropship order
         if sale.auto_fulfill_on_payment and not sale.purchase_orders:

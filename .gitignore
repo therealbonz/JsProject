@@ -16,6 +16,9 @@ htmlcov/
 
 # Local database files
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite3
 
 # Environment (keep example)

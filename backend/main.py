@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -155,6 +155,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(saas_licenses.router, prefix=prefix)
     app.include_router(team.router, prefix=prefix)
     app.include_router(executive_analytics.router, prefix=prefix)
+    app.include_router(developer.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1416,6 +1417,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-scale-balanced text-amber-400"></i>
                         <span>📊 CRM 7: Executive Financials</span>
                         <span id="nav-badge-financials" class="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/80 text-amber-300 font-mono border border-amber-700/50">Live</span>
+                    </button>
+                    <button id="tab-developer" onclick="switchCrmMode('developer')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-code text-violet-400"></i>
+                        <span>⚡ CRM 8: Developer &amp; Webhooks</span>
+                        <span id="nav-badge-webhooks" class="px-2 py-0.5 rounded-full text-[10px] bg-violet-950/80 text-violet-300 font-mono border border-violet-700/50">API</span>
                     </button>
                 </div>
 
@@ -3680,6 +3686,232 @@ Select a lead from the left to trigger autonomous research or outreach email dra
             </div>
         </div>
 
+        <!-- ============================================================================== -->
+        <!-- CRM 8: Developer Platform & Real-Time Webhooks View -->
+        <!-- ============================================================================== -->
+        <div id="view-developer" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-violet-950/70 via-slate-900 to-indigo-950/70 border border-violet-500/40 rounded-2xl p-6 shadow-2xl space-y-4 ring-1 ring-violet-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-violet-600/20 text-violet-400 border border-violet-500/40 flex items-center justify-center text-2xl shadow-lg shadow-violet-500/20 shrink-0">
+                            <i class="fa-solid fa-code"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-black text-white tracking-wide">CRM 8: Developer Platform &amp; Webhooks</h2>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-950 text-violet-400 border border-violet-800/50 uppercase tracking-wider font-mono">Developer API</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">Manage scoped API keys (SHA-256 hashed), register HMAC-SHA256 signed outbound webhooks, inspect delivery logs, and explore code playgrounds.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <button onclick="openCreateApiKeyModal()" class="px-3.5 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-violet-600/20">
+                            <i class="fa-solid fa-key"></i> Generate API Key
+                        </button>
+                        <button onclick="openCreateWebhookModal()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/20">
+                            <i class="fa-solid fa-satellite-dish"></i> New Webhook
+                        </button>
+                        <button onclick="fetchDeveloperData()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Developer Metric Summary Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Active API Keys</span>
+                            <i class="fa-solid fa-key text-violet-400"></i>
+                        </div>
+                        <div id="dev-kpi-keys-count" class="text-xl font-black text-violet-300 font-mono">0</div>
+                        <div class="text-[10px] text-slate-500">SHA-256 securely hashed</div>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Webhook Subscriptions</span>
+                            <i class="fa-solid fa-satellite-dish text-indigo-400"></i>
+                        </div>
+                        <div id="dev-kpi-webhooks-count" class="text-xl font-black text-indigo-300 font-mono">0</div>
+                        <div class="text-[10px] text-slate-500">Active outbound endpoints</div>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Total Deliveries</span>
+                            <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i>
+                        </div>
+                        <div id="dev-kpi-deliveries-count" class="text-xl font-black text-cyan-300 font-mono">0</div>
+                        <div class="text-[10px] text-slate-500">Outbound dispatched events</div>
+                    </div>
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1">
+                        <div class="flex items-center justify-between text-slate-400 text-xs">
+                            <span class="font-bold uppercase text-[10px] tracking-wider">Delivery Health</span>
+                            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                        </div>
+                        <div id="dev-kpi-success-rate" class="text-xl font-black text-emerald-300 font-mono">100%</div>
+                        <div class="text-[10px] text-slate-500">HTTP 2xx response rate</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-tabs Navigation -->
+            <div class="flex items-center space-x-2 border-b border-slate-800 pb-3">
+                <button id="dev-tab-keys" onclick="switchDevTab('keys')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white cursor-pointer transition">
+                    <i class="fa-solid fa-key mr-1.5"></i>API Keys
+                </button>
+                <button id="dev-tab-webhooks" onclick="switchDevTab('webhooks')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition">
+                    <i class="fa-solid fa-satellite-dish mr-1.5"></i>Webhook Endpoints
+                </button>
+                <button id="dev-tab-catalog" onclick="switchDevTab('catalog')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition">
+                    <i class="fa-solid fa-book mr-1.5"></i>Event Catalog &amp; SDK Playground
+                </button>
+            </div>
+
+            <!-- Panel 1: API Keys -->
+            <div id="dev-panel-keys" class="space-y-4">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div class="text-xs text-slate-300 space-y-0.5">
+                        <p class="font-semibold text-slate-100 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-violet-400"></i> Authentication Headers
+                        </p>
+                        <p class="text-slate-400">Include your secret key in HTTP requests as <code class="px-1.5 py-0.5 rounded bg-slate-950 text-violet-300 font-mono">X-API-Key: jsp_live_...</code> or <code class="px-1.5 py-0.5 rounded bg-slate-950 text-violet-300 font-mono">Authorization: Bearer jsp_live_...</code>.</p>
+                    </div>
+                    <button onclick="openCreateApiKeyModal()" class="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0">
+                        + Generate Key
+                    </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                        <h3 class="font-bold text-sm text-slate-200">Active API Keys</h3>
+                        <span id="dev-keys-badge-count" class="text-xs font-mono text-slate-400">0 keys</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-950/60 text-slate-400 uppercase font-mono text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="p-3.5">Name</th>
+                                    <th class="p-3.5">Key Prefix</th>
+                                    <th class="p-3.5">Scopes</th>
+                                    <th class="p-3.5">Rate Limit</th>
+                                    <th class="p-3.5">Last Used</th>
+                                    <th class="p-3.5">Expires</th>
+                                    <th class="p-3.5">Status</th>
+                                    <th class="p-3.5 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dev-keys-table-body" class="divide-y divide-slate-800">
+                                <tr><td colspan="8" class="p-6 text-center text-slate-500 italic">Loading API keys...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: Webhook Subscriptions -->
+            <div id="dev-panel-webhooks" class="hidden space-y-4">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div class="text-xs text-slate-300 space-y-0.5">
+                        <p class="font-semibold text-slate-100 flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock text-indigo-400"></i> HMAC-SHA256 Signature Verification
+                        </p>
+                        <p class="text-slate-400">Every webhook includes <code class="px-1.5 py-0.5 rounded bg-slate-950 text-indigo-300 font-mono">X-JsProject-Signature: t={timestamp},v1={hex_signature}</code> to verify payload authenticity and prevent replay attacks.</p>
+                    </div>
+                    <button onclick="openCreateWebhookModal()" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition cursor-pointer shrink-0">
+                        + New Webhook
+                    </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                        <h3 class="font-bold text-sm text-slate-200">Registered Outbound Endpoints</h3>
+                        <span id="dev-webhooks-badge-count" class="text-xs font-mono text-slate-400">0 endpoints</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-950/60 text-slate-400 uppercase font-mono text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="p-3.5">Endpoint URL</th>
+                                    <th class="p-3.5">Events Subscribed</th>
+                                    <th class="p-3.5">Secret Prefix</th>
+                                    <th class="p-3.5">Failures</th>
+                                    <th class="p-3.5">Status</th>
+                                    <th class="p-3.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dev-webhooks-table-body" class="divide-y divide-slate-800">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Loading webhook endpoints...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 3: Event Catalog & Code Playground -->
+            <div id="dev-panel-catalog" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="dev-event-catalog-cards">
+                    <!-- Populated dynamically -->
+                    <div class="p-6 text-center text-slate-500 col-span-3">Loading event catalog...</div>
+                </div>
+
+                <!-- Code Playground / Verification Guide -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-code text-violet-400 text-base"></i>
+                            <h3 class="font-bold text-sm text-slate-100">Webhook Signature Verification Examples</h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-sdk-python" onclick="switchSdkLang('python')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-violet-600 text-white cursor-pointer">Python 3</button>
+                            <button id="btn-sdk-nodejs" onclick="switchSdkLang('nodejs')" class="px-2.5 py-1 rounded-md text-xs font-bold text-slate-400 hover:text-white cursor-pointer">Node.js</button>
+                        </div>
+                    </div>
+
+                    <div id="sdk-code-python" class="space-y-2">
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed"><code>import hmac
+import hashlib
+import time
+
+def verify_jsproject_webhook(payload_raw_bytes: bytes, signature_header: str, secret_key: str, tolerance_sec: int = 300) -> bool:
+    # Verifies X-JsProject-Signature: t={timestamp},v1={hex_signature}
+    parts = dict(kv.split("=", 1) for kv in signature_header.split(","))
+    timestamp = parts.get("t")
+    v1_sig = parts.get("v1")
+
+    if not timestamp or not v1_sig:
+        return False
+
+    # Prevent replay attacks
+    if abs(time.time() - int(timestamp)) &gt; tolerance_sec:
+        return False
+
+    signed_payload = f"{timestamp}.".encode("utf-8") + payload_raw_bytes
+    expected_sig = hmac.new(secret_key.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_sig, v1_sig)</code></pre>
+                    </div>
+
+                    <div id="sdk-code-nodejs" class="hidden space-y-2">
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed"><code>const crypto = require('crypto');
+
+function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toleranceSec = 300) {
+    const parts = Object.fromEntries(signatureHeader.split(',').map(kv =&gt; kv.split('=')));
+    const { t: timestamp, v1: receivedSig } = parts;
+
+    if (!timestamp || !receivedSig) return false;
+
+    // Prevent replay attacks
+    if (Math.abs(Date.now() / 1000 - parseInt(timestamp)) &gt; toleranceSec) return false;
+
+    const signedPayload = Buffer.concat([Buffer.from(`${timestamp}.`, 'utf8'), rawBodyBuffer]);
+    const expectedSig = crypto.createHmac('sha256', secretKey).update(signedPayload).digest('hex');
+    return crypto.timingSafeEqual(Buffer.from(expectedSig), Buffer.from(receivedSig));
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal: Edit Rep Commission Rate -->
         <div id="modal-edit-commission" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
             <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
@@ -3890,6 +4122,187 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     <button onclick="submitSimulateAsn()" class="py-2 px-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
                         <i class="fa-solid fa-paper-plane"></i> Ingest ASN Webhook
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Generate Scoped API Key -->
+        <div id="modal-create-api-key" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-violet-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-violet-400">
+                        <i class="fa-solid fa-key text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Generate Developer API Key</h3>
+                    </div>
+                    <button onclick="closeCreateApiKeyModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div id="api-key-form-section" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Key Name / Description</label>
+                        <input id="in-key-name" type="text" placeholder="e.g. ERP Ingestion Gateway, Zapier Integration" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Permission Scopes</label>
+                        <select id="in-key-scopes" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                            <option value="*">Full Access (*)</option>
+                            <option value="sales:read,procurement:read">Read Only (Sales &amp; Procurement)</option>
+                            <option value="sales:read,sales:write">Sales Manager (Read &amp; Write Orders)</option>
+                            <option value="webhooks:manage">Webhooks Administration</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Expires In</label>
+                            <select id="in-key-expires" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                                <option value="30">30 Days</option>
+                                <option value="90" selected>90 Days (Recommended)</option>
+                                <option value="365">365 Days</option>
+                                <option value="0">Never (No Expiration)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1 font-medium">Rate Limit</label>
+                            <input id="in-key-rate-limit" type="number" value="60" min="10" max="1000" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono">
+                            <span class="text-[10px] text-slate-500">Requests per minute</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generated Key Reveal Box (shown after creation) -->
+                <div id="api-key-reveal-section" class="hidden space-y-3">
+                    <div class="p-3 bg-emerald-950/40 border border-emerald-600/50 rounded-xl space-y-2">
+                        <div class="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>API Key Generated Successfully!</span>
+                        </div>
+                        <p class="text-[11px] text-emerald-200">Make sure to copy your API key now. You won't be able to see it again!</p>
+                        <div class="flex items-center gap-2">
+                            <input id="in-revealed-key" type="text" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-emerald-300 font-mono text-xs select-all">
+                            <button onclick="copyRevealedKey()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-lg text-xs cursor-pointer shrink-0">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeCreateApiKeyModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                    <button id="btn-submit-create-key" onclick="submitCreateApiKey()" class="py-2 px-3.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5 shadow-lg shadow-violet-600/30">
+                        <i class="fa-solid fa-bolt"></i> Generate Key
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: New Webhook Subscription -->
+        <div id="modal-create-webhook" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-satellite-dish text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Register Webhook Endpoint</h3>
+                    </div>
+                    <button onclick="closeCreateWebhookModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div id="webhook-form-section" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Endpoint URL (HTTPS)</label>
+                        <input id="in-webhook-url" type="url" placeholder="https://api.yourdomain.com/webhooks/jsproject" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Description (Optional)</label>
+                        <input id="in-webhook-desc" type="text" placeholder="e.g. Production inventory & order sync" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1.5 font-medium">Event Subscriptions</label>
+                        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800 max-h-40 overflow-y-auto">
+                            <label class="flex items-center gap-2 text-slate-300 cursor-pointer text-[11px]">
+                                <input type="checkbox" value="order.created" class="wh-event-cb rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+                                <code>order.created</code>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-300 cursor-pointer text-[11px]">
+                                <input type="checkbox" value="payment.succeeded" class="wh-event-cb rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+                                <code>payment.succeeded</code>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-300 cursor-pointer text-[11px]">
+                                <input type="checkbox" value="shipment.updated" class="wh-event-cb rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+                                <code>shipment.updated</code>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-300 cursor-pointer text-[11px]">
+                                <input type="checkbox" value="shipment.delivered" class="wh-event-cb rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+                                <code>shipment.delivered</code>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-300 cursor-pointer text-[11px]">
+                                <input type="checkbox" value="license.provisioned" class="wh-event-cb rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                                <code>license.provisioned</code>
+                            </label>
+                            <label class="flex items-center gap-2 text-slate-300 cursor-pointer text-[11px]">
+                                <input type="checkbox" value="restock.triggered" class="wh-event-cb rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                                <code>restock.triggered</code>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Signing Secret (Optional)</label>
+                        <input id="in-webhook-secret" type="text" placeholder="Leave empty for auto-generated 32-byte secret" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono">
+                    </div>
+                </div>
+
+                <!-- Generated Webhook Secret Box (shown after creation) -->
+                <div id="webhook-reveal-section" class="hidden space-y-3">
+                    <div class="p-3 bg-indigo-950/40 border border-indigo-600/50 rounded-xl space-y-2">
+                        <div class="flex items-center gap-2 text-indigo-400 text-xs font-bold">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Webhook Subscription Registered!</span>
+                        </div>
+                        <p class="text-[11px] text-indigo-200">Copy your signing secret to verify signatures on incoming payloads:</p>
+                        <div class="flex items-center gap-2">
+                            <input id="in-revealed-webhook-secret" type="text" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-mono text-xs select-all">
+                            <button onclick="copyRevealedWebhookSecret()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs cursor-pointer shrink-0">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeCreateWebhookModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                    <button id="btn-submit-create-webhook" onclick="submitCreateWebhook()" class="py-2 px-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                        <i class="fa-solid fa-plus"></i> Save Subscription
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Webhook Delivery Log Inspector -->
+        <div id="modal-webhook-deliveries" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-cyan-400">
+                        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Webhook Delivery Inspector</h3>
+                    </div>
+                    <button onclick="closeWebhookDeliveriesModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="flex items-center justify-between text-xs bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <div class="truncate max-w-md">
+                        <span class="text-slate-400">Endpoint: </span>
+                        <span id="dev-inspector-url" class="font-mono text-slate-200 font-semibold"></span>
+                    </div>
+                    <button id="dev-inspector-ping-btn" onclick="pingInspectorWebhook()" class="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0">
+                        <i class="fa-solid fa-paper-plane"></i> Send Test Ping
+                    </button>
+                </div>
+
+                <div class="max-h-72 overflow-y-auto space-y-2" id="dev-deliveries-container">
+                    <div class="p-6 text-center text-slate-500 italic">Loading delivery logs...</div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeWebhookDeliveriesModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Done</button>
                 </div>
             </div>
         </div>
@@ -4752,6 +5165,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 const viewSaas = document.getElementById("view-saas");
                 const viewTeam = document.getElementById("view-team");
                 const viewFinancials = document.getElementById("view-financials");
+                const viewDeveloper = document.getElementById("view-developer");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
@@ -4759,6 +5173,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 const tabSaas = document.getElementById("tab-saas");
                 const tabTeam = document.getElementById("tab-team");
                 const tabFinancials = document.getElementById("tab-financials");
+                const tabDeveloper = document.getElementById("tab-developer");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -4768,6 +5183,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 if (tabSaas) tabSaas.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabTeam) tabTeam.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabFinancials) tabFinancials.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabDeveloper) tabDeveloper.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
@@ -4776,6 +5192,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                 if (viewSaas) viewSaas.classList.add("hidden");
                 if (viewTeam) viewTeam.classList.add("hidden");
                 if (viewFinancials) viewFinancials.classList.add("hidden");
+                if (viewDeveloper) viewDeveloper.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -4814,6 +5231,10 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                     fetchExecutiveFinancials();
                     fetchReconciliationStatement();
                     fetchRepCommissions();
+                } else if (mode === 'developer') {
+                    if (viewDeveloper) viewDeveloper.classList.remove("hidden");
+                    if (tabDeveloper) tabDeveloper.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-violet-600 text-white shadow-md";
+                    fetchDeveloperData();
                 }
             }
 
@@ -8216,6 +8637,500 @@ ${p.ai_drafted_outreach}
                     showToast("Commission Rate Updated", `New commission rate set to ${newRate}%.`, "fa-percent", "success");
                 } catch(e) {
                     alert("Error: " + e.message);
+                }
+            }
+
+            // ==============================================================================
+            // CRM 8: Developer Platform & Outbound Webhooks Handlers
+            // ==============================================================================
+            let currentDevTab = "keys";
+            let currentInspectorSubId = null;
+
+            function switchDevTab(tab) {
+                currentDevTab = tab;
+                const panelKeys = document.getElementById("dev-panel-keys");
+                const panelWebhooks = document.getElementById("dev-panel-webhooks");
+                const panelCatalog = document.getElementById("dev-panel-catalog");
+                const tabKeys = document.getElementById("dev-tab-keys");
+                const tabWebhooks = document.getElementById("dev-tab-webhooks");
+                const tabCatalog = document.getElementById("dev-tab-catalog");
+
+                if (panelKeys) panelKeys.classList.add("hidden");
+                if (panelWebhooks) panelWebhooks.classList.add("hidden");
+                if (panelCatalog) panelCatalog.classList.add("hidden");
+
+                const inactiveTabClass = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition";
+                if (tabKeys) tabKeys.className = inactiveTabClass;
+                if (tabWebhooks) tabWebhooks.className = inactiveTabClass;
+                if (tabCatalog) tabCatalog.className = inactiveTabClass;
+
+                if (tab === "keys") {
+                    if (panelKeys) panelKeys.classList.remove("hidden");
+                    if (tabKeys) tabKeys.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white cursor-pointer transition";
+                    fetchApiKeys();
+                } else if (tab === "webhooks") {
+                    if (panelWebhooks) panelWebhooks.classList.remove("hidden");
+                    if (tabWebhooks) tabWebhooks.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white cursor-pointer transition";
+                    fetchWebhooks();
+                } else if (tab === "catalog") {
+                    if (panelCatalog) panelCatalog.classList.remove("hidden");
+                    if (tabCatalog) tabCatalog.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 text-white cursor-pointer transition";
+                    fetchEventCatalog();
+                }
+            }
+
+            function switchSdkLang(lang) {
+                const btnPy = document.getElementById("btn-sdk-python");
+                const btnNode = document.getElementById("btn-sdk-nodejs");
+                const codePy = document.getElementById("sdk-code-python");
+                const codeNode = document.getElementById("sdk-code-nodejs");
+
+                if (lang === "python") {
+                    if (btnPy) btnPy.className = "px-2.5 py-1 rounded-md text-xs font-bold bg-violet-600 text-white cursor-pointer";
+                    if (btnNode) btnNode.className = "px-2.5 py-1 rounded-md text-xs font-bold text-slate-400 hover:text-white cursor-pointer";
+                    if (codePy) codePy.classList.remove("hidden");
+                    if (codeNode) codeNode.classList.add("hidden");
+                } else {
+                    if (btnNode) btnNode.className = "px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-600 text-white cursor-pointer";
+                    if (btnPy) btnPy.className = "px-2.5 py-1 rounded-md text-xs font-bold text-slate-400 hover:text-white cursor-pointer";
+                    if (codeNode) codeNode.classList.remove("hidden");
+                    if (codePy) codePy.classList.add("hidden");
+                }
+            }
+
+            async function fetchDeveloperData() {
+                await Promise.all([fetchApiKeys(), fetchWebhooks()]);
+                if (currentDevTab === "catalog") {
+                    await fetchEventCatalog();
+                }
+            }
+
+            async function fetchApiKeys() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/developer/keys", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const keys = await res.json();
+
+                    const activeKeys = keys.filter(k => k.is_active).length;
+                    const kpiEl = document.getElementById("dev-kpi-keys-count");
+                    const badgeEl = document.getElementById("dev-keys-badge-count");
+                    if (kpiEl) kpiEl.innerText = activeKeys;
+                    if (badgeEl) badgeEl.innerText = `${keys.length} keys registered`;
+
+                    const tbody = document.getElementById("dev-keys-table-body");
+                    if (!tbody) return;
+                    if (!keys || keys.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-500 italic">No developer API keys generated yet. Click "+ Generate Key" to create one.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = keys.map(k => {
+                        const scopesHtml = (k.scopes || []).map(s => `<span class="px-1.5 py-0.5 rounded bg-slate-950 text-violet-300 border border-violet-800/40 text-[10px] font-mono mr-1">${escapeHtml(s)}</span>`).join("");
+                        const statusBadge = k.is_active 
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">Active</span>`
+                            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800">Revoked</span>`;
+                        const lastUsed = k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : "Never";
+                        const expires = k.expires_at ? new Date(k.expires_at).toLocaleDateString() : "Never";
+
+                        return `
+                            <tr class="hover:bg-slate-950/40 transition">
+                                <td class="p-3.5 font-semibold text-white">${escapeHtml(k.name)}</td>
+                                <td class="p-3.5 font-mono text-violet-300">${escapeHtml(k.key_prefix)}...</td>
+                                <td class="p-3.5">${scopesHtml}</td>
+                                <td class="p-3.5 font-mono text-slate-400">${k.rate_limit_per_minute}/min</td>
+                                <td class="p-3.5 text-slate-400">${lastUsed}</td>
+                                <td class="p-3.5 text-slate-400">${expires}</td>
+                                <td class="p-3.5">${statusBadge}</td>
+                                <td class="p-3.5 text-right">
+                                    ${k.is_active ? `
+                                        <button onclick="revokeApiKey('${k.id}')" class="px-2.5 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/50 rounded-lg text-xs font-semibold cursor-pointer transition">
+                                            <i class="fa-solid fa-ban mr-1"></i> Revoke
+                                        </button>
+                                    ` : `<span class="text-slate-500 text-xs italic">Revoked</span>`}
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+                } catch (err) {
+                    console.error("fetchApiKeys error:", err);
+                }
+            }
+
+            function openCreateApiKeyModal() {
+                document.getElementById("api-key-form-section").classList.remove("hidden");
+                document.getElementById("api-key-reveal-section").classList.add("hidden");
+                document.getElementById("btn-submit-create-key").classList.remove("hidden");
+                document.getElementById("in-key-name").value = "";
+                document.getElementById("in-revealed-key").value = "";
+                document.getElementById("modal-create-api-key").classList.remove("hidden");
+            }
+
+            function closeCreateApiKeyModal() {
+                document.getElementById("modal-create-api-key").classList.add("hidden");
+            }
+
+            async function submitCreateApiKey() {
+                const name = document.getElementById("in-key-name").value.trim();
+                const rawScopes = document.getElementById("in-key-scopes").value;
+                const expiresDays = parseInt(document.getElementById("in-key-expires").value, 10);
+                const rateLimit = parseInt(document.getElementById("in-key-rate-limit").value, 10) || 60;
+
+                if (!name) {
+                    alert("Please enter a name for the API key.");
+                    return;
+                }
+
+                const scopes = rawScopes.includes(",") ? rawScopes.split(",") : [rawScopes];
+
+                try {
+                    const res = await fetch(API_BASE + "/developer/keys", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            name: name,
+                            scopes: scopes,
+                            expires_in_days: expiresDays > 0 ? expiresDays : null,
+                            rate_limit_per_minute: rateLimit
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to generate key: " + (err.detail || res.statusText));
+                        return;
+                    }
+
+                    const data = await res.json();
+                    document.getElementById("in-revealed-key").value = data.api_key;
+                    document.getElementById("api-key-form-section").classList.add("hidden");
+                    document.getElementById("api-key-reveal-section").classList.remove("hidden");
+                    document.getElementById("btn-submit-create-key").classList.add("hidden");
+
+                    await fetchApiKeys();
+                    showToast("API Key Generated", "Your new scoped API key has been securely created.", "fa-key", "success");
+                } catch (e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function copyRevealedKey() {
+                const input = document.getElementById("in-revealed-key");
+                navigator.clipboard.writeText(input.value);
+                showToast("Copied to Clipboard", "API Key copied to clipboard.", "fa-copy", "success");
+            }
+
+            async function revokeApiKey(keyId) {
+                if (!confirm("Are you sure you want to revoke this API key? Applications using this key will immediately lose access.")) {
+                    return;
+                }
+                try {
+                    const res = await fetch(API_BASE + "/developer/keys/" + keyId, {
+                        method: "DELETE",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to revoke: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    await fetchApiKeys();
+                    showToast("API Key Revoked", "The key has been deactivated.", "fa-ban", "info");
+                } catch (e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function fetchWebhooks() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/developer/webhooks", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const subs = await res.json();
+
+                    const activeCount = subs.filter(s => s.status === 'active').length;
+                    const kpiEl = document.getElementById("dev-kpi-webhooks-count");
+                    const badgeEl = document.getElementById("dev-webhooks-badge-count");
+                    if (kpiEl) kpiEl.innerText = activeCount;
+                    if (badgeEl) badgeEl.innerText = `${subs.length} endpoints`;
+
+                    const tbody = document.getElementById("dev-webhooks-table-body");
+                    if (!tbody) return;
+                    if (!subs || subs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 italic">No outbound webhook endpoints registered. Click "+ New Webhook" to subscribe.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = subs.map(s => {
+                        const eventsHtml = (s.events || []).map(ev => `<span class="px-1.5 py-0.5 rounded bg-slate-950 text-indigo-300 border border-indigo-800/40 text-[10px] font-mono mr-1 mb-1 inline-block">${escapeHtml(ev)}</span>`).join("");
+                        const statusColors = {
+                            active: "bg-emerald-950 text-emerald-400 border-emerald-800",
+                            failing: "bg-amber-950 text-amber-400 border-amber-800",
+                            disabled: "bg-rose-950 text-rose-400 border-rose-800"
+                        };
+                        const statusClass = statusColors[s.status] || statusColors.active;
+
+                        return `
+                            <tr class="hover:bg-slate-950/40 transition">
+                                <td class="p-3.5">
+                                    <div class="font-mono font-semibold text-white truncate max-w-xs">${escapeHtml(s.endpoint_url)}</div>
+                                    ${s.description ? `<div class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(s.description)}</div>` : ''}
+                                </td>
+                                <td class="p-3.5 max-w-xs">${eventsHtml}</td>
+                                <td class="p-3.5 font-mono text-slate-400 text-[11px]">${escapeHtml(s.secret_prefix)}...</td>
+                                <td class="p-3.5 font-mono ${s.failure_count > 0 ? 'text-rose-400 font-bold' : 'text-slate-400'}">${s.failure_count}</td>
+                                <td class="p-3.5">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${statusClass}">${escapeHtml(s.status)}</span>
+                                </td>
+                                <td class="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                                    <button onclick="pingWebhook('${s.id}')" class="px-2.5 py-1 bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/50 rounded-lg text-xs font-semibold cursor-pointer transition" title="Send Test Ping">
+                                        <i class="fa-solid fa-paper-plane"></i> Ping
+                                    </button>
+                                    <button onclick="viewWebhookDeliveries('${s.id}', '${escapeHtml(s.endpoint_url)}')" class="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/50 rounded-lg text-xs font-semibold cursor-pointer transition" title="Delivery Logs">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> Logs
+                                    </button>
+                                    <button onclick="deleteWebhook('${s.id}')" class="px-2 py-1 bg-slate-800 hover:bg-rose-950 hover:text-rose-300 text-slate-400 rounded-lg text-xs cursor-pointer transition" title="Delete">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+                } catch (err) {
+                    console.error("fetchWebhooks error:", err);
+                }
+            }
+
+            function openCreateWebhookModal() {
+                document.getElementById("webhook-form-section").classList.remove("hidden");
+                document.getElementById("webhook-reveal-section").classList.add("hidden");
+                document.getElementById("btn-submit-create-webhook").classList.remove("hidden");
+                document.getElementById("in-webhook-url").value = "";
+                document.getElementById("in-webhook-desc").value = "";
+                document.getElementById("in-webhook-secret").value = "";
+                document.getElementById("in-revealed-webhook-secret").value = "";
+                document.getElementById("modal-create-webhook").classList.remove("hidden");
+            }
+
+            function closeCreateWebhookModal() {
+                document.getElementById("modal-create-webhook").classList.add("hidden");
+            }
+
+            async function submitCreateWebhook() {
+                const endpointUrl = document.getElementById("in-webhook-url").value.trim();
+                const desc = document.getElementById("in-webhook-desc").value.trim();
+                const customSecret = document.getElementById("in-webhook-secret").value.trim();
+
+                if (!endpointUrl) {
+                    alert("Please enter a valid webhook endpoint URL.");
+                    return;
+                }
+
+                const checkboxes = document.querySelectorAll(".wh-event-cb:checked");
+                const selectedEvents = Array.from(checkboxes).map(cb => cb.value);
+                if (selectedEvents.length === 0) {
+                    alert("Please select at least one event subscription.");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(API_BASE + "/developer/webhooks", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            endpoint_url: endpointUrl,
+                            description: desc || null,
+                            events: selectedEvents,
+                            secret_key: customSecret || null
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to register webhook: " + (err.detail || res.statusText));
+                        return;
+                    }
+
+                    const data = await res.json();
+                    document.getElementById("in-revealed-webhook-secret").value = data.secret_key;
+                    document.getElementById("webhook-form-section").classList.add("hidden");
+                    document.getElementById("webhook-reveal-section").classList.remove("hidden");
+                    document.getElementById("btn-submit-create-webhook").classList.add("hidden");
+
+                    await fetchWebhooks();
+                    showToast("Webhook Registered", "Endpoint registered with HMAC-SHA256 signature support.", "fa-satellite-dish", "success");
+                } catch (e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            function copyRevealedWebhookSecret() {
+                const input = document.getElementById("in-revealed-webhook-secret");
+                navigator.clipboard.writeText(input.value);
+                showToast("Copied to Clipboard", "Webhook secret copied.", "fa-copy", "success");
+            }
+
+            async function deleteWebhook(subId) {
+                if (!confirm("Are you sure you want to delete this webhook subscription?")) {
+                    return;
+                }
+                try {
+                    const res = await fetch(API_BASE + "/developer/webhooks/" + subId, {
+                        method: "DELETE",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to delete webhook: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    await fetchWebhooks();
+                    showToast("Webhook Deleted", "Subscription removed successfully.", "fa-trash", "info");
+                } catch (e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function pingWebhook(subId) {
+                try {
+                    showToast("Sending Ping", "Dispatching diagnostic test ping...", "fa-paper-plane", "info");
+                    const res = await fetch(API_BASE + "/developer/webhooks/" + subId + "/ping", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Ping failed: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    const pingRes = await res.json();
+                    await fetchWebhooks();
+                    if (pingRes.delivery && pingRes.delivery.success) {
+                        showToast("Ping Succeeded!", `HTTP ${pingRes.delivery.response_status_code} in ${pingRes.delivery.duration_ms}ms`, "fa-circle-check", "success");
+                    } else {
+                        const errMsg = (pingRes.delivery && pingRes.delivery.error_message) || "Endpoint returned error response";
+                        showToast("Ping Failed", errMsg, "fa-triangle-exclamation", "warning");
+                    }
+                } catch (e) {
+                    alert("Ping error: " + e.message);
+                }
+            }
+
+            async function viewWebhookDeliveries(subId, endpointUrl = "") {
+                currentInspectorSubId = subId;
+                const urlEl = document.getElementById("dev-inspector-url");
+                if (urlEl) urlEl.innerText = endpointUrl || subId;
+                document.getElementById("modal-webhook-deliveries").classList.remove("hidden");
+                const container = document.getElementById("dev-deliveries-container");
+                container.innerHTML = `<div class="p-6 text-center text-slate-500 italic">Loading delivery logs...</div>`;
+
+                try {
+                    const res = await fetch(API_BASE + "/developer/webhooks/" + subId + "/deliveries?limit=25", {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        container.innerHTML = `<div class="p-4 text-center text-rose-400">Failed to load delivery logs.</div>`;
+                        return;
+                    }
+                    const logs = await res.json();
+
+                    // Update total deliveries KPI
+                    const delEl = document.getElementById("dev-kpi-deliveries-count");
+                    if (delEl) delEl.innerText = logs.length;
+
+                    if (!logs || logs.length === 0) {
+                        container.innerHTML = `<div class="p-6 text-center text-slate-500 italic">No delivery attempts recorded yet. Click "Send Test Ping" above to test.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = logs.map(l => {
+                        const badgeClass = l.success ? "bg-emerald-950 text-emerald-400 border-emerald-800" : "bg-rose-950 text-rose-400 border-rose-800";
+                        const statusIcon = l.success ? "fa-circle-check text-emerald-400" : "fa-circle-xmark text-rose-400";
+                        const dateStr = new Date(l.delivered_at).toLocaleString();
+
+                        return `
+                            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid ${statusIcon}"></i>
+                                        <span class="font-mono font-bold text-slate-200">${escapeHtml(l.event_type)}</span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}">HTTP ${l.response_status_code || 'ERR'}</span>
+                                    </div>
+                                    <span class="text-[11px] text-slate-400 font-mono">${dateStr}</span>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                                    <span>Duration: ${l.duration_ms}ms • Attempt: #${l.attempt_count}</span>
+                                    <span class="truncate max-w-xs text-slate-500">ID: ${escapeHtml(l.request_id || '')}</span>
+                                </div>
+                                ${l.error_message ? `<div class="text-[11px] text-rose-400 bg-rose-950/40 p-2 rounded-lg border border-rose-900/50 font-mono">${escapeHtml(l.error_message)}</div>` : ''}
+                            </div>
+                        `;
+                    }).join("");
+                } catch (e) {
+                    container.innerHTML = `<div class="p-4 text-center text-rose-400">Error: ${escapeHtml(e.message)}</div>`;
+                }
+            }
+
+            async function pingInspectorWebhook() {
+                if (currentInspectorSubId) {
+                    await pingWebhook(currentInspectorSubId);
+                    const url = document.getElementById("dev-inspector-url").innerText;
+                    await viewWebhookDeliveries(currentInspectorSubId, url);
+                }
+            }
+
+            function closeWebhookDeliveriesModal() {
+                document.getElementById("modal-webhook-deliveries").classList.add("hidden");
+                currentInspectorSubId = null;
+            }
+
+            async function fetchEventCatalog() {
+                const container = document.getElementById("dev-event-catalog-cards");
+                if (!container) return;
+                try {
+                    const res = await fetch(API_BASE + "/developer/events");
+                    if (!res.ok) return;
+                    const events = await res.json();
+
+                    container.innerHTML = events.map(ev => `
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="font-mono font-bold text-sm text-indigo-300">${escapeHtml(ev.event_name)}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-mono">v1</span>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-relaxed">${escapeHtml(ev.description)}</p>
+                            <div>
+                                <span class="text-[10px] text-slate-500 font-mono uppercase font-bold">Sample Payload</span>
+                                <pre class="mt-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono text-emerald-400 overflow-x-auto max-h-36"><code>${escapeHtml(JSON.stringify(ev.sample_payload, null, 2))}</code></pre>
+                            </div>
+                        </div>
+                    `).join("");
+                } catch (e) {
+                    console.error("fetchEventCatalog error:", e);
                 }
             }
 
