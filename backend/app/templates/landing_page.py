@@ -13,6 +13,7 @@ spotlighting the 6 Specialized Types of AI Sales Agents available for SaaS clien
 def render_landing_page(api_prefix: str = "") -> str:
     prefix = api_prefix.rstrip("/")
     console_url = f"{prefix}/console" if prefix else "/console"
+    signup_url = f"{prefix}/signup" if prefix else "/signup"
     lead_api_url = f"{prefix}/api/v1/crm/leads" if prefix else "/api/v1/crm/leads"
 
     return f"""<!DOCTYPE html>
@@ -122,7 +123,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <a href="{console_url}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 transition">
                     <i class="fa-solid fa-shield-halved text-slate-400"></i> Management Console
                 </a>
-                <a href="#interactive-tester" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
+                <a href="{signup_url}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
                     <span>Deploy Sales Bots</span>
                     <i class="fa-solid fa-arrow-right"></i>
                 </a>
@@ -677,7 +678,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                             <div class="flex items-center gap-2 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-[10px]"></i> Executive Sales Bot &amp; Closer</div>
                         </div>
                     </div>
-                    <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700 transition text-center block">
+                    <a href="{signup_url}?plan=starter" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700 transition text-center block">
                         Get Started
                     </a>
                 </div>
@@ -701,7 +702,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Automated Follow-Up Sequences</div>
                         </div>
                     </div>
-                    <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700 transition text-center block">
+                    <a href="{signup_url}?plan=growth" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 transition text-center block">
                         Start Free Trial
                     </a>
                 </div>
@@ -729,7 +730,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Dedicated HITL Takeover Queue</div>
                         </div>
                     </div>
-                    <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/40 transition text-center block">
+                    <a href="{signup_url}?plan=executive" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-lg shadow-indigo-600/40 transition text-center block">
                         Deploy All 6 Agents
                     </a>
                 </div>
@@ -751,7 +752,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Dedicated Sales Engineer &amp; SLA</div>
                         </div>
                     </div>
-                    <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-purple-200 bg-purple-950/60 hover:bg-purple-900 border border-purple-800 transition text-center block">
+                    <a href="{signup_url}?plan=executive" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-purple-200 bg-purple-950/60 hover:bg-purple-900 border border-purple-800 transition text-center block">
                         Talk to Enterprise Sales
                     </a>
                 </div>

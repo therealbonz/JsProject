@@ -29,7 +29,10 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_PHONE_NUMBER: Optional[str] = None
     GEMINI_VOICE_NAME: str = "Puck"  # Puck, Charon, Kore, Fenrir, Aoede
-    VOICE_SIMULATION_MODE: bool = True
+    # Stripe Merchant & Subscription Configuration
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

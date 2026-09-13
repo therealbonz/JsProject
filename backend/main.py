@@ -8,9 +8,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
+from app.templates.signup_page import render_signup_page
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -172,6 +173,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(custom_domains.router, prefix=prefix)
     app.include_router(support_copilot.router, prefix=prefix)
     app.include_router(workflows.router, prefix=prefix)
+    app.include_router(billing_checkout.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1622,6 +1624,15 @@ async def saas_landing_page():
     Spotlights the 6 Specialized Types of AI Sales Bots and Visual Pipeline Orchestration.
     """
     return HTMLResponse(content=render_landing_page(api_prefix="/JsProject"))
+
+@app.get("/signup", response_class=HTMLResponse)
+@app.get("/JsProject/signup", response_class=HTMLResponse)
+async def saas_signup_page(plan: Optional[str] = "growth"):
+    """
+    Public Self-Serve SaaS Signup & Checkout Page
+    Allows instant tier selection and automated tenant/license provisioning.
+    """
+    return HTMLResponse(content=render_signup_page(api_prefix="/JsProject", default_plan=plan or "growth"))
 
 @app.get("/console", response_class=HTMLResponse)
 @app.get("/JsProject/console", response_class=HTMLResponse)
