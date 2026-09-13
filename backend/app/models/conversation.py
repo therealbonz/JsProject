@@ -6,15 +6,17 @@ from app.models.base import CommonMixin, TenantMixin
 class Conversation(Base, CommonMixin, TenantMixin):
     __tablename__ = "conversations"
 
-    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
-    channel = Column(String(50), default="email", nullable=False)  # email, phone, web_chat
-    status = Column(String(50), default="active", nullable=False)  # active, waiting_on_lead, waiting_on_human, closed
+    lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=True, index=True)
+    client_id = Column(String(36), ForeignKey("client_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+    channel = Column(String(50), default="email", nullable=False)  # email, phone, web_chat, customer_portal
+    status = Column(String(50), default="active", nullable=False)  # active, waiting_on_lead, waiting_on_human, closed, resolved
     ai_summary = Column(Text, nullable=True)
-    sentiment = Column(String(50), default="neutral", nullable=False)  # positive, neutral, hesitant, hostile
+    sentiment = Column(String(50), default="neutral", nullable=False)  # positive, neutral, hesitant, hostile, frustrated
     current_objective = Column(String(255), nullable=True)
 
     # Relationships
     lead = relationship("Lead", back_populates="conversations")
+    client = relationship("ClientAccount", backref="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
     assistance_requests = relationship("HumanAssistanceRequest", back_populates="conversation", cascade="all, delete-orphan")
 

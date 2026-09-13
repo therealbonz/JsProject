@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -115,6 +115,14 @@ async def lifespan(app: FastAPI):
                 cols = [c["name"] for c in inspector.get_columns("organization_memberships")]
                 if "commission_rate_pct" not in cols:
                     sync_conn.execute(text("ALTER TABLE organization_memberships ADD COLUMN commission_rate_pct FLOAT DEFAULT 10.0"))
+            if "conversations" in tables:
+                cols = [c["name"] for c in inspector.get_columns("conversations")]
+                if "client_id" not in cols:
+                    sync_conn.execute(text("ALTER TABLE conversations ADD COLUMN client_id VARCHAR(36)"))
+            if "human_assistance_requests" in tables:
+                cols = [c["name"] for c in inspector.get_columns("human_assistance_requests")]
+                if "client_id" not in cols:
+                    sync_conn.execute(text("ALTER TABLE human_assistance_requests ADD COLUMN client_id VARCHAR(36)"))
         await conn.run_sync(migrate_sqlite_columns)
     logger.info("Database initialized successfully.")
     yield
@@ -160,6 +168,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(developer.router, prefix=prefix)
     app.include_router(metered_billing.router, prefix=prefix)
     app.include_router(custom_domains.router, prefix=prefix)
+    app.include_router(support_copilot.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1330,8 +1339,272 @@ async def customer_portal_page(token: str):
                 return div.innerHTML;
             }
 
+            // ==============================================================================
+            // INTERACTIVE AI SUPPORT COPILOT WIDGET
+            // ==============================================================================
+            const PORTAL_TOKEN = "{token}";
+            let activeConversationId = null;
+
+            function togglePortalCopilot() {
+                const drawer = document.getElementById("drawer-portal-copilot");
+                const icon = document.getElementById("icon-copilot-bubble");
+                if (drawer.classList.contains("hidden")) {
+                    drawer.classList.remove("hidden");
+                    drawer.classList.add("flex");
+                    icon.className = "fa-solid fa-chevron-down";
+                    loadCopilotChatHistory();
+                } else {
+                    drawer.classList.add("hidden");
+                    drawer.classList.remove("flex");
+                    icon.className = "fa-solid fa-headset";
+                }
+            }
+
+            function quickCopilotPrompt(promptText) {
+                document.getElementById("in-copilot-text").value = promptText;
+                sendPortalCopilotMessage(promptText);
+            }
+
+            async function loadCopilotChatHistory() {
+                try {
+                    const res = await fetch(`${API_BASE}/support-copilot/portal/${PORTAL_TOKEN}/history`);
+                    if (!res.ok) return;
+                    const msgs = await res.json();
+                    if (msgs && msgs.length > 0) {
+                        const stream = document.getElementById("copilot-message-stream");
+                        stream.innerHTML = msgs.map(m => renderPortalCopilotMessageHtml(m)).join("");
+                        stream.scrollTop = stream.scrollHeight;
+                        activeConversationId = msgs[0].conversation_id;
+                    }
+                } catch(e) {
+                    console.error("loadCopilotChatHistory error:", e);
+                }
+            }
+
+            function handlePortalCopilotSubmit(e) {
+                e.preventDefault();
+                const input = document.getElementById("in-copilot-text");
+                const text = input.value.trim();
+                if (!text) return;
+                input.value = "";
+                sendPortalCopilotMessage(text);
+            }
+
+            async function sendPortalCopilotMessage(text) {
+                const stream = document.getElementById("copilot-message-stream");
+                const indicator = document.getElementById("copilot-typing-indicator");
+
+                // Render user message immediately
+                const userBubble = document.createElement("div");
+                userBubble.className = "flex justify-end";
+                userBubble.innerHTML = `
+                    <div class="bg-indigo-600 text-white rounded-xl p-2.5 text-xs max-w-[85%] space-y-1 shadow">
+                        <p>${escapeHtml(text)}</p>
+                        <span class="text-[9px] text-indigo-200 block text-right">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                `;
+                stream.appendChild(userBubble);
+                stream.scrollTop = stream.scrollHeight;
+
+                indicator.classList.remove("hidden");
+
+                try {
+                    const res = await fetch(`${API_BASE}/support-copilot/portal/${PORTAL_TOKEN}/chat`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            message: text,
+                            conversation_id: activeConversationId
+                        })
+                    });
+
+                    indicator.classList.add("hidden");
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        appendCopilotSystemMessage("Error: " + (err.detail || "Unable to reach assistant."));
+                        return;
+                    }
+
+                    const data = await res.json();
+                    activeConversationId = data.conversation_id;
+
+                    const aiBubble = document.createElement("div");
+                    aiBubble.className = "flex items-start gap-2";
+                    aiBubble.innerHTML = `
+                        <div class="h-6 w-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <div class="bg-slate-800/90 border border-slate-700/60 rounded-xl p-2.5 text-slate-200 text-xs max-w-[85%] space-y-1">
+                            <div class="prose prose-invert prose-xs leading-relaxed">${formatMarkdown(data.reply)}</div>
+                            <span class="text-[9px] text-slate-400 block text-right">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    `;
+                    stream.appendChild(aiBubble);
+                    stream.scrollTop = stream.scrollHeight;
+                } catch(e) {
+                    indicator.classList.add("hidden");
+                    appendCopilotSystemMessage("Network error: " + e.message);
+                }
+            }
+
+            async function requestPortalHumanEscalation() {
+                if (!confirm("Would you like to request direct human assistance from your account manager?")) return;
+                try {
+                    const res = await fetch(`${API_BASE}/support-copilot/portal/${PORTAL_TOKEN}/escalate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ reason: "Customer clicked request human button" })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        appendCopilotSystemMessage(`Priority Ticket #${data.hitl_id.slice(0, 8)} created for manager ${data.account_manager}. A senior representative has been alerted.`);
+                    }
+                } catch(e) {
+                    alert("Error requesting escalation: " + e.message);
+                }
+            }
+
+            function appendCopilotSystemMessage(text) {
+                const stream = document.getElementById("copilot-message-stream");
+                const div = document.createElement("div");
+                div.className = "p-2 bg-amber-950/60 border border-amber-800/80 text-amber-300 rounded-lg text-[11px] text-center";
+                div.innerText = text;
+                stream.appendChild(div);
+                stream.scrollTop = stream.scrollHeight;
+            }
+
+            function renderPortalCopilotMessageHtml(m) {
+                if (m.sender_type === "customer") {
+                    return `
+                        <div class="flex justify-end">
+                            <div class="bg-indigo-600 text-white rounded-xl p-2.5 text-xs max-w-[85%] space-y-1 shadow">
+                                <p>${escapeHtml(m.body_text)}</p>
+                                <span class="text-[9px] text-indigo-200 block text-right">${m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                } else if (m.sender_type === "human_rep") {
+                    return `
+                        <div class="flex items-start gap-2">
+                            <div class="h-6 w-6 rounded-full bg-amber-600/20 text-amber-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <div class="bg-amber-950/40 border border-amber-700/60 rounded-xl p-2.5 text-slate-100 text-xs max-w-[85%] space-y-1">
+                                <span class="text-[10px] font-bold text-amber-300 block">${escapeHtml(m.sender_name || "Account Representative")}</span>
+                                <div class="prose prose-invert prose-xs leading-relaxed">${formatMarkdown(m.body_text)}</div>
+                                <span class="text-[9px] text-slate-400 block text-right">${m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="flex items-start gap-2">
+                            <div class="h-6 w-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div class="bg-slate-800/90 border border-slate-700/60 rounded-xl p-2.5 text-slate-200 text-xs max-w-[85%] space-y-1">
+                                <div class="prose prose-invert prose-xs leading-relaxed">${formatMarkdown(m.body_text)}</div>
+                                <span class="text-[9px] text-slate-400 block text-right">${m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            function formatMarkdown(text) {
+                if (!text) return '';
+                let t = escapeHtml(text);
+                t = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                t = t.replace(/`([^`]+)`/g, '<code class="bg-slate-950 px-1 py-0.5 rounded text-amber-300 font-mono text-[11px]">$1</code>');
+                t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-indigo-400 underline hover:text-indigo-300" target="_blank">$1</a>');
+                t = t.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+                return t;
+            }
+
             loadPortal();
         </script>
+
+        <!-- Floating AI Support Copilot Launch Button -->
+        <button id="btn-open-portal-copilot" onclick="togglePortalCopilot()" class="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-tr from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white shadow-2xl shadow-pink-900/50 flex items-center justify-center text-xl z-50 transition transform hover:scale-105 cursor-pointer border border-pink-400/40">
+            <i id="icon-copilot-bubble" class="fa-solid fa-headset"></i>
+            <span class="absolute -top-1 -right-1 flex h-4 w-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 text-[9px] font-bold text-slate-950 items-center justify-center">AI</span>
+            </span>
+        </button>
+
+        <!-- Interactive AI Support Copilot Drawer -->
+        <div id="drawer-portal-copilot" class="fixed bottom-24 right-6 w-96 sm:w-[420px] max-h-[600px] h-[520px] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl z-50 hidden flex-col overflow-hidden">
+            <!-- Header -->
+            <div class="p-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-8 w-8 rounded-lg bg-pink-600/20 text-pink-400 border border-pink-500/30 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-xs text-white flex items-center gap-1.5">
+                            <span>AI Support Copilot</span>
+                            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                        </h4>
+                        <span class="text-[10px] text-slate-400">24/7 Orders, Restock &amp; Billing Assistant</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="requestPortalHumanEscalation()" title="Request Human Rep" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] flex items-center gap-1 border border-slate-700 cursor-pointer">
+                        <i class="fa-solid fa-user-tie text-amber-400"></i> Human
+                    </button>
+                    <button onclick="togglePortalCopilot()" class="text-slate-400 hover:text-white p-1 cursor-pointer">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Prompt Chips -->
+            <div class="p-2.5 bg-slate-950/60 border-b border-slate-800/80 flex items-center gap-1.5 overflow-x-auto text-[10px] no-scrollbar">
+                <button onclick="quickCopilotPrompt('Where is my latest order?')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-slate-300 shrink-0 cursor-pointer flex items-center gap-1">
+                    📦 Track Orders
+                </button>
+                <button onclick="quickCopilotPrompt('What is my replenishment schedule?')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-slate-300 shrink-0 cursor-pointer flex items-center gap-1">
+                    ⚡ Restock Cadence
+                </button>
+                <button onclick="quickCopilotPrompt('Check my billing and card on file')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-slate-300 shrink-0 cursor-pointer flex items-center gap-1">
+                    💳 Billing Info
+                </button>
+                <button onclick="quickCopilotPrompt('I want to speak with my account manager')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-amber-300 shrink-0 cursor-pointer flex items-center gap-1">
+                    🧑‍💼 Talk to Manager
+                </button>
+            </div>
+
+            <!-- Message Stream -->
+            <div id="copilot-message-stream" class="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs">
+                <div class="flex items-start gap-2">
+                    <div class="h-6 w-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/90 border border-slate-700/60 rounded-xl p-2.5 text-slate-200 text-xs max-w-[85%] space-y-1">
+                        <p>Hello! I am your AI Support Copilot. How can I help you with your account, shipments, or restock today?</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Typing Indicator -->
+            <div id="copilot-typing-indicator" class="hidden px-3.5 py-1.5 text-[10px] text-slate-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-spinner fa-spin text-pink-400"></i>
+                <span>Copilot is analyzing account data...</span>
+            </div>
+
+            <!-- Input Box -->
+            <div class="p-2.5 bg-slate-950 border-t border-slate-800">
+                <form onsubmit="handlePortalCopilotSubmit(event)" class="flex items-center gap-2">
+                    <input id="in-copilot-text" type="text" placeholder="Ask about orders, delivery, restock, or billing..." class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-pink-500">
+                    <button type="submit" id="btn-send-copilot" class="h-8 w-8 rounded-xl bg-pink-600 hover:bg-pink-500 text-white flex items-center justify-center text-xs shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
     </body>
     </html>
     """
@@ -1435,7 +1708,12 @@ async def dashboard_home():
                     <button id="tab-domains" onclick="switchCrmMode('domains')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
                         <i class="fa-solid fa-globe text-emerald-400"></i>
                         <span>🌐 CRM 10: Custom Domains</span>
-                        <span id="nav-badge-domains" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/80 text-emerald-300 font-mono border border-emerald-700/50">SSL</span>
+                        <span id="nav-badge-domains" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 text-emerald-300 font-mono border border-emerald-700/50">SSL</span>
+                    </button>
+                    <button id="tab-copilot" onclick="switchCrmMode('copilot')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-headset text-pink-400"></i>
+                        <span>🤖 CRM 11: AI Support Copilot</span>
+                        <span id="nav-badge-copilot" class="px-2 py-0.5 rounded-full text-[10px] bg-pink-950/80 text-pink-300 font-mono border border-pink-700/50">HITL</span>
                     </button>
                 </div>
 
@@ -4851,6 +5129,158 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
             </div>
         </div>
 
+        <!-- ============================================================================== -->
+        <!-- CRM 11: AI SUPPORT COPILOT & HUMAN-IN-THE-LOOP HUB -->
+        <!-- ============================================================================== -->
+        <div id="view-copilot" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Strip -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-950 text-pink-300 border border-pink-800">STEP 14 • AI COPILOT &amp; HITL</span>
+                        <h2 class="text-lg font-bold text-white tracking-wide">🤖 CRM 11: Real-Time AI Support Copilot</h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Inspect customer self-service portal chat sessions, review autonomous tool calls (orders, tracking, restock cadence), and take over conversations seamlessly.
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="sel-copilot-filter" onchange="fetchCopilotConversations(this.value)" class="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 font-mono">
+                        <option value="">All Support Threads</option>
+                        <option value="active">Active Chats</option>
+                        <option value="waiting_on_human">⚠️ Waiting on Human Rep (HITL)</option>
+                        <option value="resolved">Resolved Tickets</option>
+                    </select>
+                    <button onclick="fetchCopilotConversations()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium cursor-pointer flex items-center gap-1.5 border border-slate-700">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Total Conversations</span>
+                        <div class="h-8 w-8 rounded-lg bg-pink-600/20 text-pink-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-white font-mono" id="kpi-copilot-total">0</div>
+                    <span class="text-[11px] text-slate-500">Customer portal threads</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Autonomous Resolution</span>
+                        <div class="h-8 w-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-emerald-400 font-mono" id="kpi-copilot-auto-rate">100%</div>
+                    <span class="text-[11px] text-slate-500">Solved without human escalation</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Human Escalations</span>
+                        <div class="h-8 w-8 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-user-clock"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-amber-400 font-mono" id="kpi-copilot-escalated">0</div>
+                    <span class="text-[11px] text-slate-500">Pending account manager review</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Avg Turns / Session</span>
+                        <div class="h-8 w-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-arrows-left-right-to-line"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-indigo-400 font-mono" id="kpi-copilot-turns">0.0</div>
+                    <span class="text-[11px] text-slate-500">Messages per thread</span>
+                </div>
+            </div>
+
+            <!-- Split Screen Console -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <!-- Left Column: Support Threads List -->
+                <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl space-y-3 p-4">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                        <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-list text-pink-400"></i> Active Portal Threads
+                        </h3>
+                        <span id="copilot-thread-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">0 threads</span>
+                    </div>
+
+                    <div id="copilot-threads-list" class="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+                        <div class="p-8 text-center text-slate-500 text-xs italic">
+                            No active support threads found. Once customers interact with the portal copilot, their sessions will appear here in real time.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Conversation Transcript & Takeover Box -->
+                <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[630px]">
+                    <!-- Thread Detail Header -->
+                    <div id="copilot-detail-header" class="p-4 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 id="copilot-active-client-name" class="font-bold text-sm text-white">Select a Support Thread</h4>
+                                <span id="copilot-active-status-badge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-300">ACTIVE</span>
+                                <span id="copilot-active-sentiment-badge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-mono bg-slate-800 text-slate-300">NEUTRAL</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2" id="copilot-active-meta">
+                                <span>Click on any conversation from the list to view transcript and take over.</span>
+                            </div>
+                        </div>
+                        <div id="copilot-active-actions" class="hidden flex items-center gap-2">
+                            <button onclick="resolveSelectedCopilotConversation()" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 rounded-lg text-xs font-medium cursor-pointer flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-check"></i> Mark Resolved
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Client Summary Pill Strip -->
+                    <div id="copilot-client-pill-strip" class="hidden px-4 py-2 bg-slate-950/40 border-b border-slate-800/80 text-[11px] text-slate-400 flex flex-wrap items-center gap-4">
+                        <span><strong class="text-slate-300">Tier:</strong> <span id="pill-client-tier">-</span></span>
+                        <span><strong class="text-slate-300">Manager:</strong> <span id="pill-client-manager">-</span></span>
+                        <span><strong class="text-slate-300">Next Restock:</strong> <span id="pill-client-restock" class="text-amber-400 font-mono">-</span></span>
+                        <span><strong class="text-slate-300">Card on File:</strong> <span id="pill-client-card" class="text-teal-400 font-mono">-</span></span>
+                    </div>
+
+                    <!-- Live Message Transcript Stream -->
+                    <div id="copilot-transcript-stream" class="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs bg-slate-900/50">
+                        <div class="h-full flex flex-col items-center justify-center text-slate-500 text-xs space-y-2">
+                            <i class="fa-solid fa-headset text-3xl text-slate-600"></i>
+                            <p>Select a conversation from the left to inspect its live AI reasoning &amp; tool executions.</p>
+                        </div>
+                    </div>
+
+                    <!-- Human Takeover Reply Box -->
+                    <div id="copilot-human-takeover-box" class="hidden p-3.5 bg-slate-950 border-t border-slate-800 space-y-2.5">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-amber-400 font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-user-pen"></i> Step In &amp; Reply as Human Account Representative
+                            </span>
+                            <label class="flex items-center gap-1.5 text-slate-400 text-[11px] cursor-pointer">
+                                <input id="chk-resolve-on-reply" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-emerald-500">
+                                <span>Mark Resolved on Send</span>
+                            </label>
+                        </div>
+                        <div class="flex gap-2">
+                            <textarea id="txt-human-rep-reply" rows="2" placeholder="Type your response to the customer... (Customer will see this in their portal in real time)" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 outline-none focus:border-amber-500 resize-none"></textarea>
+                            <button onclick="submitHumanRepReply()" id="btn-send-human-reply" class="px-4 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shrink-0 cursor-pointer shadow-lg shadow-amber-900/30">
+                                <i class="fa-solid fa-paper-plane"></i> Send Reply
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -5712,6 +6142,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const viewDeveloper = document.getElementById("view-developer");
                 const viewMetered = document.getElementById("view-metered");
                 const viewDomains = document.getElementById("view-domains");
+                const viewCopilot = document.getElementById("view-copilot");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
@@ -5722,6 +6153,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const tabDeveloper = document.getElementById("tab-developer");
                 const tabMetered = document.getElementById("tab-metered");
                 const tabDomains = document.getElementById("tab-domains");
+                const tabCopilot = document.getElementById("tab-copilot");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -5734,6 +6166,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (tabDeveloper) tabDeveloper.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabMetered) tabMetered.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabDomains) tabDomains.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabCopilot) tabCopilot.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
@@ -5745,6 +6178,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (viewDeveloper) viewDeveloper.classList.add("hidden");
                 if (viewMetered) viewMetered.classList.add("hidden");
                 if (viewDomains) viewDomains.classList.add("hidden");
+                if (viewCopilot) viewCopilot.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -5795,6 +6229,10 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     if (viewDomains) viewDomains.classList.remove("hidden");
                     if (tabDomains) tabDomains.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-emerald-600 text-white shadow-md";
                     fetchCustomDomains();
+                } else if (mode === 'copilot') {
+                    if (viewCopilot) viewCopilot.classList.remove("hidden");
+                    if (tabCopilot) tabCopilot.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-pink-600 text-white shadow-md";
+                    fetchCopilotConversations();
                 }
             }
 
@@ -10344,6 +10782,259 @@ ${p.ai_drafted_outreach}
             function testSimulateDnsResolution() {
                 openRegisterDomainModal();
                 document.getElementById("in-reg-domain-name").value = `portal.test-${Date.now().toString().slice(-4)}.local`;
+            }
+
+            // ==============================================================================
+            // CRM 11: AI SUPPORT COPILOT & HITL JAVASCRIPT HANDLERS
+            // ==============================================================================
+            let cachedCopilotConversations = [];
+            let activeSelectedCopilotConvId = null;
+
+            async function fetchCopilotConversations(statusFilter = "") {
+                if (!authToken) return;
+                try {
+                    const url = statusFilter ? `${API_BASE}/support-copilot/conversations?status=${encodeURIComponent(statusFilter)}` : `${API_BASE}/support-copilot/conversations`;
+                    const res = await fetch(url, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const convs = await res.json();
+                    cachedCopilotConversations = convs;
+
+                    // Update KPIs
+                    const total = convs.length;
+                    const escalated = convs.filter(c => c.is_escalated || c.status === "waiting_on_human").length;
+                    const autoResolvedRate = total > 0 ? Math.round(((total - escalated) / total) * 100) : 100;
+                    const totalTurns = convs.reduce((acc, c) => acc + (c.message_count || 0), 0);
+                    const avgTurns = total > 0 ? (totalTurns / total).toFixed(1) : "0.0";
+
+                    document.getElementById("kpi-copilot-total").innerText = total;
+                    document.getElementById("kpi-copilot-auto-rate").innerText = `${autoResolvedRate}%`;
+                    document.getElementById("kpi-copilot-escalated").innerText = escalated;
+                    document.getElementById("kpi-copilot-turns").innerText = avgTurns;
+                    document.getElementById("copilot-thread-count-badge").innerText = `${total} thread${total === 1 ? '' : 's'}`;
+
+                    const listContainer = document.getElementById("copilot-threads-list");
+                    if (!listContainer) return;
+
+                    if (convs.length === 0) {
+                        listContainer.innerHTML = `<div class="p-8 text-center text-slate-500 text-xs italic">No support threads match the selected filter.</div>`;
+                        return;
+                    }
+
+                    listContainer.innerHTML = convs.map(c => {
+                        const isSelected = c.id === activeSelectedCopilotConvId;
+                        const isEscalated = c.is_escalated || c.status === "waiting_on_human";
+
+                        let statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400">ACTIVE</span>`;
+                        if (isEscalated) {
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-700 animate-pulse">⚠️ HITL</span>`;
+                        } else if (c.status === "resolved") {
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">RESOLVED</span>`;
+                        }
+
+                        let sentimentColor = "text-slate-400";
+                        if (c.sentiment === "hostile" || c.sentiment === "frustrated") sentimentColor = "text-rose-400 font-bold";
+                        if (c.sentiment === "positive") sentimentColor = "text-emerald-400";
+
+                        return `
+                            <div onclick="loadCopilotConversationDetail('${c.id}')" class="p-3 rounded-xl border transition cursor-pointer ${isSelected ? 'bg-slate-800 border-pink-500/60 shadow-md' : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/40'}">
+                                <div class="flex items-center justify-between gap-2">
+                                    <h4 class="font-bold text-xs text-white truncate">${escapeHtml(c.client_name || 'Client Account')}</h4>
+                                    ${statusBadge}
+                                </div>
+                                <p class="text-[11px] text-slate-400 truncate mt-1">${escapeHtml(c.last_message || 'Session started...')}</p>
+                                <div class="flex items-center justify-between text-[10px] text-slate-500 mt-2 font-mono">
+                                    <span class="${sentimentColor}"><i class="fa-solid fa-face-smile mr-1"></i>${c.sentiment.toUpperCase()}</span>
+                                    <span>${c.message_count} turns • ${c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Now'}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join("");
+                } catch(e) {
+                    console.error("fetchCopilotConversations error:", e);
+                }
+            }
+
+            async function loadCopilotConversationDetail(conversationId) {
+                if (!authToken) return;
+                activeSelectedCopilotConvId = conversationId;
+                fetchCopilotConversations(document.getElementById("sel-copilot-filter").value);
+
+                try {
+                    const res = await fetch(`${API_BASE}/support-copilot/conversations/${conversationId}`, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const detail = await res.json();
+                    const c = detail.conversation;
+
+                    // Update Header
+                    document.getElementById("copilot-active-client-name").innerText = c.client_name || "Client Support Thread";
+                    const statusBadge = document.getElementById("copilot-active-status-badge");
+                    statusBadge.classList.remove("hidden");
+                    statusBadge.innerText = c.status.toUpperCase();
+                    statusBadge.className = c.status === "waiting_on_human"
+                        ? "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800 animate-pulse"
+                        : "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800";
+
+                    const sentBadge = document.getElementById("copilot-active-sentiment-badge");
+                    sentBadge.classList.remove("hidden");
+                    sentBadge.innerText = `SENTIMENT: ${c.sentiment.toUpperCase()}`;
+
+                    document.getElementById("copilot-active-meta").innerHTML = `
+                        <span>Channel: <strong class="text-slate-300 font-mono">${c.channel}</strong></span> •
+                        <span>Manager: <strong class="text-slate-300">${c.account_manager || 'Primary Sales Rep'}</strong></span>
+                    `;
+
+                    document.getElementById("copilot-active-actions").classList.remove("hidden");
+                    document.getElementById("copilot-human-takeover-box").classList.remove("hidden");
+
+                    // Client Pill Strip
+                    const pillStrip = document.getElementById("copilot-client-pill-strip");
+                    if (detail.client_account_summary) {
+                        pillStrip.classList.remove("hidden");
+                        const cs = detail.client_account_summary;
+                        document.getElementById("pill-client-tier").innerText = cs.account_tier.toUpperCase();
+                        document.getElementById("pill-client-manager").innerText = cs.account_manager || 'Unassigned';
+                        document.getElementById("pill-client-restock").innerText = cs.next_reorder_date ? new Date(cs.next_reorder_date).toLocaleDateString() : 'Active';
+                        document.getElementById("pill-client-card").innerText = cs.card_brand ? `${cs.card_brand.toUpperCase()} •••• ${cs.card_last4}` : 'None';
+                    } else {
+                        pillStrip.classList.add("hidden");
+                    }
+
+                    // Render Transcript Stream
+                    const stream = document.getElementById("copilot-transcript-stream");
+                    stream.innerHTML = detail.messages.map(m => {
+                        const isCustomer = m.sender_type === "customer";
+                        const isRep = m.sender_type === "human_rep";
+
+                        let toolsHtml = "";
+                        if (m.ai_reasoning && m.ai_reasoning.tool_calls && m.ai_reasoning.tool_calls.length > 0) {
+                            toolsHtml = `
+                                <div class="mt-2 pt-2 border-t border-slate-700/60 text-[10px] font-mono text-teal-300 space-y-1">
+                                    <span class="text-slate-400 block font-bold">⚡ Executed Tools:</span>
+                                    ${m.ai_reasoning.tool_calls.map(tc => `<div class="bg-slate-950 px-2 py-0.5 rounded border border-slate-800"><code>${tc.tool_name}</code></div>`).join("")}
+                                </div>
+                            `;
+                        }
+
+                        if (isCustomer) {
+                            return `
+                                <div class="flex flex-col items-end">
+                                    <div class="flex items-center gap-1.5 mb-1 text-[10px] text-slate-400">
+                                        <span class="font-bold text-slate-300">${escapeHtml(m.sender_name || 'Customer')}</span>
+                                        <span>• ${m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                                    </div>
+                                    <div class="bg-indigo-600 text-white p-3 rounded-2xl max-w-[80%] shadow">
+                                        <p>${escapeHtml(m.body_text)}</p>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (isRep) {
+                            return `
+                                <div class="flex flex-col items-start">
+                                    <div class="flex items-center gap-1.5 mb-1 text-[10px] text-amber-400 font-semibold">
+                                        <i class="fa-solid fa-user-tie"></i>
+                                        <span>${escapeHtml(m.sender_name || 'Human Account Rep')} (Takeover Reply)</span>
+                                        <span class="text-slate-500">• ${m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                                    </div>
+                                    <div class="bg-amber-950/50 border border-amber-700/60 text-slate-100 p-3 rounded-2xl max-w-[85%] space-y-1">
+                                        <p>${escapeHtml(m.body_text)}</p>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <div class="flex flex-col items-start">
+                                    <div class="flex items-center gap-1.5 mb-1 text-[10px] text-pink-400 font-semibold">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <span>AI Support Copilot</span>
+                                        <span class="text-slate-500">• Confidence: ${Math.round((m.ai_confidence || 0.95)*100)}%</span>
+                                        <span class="text-slate-500">• ${m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
+                                    </div>
+                                    <div class="bg-slate-800/90 border border-slate-700/60 text-slate-200 p-3 rounded-2xl max-w-[85%] space-y-1">
+                                        <p class="leading-relaxed whitespace-pre-wrap">${escapeHtml(m.body_text)}</p>
+                                        ${toolsHtml}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }).join("");
+                    stream.scrollTop = stream.scrollHeight;
+                } catch(e) {
+                    console.error("loadCopilotConversationDetail error:", e);
+                }
+            }
+
+            async function submitHumanRepReply() {
+                if (!activeSelectedCopilotConvId) return;
+                const textarea = document.getElementById("txt-human-rep-reply");
+                const text = textarea.value.trim();
+                const resolveOnReply = document.getElementById("chk-resolve-on-reply").checked;
+
+                if (!text) {
+                    alert("Please enter a response message.");
+                    return;
+                }
+
+                const btn = document.getElementById("btn-send-human-reply");
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sending...`;
+
+                try {
+                    const res = await fetch(`${API_BASE}/support-copilot/conversations/${activeSelectedCopilotConvId}/reply`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            message: text,
+                            resolve_ticket: resolveOnReply
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to send reply: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+
+                    textarea.value = "";
+                    await loadCopilotConversationDetail(activeSelectedCopilotConvId);
+                } catch(e) {
+                    alert("Error sending takeover reply: " + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send Reply`;
+                }
+            }
+
+            async function resolveSelectedCopilotConversation() {
+                if (!activeSelectedCopilotConvId) return;
+                if (!confirm("Are you sure you want to mark this support conversation as resolved?")) return;
+
+                try {
+                    const res = await fetch(`${API_BASE}/support-copilot/conversations/${activeSelectedCopilotConvId}/resolve`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to resolve conversation: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+
+                    await loadCopilotConversationDetail(activeSelectedCopilotConvId);
+                } catch(e) {
+                    alert("Error resolving conversation: " + e.message);
+                }
             }
 
             // Auto-login default tenant on load

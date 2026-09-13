@@ -8,6 +8,7 @@ class HumanAssistanceRequest(Base, CommonMixin, TenantMixin):
 
     conversation_id = Column(String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True)
     lead_id = Column(String(36), ForeignKey("leads.id", ondelete="CASCADE"), nullable=True, index=True)
+    client_id = Column(String(36), ForeignKey("client_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
     
     trigger_reason = Column(String(100), nullable=False)  # policy_discount, low_confidence, angry_lead, human_requested, complex_pricing
     situation_summary = Column(Text, nullable=False)
