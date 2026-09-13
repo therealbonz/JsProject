@@ -22,7 +22,7 @@ async def test_landing_page_routes():
         assert res.status_code == 200
         assert "text/html" in res.headers["content-type"]
         assert "NexFlow" in res.text
-        assert "5-Agent AI Workforce" in res.text
+        assert "5 Specialized Sales Agents" in res.text
 
         # 2. Test /JsProject/landing route
         res_sub = await client.get("/JsProject/landing")
@@ -37,17 +37,17 @@ async def test_landing_page_spotlights_5_ai_agents():
         assert res.status_code == 200
         html = res.text
 
-        # Verify all 5 AI Agents are documented in the page
-        assert "Sales Intelligence" in html
-        assert "Demand" in html and "Replenishment" in html
-        assert "Support Copilot" in html
-        assert "Visual DAG" in html
-        assert "HITL Remediation" in html
+        # Verify all 5 Sales AI Agents are documented in the page
+        assert "The Lead Developer" in html
+        assert "The Appointment Setter" in html
+        assert "Cold Outreach SDR" in html
+        assert "The Executive Sales Bot" in html
+        assert "The Objection Closer" in html
 
         # Verify agent capabilities and business impacts
-        assert "Autonomous Capabilities" in html
+        assert "Autonomous Sales Skills" in html
         assert "Live Agent Telemetry Feed" in html
-        assert "ROI:" in html
+        assert "Demos" in html
 
 @pytest.mark.asyncio
 async def test_landing_page_pricing_and_metered_billing():
@@ -61,7 +61,7 @@ async def test_landing_page_pricing_and_metered_billing():
         assert "$199" in html
         assert "$499" in html
         assert "$1,499" in html
-        assert "Scale &amp; Custom" in html or "Scale & Custom" in html
+        assert "Custom" in html
 
         # Verify transparent metered overage rates
         assert "$0.005" in html  # AI Turn rate
@@ -76,7 +76,7 @@ async def test_console_routes_and_navigation_toggle():
         root_res = await client.get("/")
         assert root_res.status_code == 200
         assert "NexFlow" in root_res.text
-        assert "5-Agent AI Workforce" in root_res.text
+        assert "5 Specialized Sales Agents" in root_res.text
 
         # ?view=console parameter should switch to CRM Management Console
         console_view_res = await client.get("/?view=console")

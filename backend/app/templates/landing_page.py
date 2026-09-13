@@ -1,11 +1,15 @@
 """
 SaaS Marketing Landing Page Template
 Renders a modern, responsive, high-converting product showcase
-emphasizing the 5 Specialized Types of AI Agents and Visual Pipeline Orchestration.
+spotlighting the 5 Specialized Types of AI Sales Agents available for SaaS clients:
+1. The Lead Developer Agent
+2. The Appointment Setter Agent
+3. The Cold Outreach SDR Agent
+4. The Executive Sales Bot
+5. The Objection Handler & Account Expansion Bot
 """
 
 def render_landing_page(api_prefix: str = "") -> str:
-    # Ensure api_prefix doesn't have trailing slash for clean concatenation
     prefix = api_prefix.rstrip("/")
     console_url = f"{prefix}/console" if prefix else "/console"
     lead_api_url = f"{prefix}/api/v1/crm/leads" if prefix else "/api/v1/crm/leads"
@@ -15,7 +19,7 @@ def render_landing_page(api_prefix: str = "") -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexFlow AI • Autonomous Multi-Agent CRM &amp; Supply Chain Engine</title>
+    <title>NexFlow AI • Autonomous AI Sales Agents Workforce for SaaS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,7 +51,7 @@ def render_landing_page(api_prefix: str = "") -> str:
     </script>
     <style>
         .glass-panel {{
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(15, 23, 42, 0.78);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -74,8 +78,8 @@ def render_landing_page(api_prefix: str = "") -> str:
 <body class="bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white relative overflow-x-hidden min-h-screen">
 
     <!-- Ambient Top Lighting -->
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-indigo-600/20 via-purple-600/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
-    <div class="absolute top-[600px] right-0 w-[500px] h-[500px] bg-emerald-600/10 blur-3xl pointer-events-none -z-10"></div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[480px] bg-gradient-to-b from-indigo-600/20 via-purple-600/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
+    <div class="absolute top-[650px] right-0 w-[550px] h-[550px] bg-emerald-600/10 blur-3xl pointer-events-none -z-10"></div>
 
     <!-- Navigation Bar -->
     <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80">
@@ -87,28 +91,28 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="font-extrabold text-xl tracking-tight text-white">NexFlow<span class="text-indigo-400">.ai</span></span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">5 AI AGENTS</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">5 SALES AI AGENTS</span>
                     </div>
-                    <span class="text-[11px] text-slate-400">Autonomous CRM &amp; Supply Chain Pipeline Workforce</span>
+                    <span class="text-[11px] text-slate-400">Autonomous Sales Pipeline Workforce for SaaS</span>
                 </div>
             </div>
 
             <!-- Desktop Nav Links -->
             <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
                 <a href="#agents" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-users-gear text-indigo-400 text-xs"></i> 5 AI Agents
+                    <i class="fa-solid fa-users-gear text-indigo-400 text-xs"></i> 5 Sales Agents
                 </a>
-                <a href="#workflows" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-diagram-project text-purple-400 text-xs"></i> DAG Canvas
+                <a href="#pipeline" class="hover:text-indigo-400 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-diagram-project text-purple-400 text-xs"></i> Pipeline Architecture
                 </a>
-                <a href="#portals" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-headset text-pink-400 text-xs"></i> 24/7 Copilot
+                <a href="#interactive-tester" class="hover:text-indigo-400 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400 text-xs"></i> Live Agent Demo
+                </a>
+                <a href="#stack-configurator" class="hover:text-indigo-400 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-calculator text-emerald-400 text-xs"></i> Stack Calculator
                 </a>
                 <a href="#pricing" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-tag text-emerald-400 text-xs"></i> Pricing &amp; Metering
-                </a>
-                <a href="#dossier-demo" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400 text-xs"></i> Live Demo
+                    <i class="fa-solid fa-tag text-pink-400 text-xs"></i> Pricing Plans
                 </a>
             </nav>
 
@@ -117,8 +121,8 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <a href="{console_url}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 transition">
                     <i class="fa-solid fa-shield-halved text-slate-400"></i> Management Console
                 </a>
-                <a href="#dossier-demo" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
-                    <span>Deploy Workforce</span>
+                <a href="#interactive-tester" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
+                    <span>Deploy Sales Agents</span>
                     <i class="fa-solid fa-arrow-right"></i>
                 </a>
             </div>
@@ -128,497 +132,498 @@ def render_landing_page(api_prefix: str = "") -> str:
     <!-- HERO SECTION -->
     <section class="relative pt-16 pb-24 md:pt-24 md:pb-32 grid-bg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-            <!-- Feature Tag -->
+            <!-- Feature Badge -->
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-indigo-500/30 text-xs font-semibold text-indigo-300 shadow-xl">
                 <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Next-Gen Multi-Agent Autonomous CRM Platform • 5 Specialized Agents</span>
+                <span>The Complete Autonomous AI Sales Workforce for SaaS Clients</span>
                 <i class="fa-solid fa-chevron-right text-[10px] text-indigo-400"></i>
             </div>
 
             <!-- Main Heading -->
             <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight max-w-5xl mx-auto leading-[1.1]">
-                Deploy an Autonomous <br>
-                <span class="gradient-text">5-Agent AI Workforce</span> <br>
-                for Enterprise Sales &amp; Supply Chains
+                Hire an Autonomous AI Sales Team: <br>
+                <span class="gradient-text">The 5 Specialized Sales Agents</span> <br>
+                Built to Scale SaaS Revenue
             </h1>
 
             <!-- Subtitle -->
             <p class="text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-normal">
-                Stop juggling fragmented tools. NexFlow deploys <strong class="text-white font-semibold">5 specialized AI agents</strong> that collaborate across visual DAG pipelines to qualify inbound prospects, forecast inventory replenishment, resolve post-sale customer tickets 24/7, and protect enterprise deals.
+                Replace fragmented sales software with a dedicated team of <strong class="text-white font-semibold">5 specialized AI sales agents</strong>. From automated <strong class="text-indigo-400">Lead Development</strong> and <strong class="text-pink-400">Appointment Setting</strong> to high-touch <strong class="text-purple-400">Executive Sales Closers</strong>, your SaaS sales pipeline runs 24/7 without burning out reps.
             </p>
 
-            <!-- CTA Cluster -->
+            <!-- Primary CTAs -->
             <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
-                <a href="#dossier-demo" class="px-8 py-4 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-2xl shadow-indigo-600/40 transition transform hover:-translate-y-0.5 flex items-center gap-3">
-                    <i class="fa-solid fa-bolt text-amber-300 text-base"></i>
-                    <span>Test Instant AI Dossier Demo</span>
+                <a href="#interactive-tester" class="px-8 py-4 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-2xl shadow-indigo-600/40 transition transform hover:-translate-y-0.5 flex items-center gap-3">
+                    <i class="fa-solid fa-robot text-amber-300 text-base"></i>
+                    <span>Test Drive The Executive Sales Bot</span>
                 </a>
-                <a href="{console_url}" class="px-7 py-4 rounded-2xl text-sm font-bold text-slate-200 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 shadow-xl transition flex items-center gap-2.5">
-                    <i class="fa-solid fa-desktop text-indigo-400"></i>
-                    <span>Launch Live Console</span>
+                <a href="#stack-configurator" class="px-7 py-4 rounded-2xl text-sm font-bold text-slate-200 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 shadow-xl transition flex items-center gap-2.5">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i>
+                    <span>Configure Your 5-Agent Stack</span>
                 </a>
-                <a href="#agents" class="px-6 py-4 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
-                    <i class="fa-solid fa-play text-xs text-indigo-400"></i>
-                    <span>See How 5 Agents Work</span>
+                <a href="{console_url}" class="px-6 py-4 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-desktop text-xs text-indigo-400"></i>
+                    <span>Open CRM Console</span>
                 </a>
             </div>
 
-            <!-- Live Telemetry Ticker Bar -->
-            <div class="pt-12 max-w-4xl mx-auto">
+            <!-- Key Performance Proof Ticker -->
+            <div class="pt-12 max-w-5xl mx-auto">
                 <div class="glass-panel rounded-2xl p-6 border border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                     <div class="space-y-1">
-                        <div class="text-2xl sm:text-3xl font-black font-mono text-emerald-400" id="stat-dossiers">14,892+</div>
-                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">AI Dossiers Generated</div>
+                        <div class="text-2xl sm:text-3xl font-black font-mono text-emerald-400">48+ Demos</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Booked / Mo per Client</div>
                     </div>
                     <div class="space-y-1">
-                        <div class="text-2xl sm:text-3xl font-black font-mono text-indigo-400" id="stat-stockouts">3,410</div>
-                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Stockouts Averted</div>
+                        <div class="text-2xl sm:text-3xl font-black font-mono text-indigo-400">&lt; 3 Minutes</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Inbound Lead Response</div>
                     </div>
                     <div class="space-y-1">
-                        <div class="text-2xl sm:text-3xl font-black font-mono text-purple-400">99.4%</div>
-                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Autonomous Resolution</div>
+                        <div class="text-2xl sm:text-3xl font-black font-mono text-purple-400">+38%</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Close Rate with Exec Bot</div>
                     </div>
                     <div class="space-y-1">
-                        <div class="text-2xl sm:text-3xl font-black font-mono text-pink-400">28ms</div>
-                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Avg DAG Step Latency</div>
+                        <div class="text-2xl sm:text-3xl font-black font-mono text-pink-400">68% Lower</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Customer Acquisition Cost</div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 5 SPECIALIZED AI AGENTS SHOWCASE -->
-    <section id="agents" class="py-24 relative border-t border-slate-900 bg-slate-950/60">
+    <!-- THE 5 SPECIALIZED SALES AI AGENTS OPTIONS -->
+    <section id="agents" class="py-24 relative border-t border-slate-900 bg-slate-950/70">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/60 text-purple-300 border border-purple-800/50 text-xs font-semibold">
-                    <i class="fa-solid fa-network-wired"></i>
-                    <span>Autonomous Collaborative Workforce</span>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/60 text-indigo-300 border border-indigo-800/50 text-xs font-semibold">
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i>
+                    <span>SaaS Client Sales Agent Portfolio</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    The 5 Specialized AI Agents <br>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Powering Your Pipeline</span>
+                    The 5 Types of AI Sales Agents <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Available For Your SaaS Pipeline</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Each agent specializes in a critical stage of the commercial lifecycle. Together, they form an uninterrupted autonomous pipeline from initial inbound touch to recurring replenishment.
+                    Choose one or deploy all five together. Each agent is pre-trained on high-converting B2B SaaS sales playbooks, objection frameworks, and appointment booking cadences.
                 </p>
             </div>
 
             <!-- Agent Selector Tabs -->
             <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 max-w-5xl mx-auto">
-                <button onclick="switchAgentTab('sales')" id="tab-btn-sales" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-lg">
-                    <i class="fa-solid fa-magnifying-glass-chart"></i>
-                    <span>1. Sales Intelligence Agent</span>
+                <button onclick="switchAgentTab('lead_dev')" id="tab-btn-lead_dev" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-lg">
+                    <i class="fa-solid fa-database text-indigo-200"></i>
+                    <span>1. The Lead Developer</span>
                 </button>
-                <button onclick="switchAgentTab('demand')" id="tab-btn-demand" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-boxes-packing"></i>
-                    <span>2. Demand &amp; Replenishment Agent</span>
+                <button onclick="switchAgentTab('setter')" id="tab-btn-setter" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-calendar-check text-pink-400"></i>
+                    <span>2. The Appointment Setter</span>
                 </button>
-                <button onclick="switchAgentTab('support')" id="tab-btn-support" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-headset"></i>
-                    <span>3. Support Copilot Agent</span>
+                <button onclick="switchAgentTab('sdr')" id="tab-btn-sdr" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-paper-plane text-emerald-400"></i>
+                    <span>3. The Cold Outreach SDR</span>
                 </button>
-                <button onclick="switchAgentTab('orchestrator')" id="tab-btn-orchestrator" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-diagram-project"></i>
-                    <span>4. Visual DAG Orchestrator</span>
+                <button onclick="switchAgentTab('exec_bot')" id="tab-btn-exec_bot" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-chess-king text-purple-400"></i>
+                    <span>4. The Executive Sales Bot</span>
                 </button>
-                <button onclick="switchAgentTab('hitl')" id="tab-btn-hitl" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-user-shield"></i>
-                    <span>5. HITL Remediation Agent</span>
+                <button onclick="switchAgentTab('closer')" id="tab-btn-closer" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-handshake-angle text-amber-400"></i>
+                    <span>5. The Objection Closer</span>
                 </button>
             </div>
 
-            <!-- Agent Dynamic Detail Card Container -->
+            <!-- Dynamic Agent Focus Viewport -->
             <div id="agent-detail-container" class="glass-panel rounded-3xl p-6 sm:p-10 border border-slate-800 max-w-5xl mx-auto glow-indigo">
-                <!-- Dynamically populated via JS -->
+                <!-- Dynamically rendered via JS -->
             </div>
 
-            <!-- 5 Agent Cards Grid Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pt-8">
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-indigo-500/50 transition">
-                    <div class="h-10 w-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+            <!-- Comprehensive 5 Agent Cards Matrix -->
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pt-6">
+                <!-- Card 1 -->
+                <div onclick="switchAgentTab('lead_dev')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-indigo-500/50 transition cursor-pointer group">
+                    <div class="h-10 w-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                        <i class="fa-solid fa-database"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">1. Sales Intelligence</div>
-                    <p class="text-xs text-slate-400">Analyzes prospect buyer intent, scores readiness, and creates tailored closing dossiers.</p>
-                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">+34% Close Velocity</div>
+                    <div class="font-bold text-sm text-white">1. The Lead Developer</div>
+                    <p class="text-xs text-slate-400">Scrapes &amp; enriches ideal B2B accounts. Detects buyer intent signals and verified emails automatically.</p>
+                    <div class="text-[11px] font-mono text-indigo-400 font-semibold">1,000+ Enriched Accounts/Day</div>
                 </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-emerald-500/50 transition">
-                    <div class="h-10 w-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-boxes-packing"></i>
+
+                <!-- Card 2 -->
+                <div onclick="switchAgentTab('setter')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-pink-500/50 transition cursor-pointer group">
+                    <div class="h-10 w-10 rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                        <i class="fa-solid fa-calendar-check"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">2. Demand &amp; Restock</div>
-                    <p class="text-xs text-slate-400">Models consumption velocity, predicts depletion dates, and auto-dispatches supplier RFQs.</p>
-                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">Zero Stockout Incidents</div>
+                    <div class="font-bold text-sm text-white">2. The Appointment Setter</div>
+                    <p class="text-xs text-slate-400">Conversational 2-way booking via Email, LinkedIn &amp; SMS. Normalizes timezones and handles reminders.</p>
+                    <div class="text-[11px] font-mono text-pink-400 font-semibold">48 Demos Booked / Mo Avg</div>
                 </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-pink-500/50 transition">
-                    <div class="h-10 w-10 rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-headset"></i>
+
+                <!-- Card 3 -->
+                <div onclick="switchAgentTab('sdr')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-emerald-500/50 transition cursor-pointer group">
+                    <div class="h-10 w-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                        <i class="fa-solid fa-paper-plane"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">3. Support Copilot</div>
-                    <p class="text-xs text-slate-400">24/7 portal assistant with 7 tools for tracking, cadence shifts, and card-on-file lookup.</p>
-                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">82% Autonomous Resolution</div>
+                    <div class="font-bold text-sm text-white">3. Cold Outreach SDR</div>
+                    <p class="text-xs text-slate-400">Crafts 1-to-1 personalized cold email and LinkedIn sequences referencing prospect news and pain points.</p>
+                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">28% Cold Reply Rate</div>
                 </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-purple-500/50 transition">
-                    <div class="h-10 w-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-diagram-project"></i>
+
+                <!-- Card 4 -->
+                <div onclick="switchAgentTab('exec_bot')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-purple-500/50 transition cursor-pointer group">
+                    <div class="h-10 w-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                        <i class="fa-solid fa-chess-king"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">4. Visual DAG Engine</div>
-                    <p class="text-xs text-slate-400">Executes condition branches, webhooks, and multi-agent coordination with full telemetry.</p>
-                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">&lt; 30ms Step Latency</div>
+                    <div class="font-bold text-sm text-white">4. The Executive Sales Bot</div>
+                    <p class="text-xs text-slate-400">Synthesizes custom closing dossiers, drafts enterprise proposals, builds business cases, and maps decision makers.</p>
+                    <div class="text-[11px] font-mono text-purple-400 font-semibold">Wins 5-Figure &amp; 6-Figure Deals</div>
                 </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-amber-500/50 transition">
-                    <div class="h-10 w-10 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-user-shield"></i>
+
+                <!-- Card 5 -->
+                <div onclick="switchAgentTab('closer')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-amber-500/50 transition cursor-pointer group">
+                    <div class="h-10 w-10 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                        <i class="fa-solid fa-handshake-angle"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">5. HITL Remediation</div>
-                    <p class="text-xs text-slate-400">Intercepts customer hostility, prepares concessions, and stages 1-click human rep takeover.</p>
-                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">100% Churn Containment</div>
+                    <div class="font-bold text-sm text-white">5. The Objection Closer</div>
+                    <p class="text-xs text-slate-400">Overcomes pricing friction, security questions, and contract stalls with approved concessions and terms.</p>
+                    <div class="text-[11px] font-mono text-amber-400 font-semibold">Recovers 35% Stalled Deals</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- VISUAL WORKFLOW DAG CANVAS SHOWCASE -->
-    <section id="workflows" class="py-24 relative border-t border-slate-900">
+    <!-- PIPELINE ARCHITECTURE & COLLABORATION -->
+    <section id="pipeline" class="py-24 relative border-t border-slate-900">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/60 text-indigo-300 border border-indigo-800/50 text-xs font-semibold">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <span>Step 15 Visual Automation Studio</span>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/60 text-purple-300 border border-purple-800/50 text-xs font-semibold">
+                    <i class="fa-solid fa-diagram-project text-purple-400"></i>
+                    <span>Autonomous Handoff Architecture</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    Design Multi-Agent Pipelines on a <br>
-                    <span class="gradient-text">Drag-and-Drop Visual DAG Canvas</span>
+                    How The 5 Sales Agents <br>
+                    <span class="gradient-text">Build Your Complete Pipeline</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Compose complex multi-agent workflows without code. Connect triggers, logical conditions, domain actions, and AI reasoning nodes with full real-time telemetry and dry-run simulations.
+                    No leads slip through the cracks. Each agent executes its specialty and smoothly passes the prospect downstream in the sales funnel.
                 </p>
             </div>
 
-            <!-- Visual Workflow Canvas Interactive Teaser Mockup -->
-            <div class="glass-panel rounded-3xl border border-slate-800 p-6 shadow-2xl relative overflow-hidden">
-                <!-- Canvas Header Bar -->
-                <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-                    <div class="flex items-center gap-3">
-                        <div class="h-3 w-3 rounded-full bg-rose-500"></div>
-                        <div class="h-3 w-3 rounded-full bg-amber-500"></div>
-                        <div class="h-3 w-3 rounded-full bg-emerald-500"></div>
-                        <span class="text-xs font-mono font-bold text-slate-300 ml-2">Recipe: VIP High-Value Lead Fast-Track &amp; AI Dossier (Active DAG)</span>
+            <!-- Pipeline Visual Stepper -->
+            <div class="glass-panel rounded-3xl p-8 border border-slate-800 relative overflow-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 relative z-10">
+                    <!-- Stage 1 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
+                        <div class="h-8 w-8 rounded-lg bg-indigo-600/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-xs">01</div>
+                        <div class="font-bold text-xs text-white uppercase tracking-wider text-indigo-400">Lead Development</div>
+                        <h4 class="font-bold text-sm text-slate-200">The Lead Developer</h4>
+                        <p class="text-xs text-slate-400">Scrapes verified emails, checks tech stack compatibility, and calculates buyer intent.</p>
+                        <div class="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/40">✓ Enriched ICP Account</div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono font-bold flex items-center gap-1.5">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> DAG Online • 0 Failures
-                        </span>
-                        <a href="{console_url}" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white transition">
-                            Open in Studio
-                        </a>
+
+                    <!-- Stage 2 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
+                        <div class="h-8 w-8 rounded-lg bg-emerald-600/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-xs">02</div>
+                        <div class="font-bold text-xs text-white uppercase tracking-wider text-emerald-400">Outreach Cadence</div>
+                        <h4 class="font-bold text-sm text-slate-200">The Cold Outreach SDR</h4>
+                        <p class="text-xs text-slate-400">Delivers tailored 1-to-1 multi-channel hooks and nurtures prospect curiosity.</p>
+                        <div class="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/40">✓ Positive Reply Detected</div>
                     </div>
-                </div>
 
-                <!-- Canvas Grid Layout (Simulated SVG Pipeline) -->
-                <div class="relative bg-slate-950/80 rounded-2xl p-8 min-h-[380px] grid-bg border border-slate-800/60 overflow-x-auto">
-                    <!-- SVG Edge Connectors -->
-                    <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M 230 140 L 320 140" stroke="#6366f1" stroke-width="2" stroke-dasharray="4 4" fill="none" class="animate-pulse" />
-                        <path d="M 520 140 L 610 140" stroke="#6366f1" stroke-width="2" fill="none" />
-                        <path d="M 810 140 L 900 100" stroke="#10b981" stroke-width="2" fill="none" />
-                        <path d="M 810 140 L 900 190" stroke="#8b5cf6" stroke-width="2" fill="none" />
-                    </svg>
-
-                    <!-- Interactive Mock Nodes -->
-                    <div class="flex items-center gap-12 min-w-[950px] relative z-10 py-6">
-                        <!-- Node 1: Trigger -->
-                        <div class="w-48 bg-slate-900 border-2 border-emerald-500/80 rounded-2xl p-4 shadow-xl space-y-2 transform hover:scale-105 transition">
-                            <div class="flex items-center justify-between">
-                                <span class="px-2 py-0.5 rounded text-[9px] font-bold font-mono bg-emerald-950 text-emerald-300 uppercase">Trigger</span>
-                                <i class="fa-solid fa-bolt text-emerald-400 text-xs"></i>
-                            </div>
-                            <div class="font-bold text-xs text-white">Inbound Lead Created</div>
-                            <div class="text-[10px] font-mono text-slate-400">event: lead_created</div>
-                        </div>
-
-                        <!-- Node 2: Condition -->
-                        <div class="w-48 bg-slate-900 border-2 border-amber-500/80 rounded-2xl p-4 shadow-xl space-y-2 transform hover:scale-105 transition">
-                            <div class="flex items-center justify-between">
-                                <span class="px-2 py-0.5 rounded text-[9px] font-bold font-mono bg-amber-950 text-amber-300 uppercase">Condition</span>
-                                <i class="fa-solid fa-code-branch text-amber-400 text-xs"></i>
-                            </div>
-                            <div class="font-bold text-xs text-white">Deal Value &gt;= $10,000</div>
-                            <div class="text-[10px] font-mono text-slate-400">estimated_value &gt;= 10k</div>
-                        </div>
-
-                        <!-- Node 3: AI Agent -->
-                        <div class="w-48 bg-slate-900 border-2 border-indigo-500 rounded-2xl p-4 shadow-xl space-y-2 glow-indigo transform hover:scale-105 transition">
-                            <div class="flex items-center justify-between">
-                                <span class="px-2 py-0.5 rounded text-[9px] font-bold font-mono bg-indigo-950 text-indigo-300 uppercase">AI Agent 1</span>
-                                <i class="fa-solid fa-robot text-indigo-400 text-xs"></i>
-                            </div>
-                            <div class="font-bold text-xs text-white">Sales Dossier Agent</div>
-                            <div class="text-[10px] font-mono text-slate-400">Synthesizes Strategy</div>
-                        </div>
-
-                        <!-- Split Branches (Actions) -->
-                        <div class="flex flex-col gap-4">
-                            <div class="w-48 bg-slate-900 border-2 border-emerald-500/80 rounded-2xl p-3.5 shadow-xl space-y-1 transform hover:scale-105 transition">
-                                <div class="flex items-center justify-between">
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold font-mono bg-emerald-950 text-emerald-300 uppercase">Action</span>
-                                    <i class="fa-solid fa-user-check text-emerald-400 text-xs"></i>
-                                </div>
-                                <div class="font-bold text-xs text-white">Assign Senior Closer</div>
-                                <div class="text-[10px] text-slate-400">Locks rep &amp; routing</div>
-                            </div>
-
-                            <div class="w-48 bg-slate-900 border-2 border-purple-500/80 rounded-2xl p-3.5 shadow-xl space-y-1 transform hover:scale-105 transition">
-                                <div class="flex items-center justify-between">
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold font-mono bg-purple-950 text-purple-300 uppercase">Notification</span>
-                                    <i class="fa-solid fa-bell text-purple-400 text-xs"></i>
-                                </div>
-                                <div class="font-bold text-xs text-white">Dispatch VIP Alerts</div>
-                                <div class="text-[10px] text-slate-400">Omnichannel Email/Slack</div>
-                            </div>
-                        </div>
+                    <!-- Stage 3 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
+                        <div class="h-8 w-8 rounded-lg bg-pink-600/20 text-pink-400 font-mono font-bold flex items-center justify-center text-xs">03</div>
+                        <div class="font-bold text-xs text-white uppercase tracking-wider text-pink-400">Demo Scheduling</div>
+                        <h4 class="font-bold text-sm text-slate-200">The Appointment Setter</h4>
+                        <p class="text-xs text-slate-400">Negotiates meeting availability and drops confirmed demo into your calendar.</p>
+                        <div class="text-[10px] font-mono text-pink-400 bg-pink-950/40 p-2 rounded-lg border border-pink-800/40">✓ Calendar Invite Confirmed</div>
                     </div>
-                </div>
 
-                <!-- Simulation Footer -->
-                <div class="mt-4 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400 pt-3 border-t border-slate-800/80">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-check text-emerald-400"></i>
-                        <span>Includes 4 pre-built enterprise templates with zero setup needed.</span>
+                    <!-- Stage 4 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
+                        <div class="h-8 w-8 rounded-lg bg-purple-600/20 text-purple-400 font-mono font-bold flex items-center justify-center text-xs">04</div>
+                        <div class="font-bold text-xs text-white uppercase tracking-wider text-purple-400">Proposal &amp; Closing</div>
+                        <h4 class="font-bold text-sm text-slate-200">The Executive Sales Bot</h4>
+                        <p class="text-xs text-slate-400">Assembles executive deal dossiers, bespoke pricing proposals, and closing tactics.</p>
+                        <div class="text-[10px] font-mono text-purple-400 bg-purple-950/40 p-2 rounded-lg border border-purple-800/40">✓ Custom Proposal Sent</div>
                     </div>
-                    <div class="font-mono text-indigo-400">
-                        Total Execution Latency: <strong>32.4ms</strong>
+
+                    <!-- Stage 5 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
+                        <div class="h-8 w-8 rounded-lg bg-amber-600/20 text-amber-400 font-mono font-bold flex items-center justify-center text-xs">05</div>
+                        <div class="font-bold text-xs text-white uppercase tracking-wider text-amber-400">Contract &amp; Retention</div>
+                        <h4 class="font-bold text-sm text-slate-200">The Objection Closer</h4>
+                        <p class="text-xs text-slate-400">Neutralizes price or timing hesitations, finalizes contracts, and drives renewals.</p>
+                        <div class="text-[10px] font-mono text-amber-400 bg-amber-950/40 p-2 rounded-lg border border-amber-800/40">✓ Deal Signed &amp; Renewed</div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- CUSTOMER SELF-SERVICE PORTAL & 24/7 COPILOT -->
-    <section id="portals" class="py-24 relative border-t border-slate-900 bg-slate-950/80">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div class="space-y-6">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-950/60 text-pink-300 border border-pink-800/50 text-xs font-semibold">
-                        <i class="fa-solid fa-comments"></i>
-                        <span>Customer Experience &amp; Retention</span>
-                    </div>
-                    <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-                        Branded Portals with <br>
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-indigo-400">24/7 AI Support Copilot</span>
-                    </h2>
-                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
-                        Empower your B2B buyers with self-service transparency. Customers access secure portals via cryptographically signed tokens (`/portal/{{token}}`) with zero login friction.
-                    </p>
-                    <ul class="space-y-3 text-sm text-slate-300">
-                        <li class="flex items-start gap-3">
-                            <div class="h-6 w-6 rounded-lg bg-pink-600/20 text-pink-400 flex items-center justify-center shrink-0 mt-0.5 text-xs">
-                                <i class="fa-solid fa-cube"></i>
-                            </div>
-                            <span><strong>7 Autonomous Live Tools:</strong> Lookup shipments, inspect recent orders, review card on file, check SaaS licenses, and reschedule replenishment.</span>
-                        </li>
-                        <li class="flex items-start gap-3">
-                            <div class="h-6 w-6 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5 text-xs">
-                                <i class="fa-solid fa-clock-rotate-left"></i>
-                            </div>
-                            <span><strong>Dynamic Restock Cadence:</strong> Customers can snooze restock schedules by 14 days or accelerate emergency deliveries in 1 click.</span>
-                        </li>
-                        <li class="flex items-start gap-3">
-                            <div class="h-6 w-6 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 text-xs">
-                                <i class="fa-solid fa-user-tie"></i>
-                            </div>
-                            <span><strong>Instant Human Rep Takeover:</strong> Frustrated tone detection immediately flags the CRM 11 queue for dedicated sales rep intervention.</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Portal Copilot Live Simulation Mockup -->
-                <div class="glass-panel rounded-3xl border border-slate-800 p-6 shadow-2xl space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-                        <div class="flex items-center gap-3">
-                            <div class="h-9 w-9 rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center text-sm font-bold">
-                                <i class="fa-solid fa-headset"></i>
-                            </div>
-                            <div>
-                                <div class="font-bold text-sm text-white">Pacific Lumber Co. Account Portal</div>
-                                <div class="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Agent 3 (Copilot) Online
-                                </div>
-                            </div>
-                        </div>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300">SECURE ACCESS</span>
-                    </div>
-
-                    <!-- Simulated Chat Stream -->
-                    <div class="bg-slate-950/70 rounded-2xl p-4 space-y-3.5 text-xs border border-slate-900">
-                        <div class="flex items-start gap-2.5">
-                            <div class="h-6 w-6 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
-                                <i class="fa-solid fa-user"></i>
-                            </div>
-                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-slate-200">
-                                Can you check on my order ORD-7788 and snooze my next restock by 14 days?
-                            </div>
-                        </div>
-
-                        <div class="flex items-start gap-2.5">
-                            <div class="h-6 w-6 rounded-full bg-pink-600/20 text-pink-400 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
-                                <i class="fa-solid fa-robot"></i>
-                            </div>
-                            <div class="bg-indigo-950/40 border border-indigo-700/50 rounded-xl p-3 text-indigo-100 space-y-2">
-                                <p>Certainly! I verified <strong>ORD-7788</strong> is currently <strong>SHIPPED</strong> via Freight Express (Tracking: <code class="font-mono text-emerald-400">FX-992144</code>). Estimated delivery is tomorrow by 3:00 PM.</p>
-                                <p>I have also snoozed your scheduled replenishment: your next delivery has been shifted from Oct 1 to <strong>Oct 15</strong>.</p>
-                                <div class="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] flex items-center justify-between text-slate-300 font-mono">
-                                    <span>Executed: snooze_restock_schedule (+14d)</span>
-                                    <span class="text-emerald-400 font-bold">SUCCESS</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="pt-2 flex items-center justify-between text-xs text-slate-400">
-                        <span>Card on file: <strong>Visa ending in 4242</strong></span>
-                        <span class="text-pink-400 font-semibold">Self-Service Enabled</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- LIVE INTERACTIVE LEAD DOSSIER DEMO / LEAD FUNNEL -->
-    <section id="dossier-demo" class="py-24 relative border-t border-slate-900 grid-bg">
+    <!-- LIVE INTERACTIVE AGENT TESTER (TEST DRIVE THE EXECUTIVE SALES BOT) -->
+    <section id="interactive-tester" class="py-24 relative border-t border-slate-900 grid-bg">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/60 text-amber-300 border border-amber-800/50 text-xs font-semibold">
-                    <i class="fa-solid fa-bolt text-amber-400"></i>
-                    <span>Live Interactive Agent Demo</span>
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                    <span>Interactive Real-Time Simulation</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    Test Agent 1 in Real-Time: <br>
-                    <span class="gradient-text">Instant AI Lead Dossier Generator</span>
+                    Test Drive Your AI Sales Agents: <br>
+                    <span class="gradient-text">See The Executive Sales Bot in Action</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Enter your organization details below. Watch Agent 1 synthesize a strategic deal closing dossier and trigger the Step 15 automated enrichment pipeline live!
+                    Enter your SaaS prospect details below. Watch your selected agent synthesize an instant executive closing dossier, complete with buyer readiness scoring and custom negotiation angles.
                 </p>
             </div>
 
-            <!-- Interactive Dossier Generator Form Card -->
+            <!-- Interactive Tester Card -->
             <div class="glass-panel rounded-3xl p-6 sm:p-10 border border-slate-800 shadow-2xl space-y-8">
-                <form id="dossier-form" onsubmit="generateLiveDossier(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Agent Selector for Tester -->
+                <div class="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-800">
+                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider mr-2">Select Agent to Test:</span>
+                    <button type="button" onclick="selectTesterAgent('exec_bot')" id="btn-test-exec" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-chess-king"></i> Executive Sales Bot
+                    </button>
+                    <button type="button" onclick="selectTesterAgent('setter')" id="btn-test-setter" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-calendar-check"></i> Appointment Setter
+                    </button>
+                    <button type="button" onclick="selectTesterAgent('lead_dev')" id="btn-test-dev" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-database"></i> Lead Developer
+                    </button>
+                </div>
+
+                <!-- Input Form -->
+                <form id="tester-form" onsubmit="runInteractiveAgentDemo(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Company Name</label>
-                        <input id="demo-company" type="text" required value="Apex Aerospace Solutions" placeholder="e.g. Acme Logistics" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 outline-none">
+                        <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Prospect Company</label>
+                        <input id="demo-company" type="text" required value="Titanium Cloud Systems" placeholder="e.g. Acme Corp" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 outline-none">
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Industry</label>
+                        <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Prospect Industry</label>
                         <select id="demo-industry" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 outline-none">
-                            <option value="Defense &amp; Aerospace">Defense &amp; Aerospace</option>
-                            <option value="Industrial Supply &amp; Manufacturing">Industrial Supply &amp; Manufacturing</option>
-                            <option value="Wholesale Logistics &amp; 3PL">Wholesale Logistics &amp; 3PL</option>
-                            <option value="Enterprise SaaS &amp; Cloud">Enterprise SaaS &amp; Cloud</option>
+                            <option value="Enterprise SaaS &amp; Cloud" selected>Enterprise SaaS &amp; Cloud</option>
+                            <option value="Logistics &amp; Supply Chain">Logistics &amp; Supply Chain</option>
+                            <option value="Industrial Manufacturing">Industrial Manufacturing</option>
+                            <option value="Fintech &amp; Payments">Fintech &amp; Payments</option>
                         </select>
                     </div>
                     <div class="space-y-1.5">
-                        <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Target Deal Size</label>
+                        <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Target Deal Value</label>
                         <select id="demo-value" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 outline-none">
-                            <option value="75000">$75,000 / yr</option>
-                            <option value="150000" selected>$150,000 / yr</option>
-                            <option value="500000">$500,000 / yr</option>
-                            <option value="1200000">$1,200,000 / yr</option>
+                            <option value="45000">$45,000 / yr</option>
+                            <option value="120000" selected>$120,000 / yr</option>
+                            <option value="350000">$350,000 / yr</option>
+                            <option value="1000000">$1,000,000 / yr</option>
                         </select>
                     </div>
                     <div class="space-y-1.5 flex flex-col justify-end">
-                        <button type="submit" id="btn-demo-submit" class="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            <span>Generate AI Dossier</span>
+                        <button type="submit" id="btn-tester-submit" class="w-full py-2.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-purple-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Execute Agent Task</span>
                         </button>
                     </div>
                 </form>
 
-                <!-- Loading State -->
-                <div id="dossier-loading" class="hidden text-center py-8 space-y-3">
-                    <div class="h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <div class="text-xs font-mono text-indigo-300">Agent 1 Synthesizing Firmographics &amp; Strategic Closing Angles...</div>
+                <!-- Processing Spinner -->
+                <div id="tester-loading" class="hidden text-center py-8 space-y-3">
+                    <div class="h-10 w-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <div class="text-xs font-mono text-purple-300" id="tester-loading-text">The Executive Sales Bot is analyzing buyer intent &amp; synthesizing closing dossier...</div>
                 </div>
 
-                <!-- Resulting Output Dossier Card -->
-                <div id="dossier-output" class="bg-slate-950/80 rounded-2xl p-6 border border-slate-800 space-y-4 font-sans text-xs">
+                <!-- Structured Agent Response Display -->
+                <div id="tester-output" class="bg-slate-950/80 rounded-2xl p-6 border border-slate-800 space-y-4 font-sans text-xs">
                     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                         <div class="flex items-center gap-2.5">
                             <span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                            <span class="font-bold text-white text-sm" id="out-company">Apex Aerospace Solutions</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-800" id="out-tier">ENTERPRISE VIP TIER</span>
+                            <span class="font-bold text-white text-sm" id="out-target-name">Titanium Cloud Systems</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-800" id="out-agent-badge">AGENT 4: EXECUTIVE SALES BOT</span>
                         </div>
                         <div class="flex items-center gap-3 font-mono text-[11px]">
-                            <span class="text-slate-400">Readiness Score: <strong class="text-emerald-400 font-bold" id="out-score">96/100</strong></span>
-                            <span class="text-slate-400">Target Value: <strong class="text-white font-bold" id="out-deal">$150,000</strong></span>
+                            <span class="text-slate-400">Buyer Intent: <strong class="text-emerald-400 font-bold" id="out-intent-score">96% HIGH INTENT</strong></span>
+                            <span class="text-slate-400">Annual Contract Value: <strong class="text-white font-bold" id="out-acv">$120,000</strong></span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <div class="font-bold text-slate-300 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                                <i class="fa-solid fa-bullseye text-indigo-400"></i> Executive Buyer Profile
+                                <i class="fa-solid fa-bullseye text-indigo-400"></i> <span id="out-box-title-1">Executive Buyer Assessment</span>
                             </div>
-                            <p class="text-slate-300 text-xs leading-relaxed" id="out-buyer-profile">
-                                High-intent industrial avionics manufacturer facing severe component replenishment lead times. Primary vulnerability is tier-1 supplier stockout risk impacting Q4 avionics delivery deadlines.
+                            <p class="text-slate-300 text-xs leading-relaxed" id="out-box-desc-1">
+                                High-priority enterprise SaaS prospect experiencing rapid headcount growth. Current friction is manual rep prospecting and lack of automated calendar booking, leading to a 4-week sales cycle lag.
                             </p>
                         </div>
                         <div class="space-y-2">
                             <div class="font-bold text-slate-300 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                                <i class="fa-solid fa-chess-knight text-purple-400"></i> Recommended Closing Strategy
+                                <i class="fa-solid fa-chess-knight text-purple-400"></i> <span id="out-box-title-2">Recommended Closing Proposal</span>
                             </div>
-                            <p class="text-slate-300 text-xs leading-relaxed" id="out-closing-strategy">
-                                Pitch autonomous demand replenishment and multi-tier SaaS provisioning with SLA-backed restock buffers. Offer 90-day custom EDI integration to displace legacy ERP manual purchase ordering.
+                            <p class="text-slate-300 text-xs leading-relaxed" id="out-box-desc-2">
+                                Propose Full 5-Agent Workforce tier with 20 included seats and SLA-guaranteed calendar appointment velocity. Package a 90-day pilot with dedicated integration engineering to displace legacy manual SDR tools.
                             </p>
                         </div>
                     </div>
 
                     <div class="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between text-slate-400 text-[11px] font-mono">
-                        <span>Automated Next Action: <strong class="text-emerald-400">Assign Senior Closer &amp; Dispatch VIP Welcome Hook</strong></span>
-                        <span>Confidence: <strong>98.2%</strong></span>
+                        <span>Autonomous Next Step: <strong class="text-emerald-400" id="out-next-step">Dispatch Calendar Setter &amp; Prepare Custom Contract Proposal</strong></span>
+                        <span>Confidence: <strong>98.6%</strong></span>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- PRICING & METERED BILLING SECTION -->
-    <section id="pricing" class="py-24 relative border-t border-slate-900 bg-slate-950/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+    <!-- INTERACTIVE 5-AGENT STACK CONFIGURATOR -->
+    <section id="stack-configurator" class="py-24 relative border-t border-slate-900 bg-slate-950/60">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/50 text-xs font-semibold">
-                    <i class="fa-solid fa-credit-card"></i>
-                    <span>Predictable Tiering + Flexible Usage</span>
+                    <i class="fa-solid fa-sliders text-emerald-400"></i>
+                    <span>Interactive Stack Builder</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    Transparent SaaS Pricing &amp; <br>
-                    <span class="gradient-text">Automated Metered Billing</span>
+                    Build Your Custom AI Sales Stack <br>
+                    <span class="gradient-text">&amp; Project Monthly Revenue Added</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Scale from single-rep teams to global supply chains. Generous baseline quotas with seamless automated overage billing powered by Stripe.
+                    Select which AI Sales Agents you want on your team. Watch your pipeline projections update live.
                 </p>
             </div>
 
-            <!-- Pricing Tier Cards -->
+            <div class="glass-panel rounded-3xl p-8 border border-slate-800 shadow-2xl space-y-8">
+                <!-- Agent Checklist -->
+                <div class="space-y-3">
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-dev" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>1. The Lead Developer</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-950 text-indigo-300">DATA ENRICHMENT</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Scrapes, verifies, and enriches 1,000+ target ICP accounts monthly</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-emerald-400">+1,000 Accounts</span>
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-sdr" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>2. The Cold Outreach SDR</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300">OUTBOUND CADENCE</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Delivers personalized multi-channel cold sequences across Email &amp; LinkedIn</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-emerald-400">+28% Reply Rate</span>
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-setter" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>3. The Appointment Setter</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-pink-950 text-pink-300">MEETING BOOKER</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Conversational 2-way booking directly onto rep Google/Outlook calendars</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-pink-400">+35 Confirmed Demos</span>
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-exec" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>4. The Executive Sales Bot</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950 text-purple-300">DEAL STRATEGIST</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Synthesizes executive dossiers, custom proposals, and enterprise closing angles</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-purple-400">+8 Enterprise Wins</span>
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-closer" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>5. The Objection Closer &amp; Expansion Bot</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-300">OBJECTION HANDLING</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Recovers stalled contract negotiations and drives renewal expansion</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-amber-400">+35% Stalled Deals Won</span>
+                    </label>
+                </div>
+
+                <!-- Live Calculated Totals -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-800 text-center">
+                    <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
+                        <div class="text-slate-400 text-[10px] uppercase font-bold">Active Agents</div>
+                        <div class="text-2xl font-black font-mono text-indigo-400" id="stack-count">5 Agents</div>
+                    </div>
+                    <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
+                        <div class="text-slate-400 text-[10px] uppercase font-bold">Monthly Demos</div>
+                        <div class="text-2xl font-black font-mono text-pink-400" id="stack-demos">48 Demos</div>
+                    </div>
+                    <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
+                        <div class="text-slate-400 text-[10px] uppercase font-bold">Deals Closed</div>
+                        <div class="text-2xl font-black font-mono text-purple-400" id="stack-deals">14 Closed</div>
+                    </div>
+                    <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
+                        <div class="text-slate-400 text-[10px] uppercase font-bold">Projected Pipeline</div>
+                        <div class="text-2xl font-black font-mono text-emerald-400" id="stack-pipeline">$168,000 / mo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRICING TIERS SECTION FOR SAAS CLIENTS -->
+    <section id="pricing" class="py-24 relative border-t border-slate-900 bg-slate-950/70">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+            <div class="text-center space-y-4 max-w-3xl mx-auto">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-950/60 text-pink-300 border border-pink-800/50 text-xs font-semibold">
+                    <i class="fa-solid fa-credit-card text-pink-400"></i>
+                    <span>SaaS Client Deployment Plans</span>
+                </div>
+                <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+                    Transparent Plans to Deploy <br>
+                    <span class="gradient-text">Your AI Sales Workforce</span>
+                </h2>
+                <p class="text-slate-400 text-sm sm:text-base">
+                    From single-agent appointment setting to an entire 5-agent autonomous enterprise workforce.
+                </p>
+            </div>
+
+            <!-- Pricing Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Starter Tier -->
+                <!-- Starter SDR Tier -->
                 <div class="glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col justify-between space-y-6 hover:border-slate-700 transition">
                     <div class="space-y-4">
                         <div class="space-y-1">
-                            <span class="text-xs font-mono font-bold text-slate-400 uppercase">Starter</span>
+                            <span class="text-xs font-mono font-bold text-slate-400 uppercase">Starter SDR</span>
                             <div class="flex items-baseline gap-1">
                                 <span class="text-4xl font-black text-white">$199</span>
                                 <span class="text-xs text-slate-400">/ month</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-400">Perfect for agile sales teams launching autonomous lead enrichment.</p>
+                        <p class="text-xs text-slate-400">Deploy 1 AI Sales Agent (e.g. Appointment Setter or Lead Developer).</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-300">
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 1,000 AI Agent Turns/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 5,000 API Requests/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 3 Active DAG Workflows</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 1 AI Sales Agent Deployed</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 1,000 Pipeline Touches/mo</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Google &amp; Outlook Calendar Sync</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 2 Seats Included</div>
-                            <div class="flex items-center gap-2 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-[10px]"></i> Custom Domain &amp; White-Label</div>
+                            <div class="flex items-center gap-2 text-slate-500"><i class="fa-solid fa-xmark text-slate-600 text-[10px]"></i> Executive Sales Bot &amp; Closer</div>
                         </div>
                     </div>
                     <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700 transition text-center block">
@@ -626,23 +631,23 @@ def render_landing_page(api_prefix: str = "") -> str:
                     </a>
                 </div>
 
-                <!-- Growth Tier -->
+                <!-- Growth Sales Team Tier -->
                 <div class="glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col justify-between space-y-6 hover:border-indigo-500/60 transition">
                     <div class="space-y-4">
                         <div class="space-y-1">
-                            <span class="text-xs font-mono font-bold text-indigo-400 uppercase">Growth</span>
+                            <span class="text-xs font-mono font-bold text-indigo-400 uppercase">Growth Team</span>
                             <div class="flex items-baseline gap-1">
                                 <span class="text-4xl font-black text-white">$499</span>
                                 <span class="text-xs text-slate-400">/ month</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-400">Scaling distributors needing demand forecasting and restock automation.</p>
+                        <p class="text-xs text-slate-400">Deploy 3 AI Sales Agents (Lead Developer + Cold SDR + Appointment Setter).</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-300">
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 5,000 AI Agent Turns/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 25,000 API Requests/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 15 Active DAG Workflows</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 3 AI Sales Agents Deployed</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 5,000 Pipeline Touches/mo</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Multi-Channel Email &amp; LinkedIn</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 5 Seats Included</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 24/7 AI Support Copilot</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Automated Follow-Up Sequences</div>
                         </div>
                     </div>
                     <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700 transition text-center block">
@@ -650,31 +655,31 @@ def render_landing_page(api_prefix: str = "") -> str:
                     </a>
                 </div>
 
-                <!-- Enterprise Tier (Highlighted) -->
+                <!-- Full Executive Workforce Tier (Highlighted) -->
                 <div class="glass-panel rounded-3xl p-6 border-2 border-indigo-500 flex flex-col justify-between space-y-6 glow-indigo relative">
                     <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-[10px] tracking-wider uppercase shadow-lg">
-                        Most Popular
+                        Full 5-Agent Suite
                     </div>
                     <div class="space-y-4 pt-1">
                         <div class="space-y-1">
-                            <span class="text-xs font-mono font-bold text-indigo-300 uppercase">Enterprise</span>
+                            <span class="text-xs font-mono font-bold text-indigo-300 uppercase">Executive Workforce</span>
                             <div class="flex items-baseline gap-1">
                                 <span class="text-4xl font-black text-white">$1,499</span>
                                 <span class="text-xs text-slate-400">/ month</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-300">Full 5-agent autonomous workforce for high-volume enterprise operations.</p>
+                        <p class="text-xs text-slate-300">All 5 AI Sales Agents deployed with executive proposal generation and objection closing.</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-200">
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 25,000 AI Agent Turns/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 100,000 API Requests/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Unlimited DAG Workflows</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 20 Seats Included</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Custom Domain &amp; White-Label</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Dedicated HITL Remediation Queue</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> All 5 AI Sales Agents Included</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 25,000 Pipeline Touches/mo</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> The Executive Sales Bot Included</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> The Objection Closer Included</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 20 Seats + Custom Domain</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Dedicated HITL Takeover Queue</div>
                         </div>
                     </div>
                     <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/40 transition text-center block">
-                        Deploy Enterprise
+                        Deploy All 5 Agents
                     </a>
                 </div>
 
@@ -682,27 +687,26 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <div class="glass-panel rounded-3xl p-6 border border-slate-800 flex flex-col justify-between space-y-6 hover:border-purple-500/60 transition">
                     <div class="space-y-4">
                         <div class="space-y-1">
-                            <span class="text-xs font-mono font-bold text-purple-400 uppercase">Scale &amp; Custom</span>
+                            <span class="text-xs font-mono font-bold text-purple-400 uppercase">Custom &amp; Scale</span>
                             <div class="flex items-baseline gap-1">
                                 <span class="text-3xl font-black text-white">Custom</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-400">Bespoke SLA, private tenant cloud instances, and high-throughput EDI.</p>
+                        <p class="text-xs text-slate-400">Unlimited custom agents fine-tuned on your sales recordings &amp; enterprise playbooks.</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-300">
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Custom AI Models &amp; Quotas</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Unlimited Multi-Tenant Seats</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Dedicated PostgreSQL DB Cluster</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> 99.99% Guaranteed SLA</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Custom EDI X12 Drop-Ship Mappings</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Custom Fine-Tuned LLMs</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Unlimited Seats &amp; Pipelines</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Bespoke CRM/ERP Bi-Directional Sync</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-purple-400 text-[10px]"></i> Dedicated Sales Engineer &amp; SLA</div>
                         </div>
                     </div>
                     <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-purple-200 bg-purple-950/60 hover:bg-purple-900 border border-purple-800 transition text-center block">
-                        Contact Enterprise Team
+                        Talk to Enterprise Sales
                     </a>
                 </div>
             </div>
 
-            <!-- Transparent Metered Billing Explainer Box -->
+            <!-- Metered Overage Rates Explainer -->
             <div class="glass-panel rounded-2xl p-6 border border-slate-800 max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
                 <div class="flex items-center gap-4">
                     <div class="h-12 w-12 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
@@ -710,7 +714,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     </div>
                     <div>
                         <div class="font-bold text-sm text-white">Automated Metered Overage Protection</div>
-                        <p class="text-xs text-slate-400">Never experience sudden pipeline cutoffs. Transparent rates apply automatically only when baseline quotas are exceeded:</p>
+                        <p class="text-xs text-slate-400">Scale without artificial limits. Transparent rates apply automatically when your monthly baseline quota is exceeded:</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-4 text-xs font-mono shrink-0">
@@ -721,36 +725,6 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <div class="px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-800 text-center">
                         <div class="font-bold text-indigo-400">$0.001</div>
                         <div class="text-[10px] text-slate-400">per API Call</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Interactive ROI Calculator Widget -->
-            <div class="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 max-w-3xl mx-auto space-y-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="font-bold text-base text-white">Estimate Your Autonomous Workforce ROI</h3>
-                        <p class="text-xs text-slate-400">Drag to adjust your monthly sales &amp; replenishment volume</p>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs text-slate-400">Monthly Time Saved</span>
-                        <div class="text-xl font-bold font-mono text-emerald-400" id="roi-hours-saved">160 Hours</div>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <div class="flex justify-between text-xs text-slate-300">
-                        <span>Monthly Deals &amp; Orders Handled: <strong id="roi-volume-label" class="text-white font-mono">500</strong></span>
-                    </div>
-                    <input type="range" min="100" max="5000" step="100" value="500" id="roi-slider" oninput="calculateRoi(this.value)" class="w-full accent-indigo-500 cursor-pointer">
-                </div>
-                <div class="grid grid-cols-2 gap-4 pt-2 border-t border-slate-800 text-center text-xs">
-                    <div class="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                        <div class="text-slate-400 text-[10px] uppercase">Labor Cost Saved</div>
-                        <div class="text-base font-bold font-mono text-white" id="roi-cost-saved">$9,600 / mo</div>
-                    </div>
-                    <div class="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                        <div class="text-slate-400 text-[10px] uppercase">Stockout Revenue Protected</div>
-                        <div class="text-base font-bold font-mono text-emerald-400" id="roi-revenue-protected">$48,000 / mo</div>
                     </div>
                 </div>
             </div>
@@ -766,124 +740,139 @@ def render_landing_page(api_prefix: str = "") -> str:
                         <i class="fa-solid fa-brain"></i>
                     </div>
                     <span class="font-extrabold text-base text-white">NexFlow<span class="text-indigo-400">.ai</span></span>
-                    <span class="text-slate-500">| Enterprise Multi-Agent Automation</span>
+                    <span class="text-slate-500">| Autonomous AI Sales Agents for SaaS</span>
                 </div>
                 <div class="flex items-center gap-6 text-xs">
                     <a href="{console_url}" class="hover:text-white transition">Launch Console</a>
-                    <a href="#agents" class="hover:text-white transition">5 AI Agents</a>
-                    <a href="#workflows" class="hover:text-white transition">DAG Studio</a>
-                    <a href="#pricing" class="hover:text-white transition">Pricing</a>
+                    <a href="#agents" class="hover:text-white transition">5 Sales Agents</a>
+                    <a href="#pipeline" class="hover:text-white transition">Pipeline Funnel</a>
+                    <a href="#pricing" class="hover:text-white transition">Pricing Plans</a>
                     <a href="{prefix}/docs" target="_blank" class="hover:text-white transition flex items-center gap-1">
                         <i class="fa-solid fa-code"></i> OpenAPI Docs
                     </a>
                 </div>
             </div>
             <div class="flex flex-wrap items-center justify-between gap-4 text-slate-500 text-[11px]">
-                <p>&copy; 2026 NexFlow AI Technologies Inc. All rights reserved. Powered by Google Gemini &amp; Multi-Tenant PostgreSQL.</p>
+                <p>&copy; 2026 NexFlow AI Technologies Inc. All rights reserved. The Autonomous Sales Workforce for SaaS.</p>
                 <div class="flex items-center gap-4">
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-emerald-400"></i> SOC-2 Ready Isolation</span>
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-lock text-indigo-400"></i> Cryptographic Tokens</span>
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-credit-card text-purple-400"></i> Stripe Verified</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Multi-Tenant Isolated</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-lock text-indigo-400"></i> SOC-2 Compliant Stack</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-credit-card text-purple-400"></i> Stripe Verified Billing</span>
                 </div>
             </div>
         </div>
     </footer>
 
-    <!-- INTERACTIVE SCRIPT LOGIC -->
+    <!-- INTERACTIVE SCRIPTS -->
     <script>
         const API_PREFIX = "{prefix}";
         const LEAD_API_URL = "{lead_api_url}";
 
-        // The 5 AI Agent Specifications Matrix
-        const AGENT_DATA = {{
-            sales: {{
-                name: "1. Sales Intelligence & Lead Dossier Agent",
-                icon: "fa-magnifying-glass-chart",
+        // The 5 AI Sales Agents Data Matrix
+        const SALES_AGENTS = {{
+            lead_dev: {{
+                id: "lead_dev",
+                number: "1",
+                name: "The Lead Developer Agent",
+                subtitle: "Inbound Prospector & Account Enrichment Engine",
+                icon: "fa-database",
                 color: "indigo",
-                role: "Inbound Prospect Qualification & Executive Closing Playbook Synthesis",
-                description: "Interprets incoming web forms, LinkedIn signals, and buyer inquiries. Performs real-time firmographic enrichment, calculates deal readiness scores, and synthesizes tailored closing dossiers.",
-                capabilities: [
-                    "Firmographic & revenue profiling",
-                    "Buyer intent & readiness classification",
-                    "Closing objection preparation",
-                    "Automated senior closer account assignment"
+                description: "Scours incoming web visitors, LinkedIn company profiles, job board signals, and firmographic databases. Validates contact email addresses, checks software tech stack fit, and scores buyer intent before handing off to the outreach team.",
+                skills: [
+                    "B2B Firmographic & Technographic Enrichment",
+                    "Real-Time Buyer Intent Signal Detection",
+                    "Automated Email & Phone Verification",
+                    "Custom Ideal Customer Profile (ICP) Scoring"
                 ],
-                sampleInput: `{{"company": "Titanium Aerospace", "deal_value": 85000, "intent": "Avionics Replenishment"}}`,
-                sampleOutput: `{{"buyer_readiness": "96%", "recommended_offer": "SLA-Backed Annual Restock Tier", "confidence": 0.98}}`,
-                impactMetric: "+34% Sales Velocity"
+                sampleInput: `{{"target_domain": "titaniumcloud.example", "ideal_titles": ["VP Sales", "CRO"], "signal": "Hiring 5 Account Execs"}}`,
+                sampleOutput: `{{"status": "enriched", "verified_leads": 3, "primary_contact": "Marcus Vance (CRO)", "intent_score": 96}}`,
+                impactMetric: "1,000+ Verified Accounts/Day",
+                badge: "LEAD DEVELOPMENT"
             }},
-            demand: {{
-                name: "2. Predictive Demand & Inventory Replenishment Agent",
-                icon: "fa-boxes-packing",
-                color: "emerald",
-                role: "Burn Rate Analytics, Stockout Risk Mitigation & PO Dispatch",
-                description: "Continuously monitors customer burn rate velocity, safety stock buffers, and reorder cadence. Predicts stockouts weeks before they occur and autonomously generates purchase orders and RFQs.",
-                capabilities: [
-                    "Dynamic consumption burn rate modeling",
-                    "Lead time variability calculations",
-                    "Autonomous purchase order drafting",
-                    "Emergency supplier negotiation RFQ dispatch"
-                ],
-                sampleInput: `{{"sku": "PUMP-3000PSI", "burn_rate": 2.4, "current_stock": 5, "reorder_point": 12}}`,
-                sampleOutput: `{{"stockout_risk_score": 94, "action": "draft_po", "urgency": "critical", "po_number": "PO-AUTO-91823"}}`,
-                impactMetric: "Zero Stockout Revenue Loss"
-            }},
-            support: {{
-                name: "3. 24/7 Support Copilot & Customer Success Agent",
-                icon: "fa-headset",
+            setter: {{
+                id: "setter",
+                number: "2",
+                name: "The Appointment Setter Agent",
+                subtitle: "2-Way Conversational Calendar Booking Engine",
+                icon: "fa-calendar-check",
                 color: "pink",
-                role: "Autonomous Post-Sale Portal Resolution with 7 Live Account Tools",
-                description: "Embedded directly in customer self-service portals (/portal/{{token}}). Resolves delivery tracking, order history, billing checks, and restock cadence shifts with zero wait times.",
-                capabilities: [
-                    "7 Live Account & Carrier Tools",
-                    "1-Click restock cadence snoozing & acceleration",
-                    "Card-on-file & invoice payment verification",
-                    "Hostile tone detection & immediate manager page"
+                description: "Converses via Email, LinkedIn, and SMS with qualified prospects to secure demos directly on your sales reps' Google or Outlook calendars. Handles time zones, qualification questions, and automated reminder sequences to slash no-shows.",
+                skills: [
+                    "2-Way Conversational Meeting Scheduling",
+                    "Timezone Normalization & Rescheduling",
+                    "Qualification Criteria Gating",
+                    "No-Show Reduction & Warm-Up Sequences"
                 ],
-                sampleInput: `{{"customer_message": "Where is ORD-7788 and can you snooze next delivery 2 weeks?"}}`,
-                sampleOutput: `{{"tool_executed": "snooze_restock_schedule", "shifted_to": "2026-10-15", "tracking_url": "FX-992144"}}`,
-                impactMetric: "82% Autonomous Support Resolution"
+                sampleInput: `{{"prospect_reply": "I'm interested, but travelling until Thursday afternoon. What's open?"}}`,
+                sampleOutput: `{{"action": "propose_slots", "suggested": ["Friday 10:00 AM EDT", "Friday 2:00 PM EDT"], "calendar_link": "sent"}}`,
+                impactMetric: "48 Qualified Demos Booked / Mo Avg",
+                badge: "APPOINTMENT SETTER"
             }},
-            orchestrator: {{
-                name: "4. Visual DAG Workflow Orchestrator Agent",
-                icon: "fa-diagram-project",
+            sdr: {{
+                id: "sdr",
+                number: "3",
+                name: "The Cold Outreach SDR Agent",
+                subtitle: "Hyper-Personalized Multi-Channel Outbound Generator",
+                icon: "fa-paper-plane",
+                color: "emerald",
+                description: "Researches each prospect company individually to craft 1-to-1 personalized cold email and LinkedIn sequences. Never sends generic templates. Dynamically references company news, mutual connections, and verified pain points.",
+                skills: [
+                    "1-to-1 Dynamic Personalization Engine",
+                    "Multi-Channel Cadence (Email + LinkedIn + SMS)",
+                    "A/B Testing Subject Lines & CTAs",
+                    "Sentiment Reply Categorization & Routing"
+                ],
+                sampleInput: `{{"prospect_name": "Sarah Jenkins", "company": "Apex Supply", "event": "Raised Series B $25M"}}`,
+                sampleOutput: `{{"subject": "Scaling Apex's sales reps post-Series B", "touch_1_personalized": "true", "sent_status": "delivered"}}`,
+                impactMetric: "28% Verified Cold Reply Rate",
+                badge: "COLD OUTREACH SDR"
+            }},
+            exec_bot: {{
+                id: "exec_bot",
+                number: "4",
+                name: "The Executive Sales Bot",
+                subtitle: "Senior Deal Strategist & Executive Closing Architect",
+                icon: "fa-chess-king",
                 color: "purple",
-                role: "Event-Driven Multi-Step Pipeline Coordination & Webhook Relays",
-                description: "The pipeline brain. Evaluates multi-step DAG canvas logic, executes conditional branches (==, !=, >, <, in, contains), coordinates agent handoffs, and syncs external webhooks.",
-                capabilities: [
-                    "Visual SVG node-based canvas builder",
-                    "Live dry-run simulation mode",
-                    "Omnichannel alert dispatches (Slack, Email, SMS)",
-                    "Sub-30ms step execution latency telemetry"
+                description: "Your autonomous VP of Enterprise Sales. Synthesizes comprehensive executive deal closing dossiers, drafts bespoke commercial proposals, maps multi-stakeholder buyer committees, and formulates ROI business cases to win 5-figure and 6-figure SaaS deals.",
+                skills: [
+                    "Executive Closing Dossier Synthesis",
+                    "Bespoke Commercial Proposal Drafting",
+                    "Multi-Stakeholder Champion Mapping",
+                    "ROI Business Case Financial Modeling"
                 ],
-                sampleInput: `{{"event": "lead_created", "workflow_id": "wf_vip_fasttrack", "dry_run": true}}`,
-                sampleOutput: `{{"steps_executed": 4, "overall_status": "completed", "execution_time_ms": 28.4}}`,
-                impactMetric: "&lt; 30ms Execution Latency"
+                sampleInput: `{{"client": "Pacific Lumber Co.", "budget": "$120,000", "stakeholders": ["CFO", "VP Supply Chain"]}}`,
+                sampleOutput: `{{"dossier_status": "synthesized", "recommended_tier": "Executive Workforce", "closing_strategy": "SLA-backed restock pilot"}}`,
+                impactMetric: "+38% Enterprise Win Rate",
+                badge: "EXECUTIVE SALES BOT"
             }},
-            hitl: {{
-                name: "5. Human-in-the-Loop (HITL) Remediation Agent",
-                icon: "fa-user-shield",
+            closer: {{
+                id: "closer",
+                number: "5",
+                name: "The Objection Closer & Expansion Bot",
+                subtitle: "Negotiation Safeguards & Customer Expansion Engine",
+                icon: "fa-handshake-angle",
                 color: "amber",
-                role: "Grievance Safeguards, Concession Packages & Human Takeover",
-                description: "Intercepts high-risk edge cases, frustrated sentiments, and contractual disputes. Formulates instant concession packages and stages high-confidence recommendations for 1-click human takeover.",
-                capabilities: [
-                    "Continuous sentiment & hostility parsing",
-                    "Automatic priority HITL ticket generation",
-                    "AI remediation proposal synthesis",
-                    "1-Click human sales rep console takeover"
+                description: "Safeguards stalled deals during contract review and drives account expansion post-sale. Counters pricing, security, and timing hesitations with pre-approved concession packages, and uncovers high-margin upsell opportunities.",
+                skills: [
+                    "Contextual Pricing Objection Reframing",
+                    "Contract Review & Concession Packaging",
+                    "Automated License Expansion Triggers",
+                    "Human Rep Escalation for High-Stakes Terms"
                 ],
-                sampleInput: `{{"sentiment": "hostile", "complaint": "Delayed critical shipment impacting factory floor"}}`,
-                sampleOutput: `{{"remediation": "Offer expedited freight credit + senior manager outreach", "hitl_id": "hitl-90a1"}}`,
-                impactMetric: "100% Churn Prevention"
+                sampleInput: `{{"objection": "Your quote is 20% higher than competitor X", "margin_floor": "15%"}}`,
+                sampleOutput: `{{"rebuttal_strategy": "Highlight automated replenishment SLA + offer quarterly billing concession", "status": "counter_sent"}}`,
+                impactMetric: "35% Stalled Deals Won",
+                badge: "OBJECTION CLOSER"
             }}
         }};
 
         function switchAgentTab(key) {{
-            const agent = AGENT_DATA[key];
+            const agent = SALES_AGENTS[key];
             if (!agent) return;
 
-            // Update tab button styles
-            const tabs = ['sales', 'demand', 'support', 'orchestrator', 'hitl'];
+            // Highlight Tab Buttons
+            const tabs = ['lead_dev', 'setter', 'sdr', 'exec_bot', 'closer'];
             tabs.forEach(t => {{
                 const btn = document.getElementById(`tab-btn-${{t}}`);
                 if (btn) {{
@@ -895,7 +884,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 }}
             }});
 
-            // Render detail card
+            // Render Focused Agent Viewport
             const container = document.getElementById("agent-detail-container");
             container.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
@@ -905,20 +894,23 @@ def render_landing_page(api_prefix: str = "") -> str:
                                 <i class="fa-solid ${{agent.icon}}"></i>
                             </div>
                             <div>
-                                <h3 class="font-extrabold text-xl text-white">${{agent.name}}</h3>
-                                <span class="text-xs font-mono font-semibold text-${{agent.color}}-400">${{agent.role}}</span>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-extrabold text-xl text-white">${{agent.name}}</h3>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-${{agent.color}}-950 text-${{agent.color}}-300 border border-${{agent.color}}-800/60">${{agent.badge}}</span>
+                                </div>
+                                <span class="text-xs font-mono font-semibold text-${{agent.color}}-400">${{agent.subtitle}}</span>
                             </div>
                         </div>
 
                         <p class="text-sm text-slate-300 leading-relaxed">${{agent.description}}</p>
 
                         <div class="space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Autonomous Capabilities:</span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Autonomous Sales Skills:</span>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-200">
-                                ${{agent.capabilities.map(c => `
+                                ${{agent.skills.map(s => `
                                     <div class="flex items-center gap-2">
                                         <i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>
-                                        <span>${{c}}</span>
+                                        <span>${{s}}</span>
                                     </div>
                                 `).join('')}}
                             </div>
@@ -926,106 +918,155 @@ def render_landing_page(api_prefix: str = "") -> str:
 
                         <div class="pt-2 flex items-center gap-4">
                             <span class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-emerald-400 font-bold">
-                                ROI: ${{agent.impactMetric}}
+                                Performance: ${{agent.impactMetric}}
                             </span>
-                            <a href="${{API_PREFIX}}/console" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
-                                Test in Management Console <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                            <a href="#interactive-tester" onclick="selectTesterAgent('${{agent.id}}')" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                                Test Drive in Live Demo <i class="fa-solid fa-arrow-right text-[10px]"></i>
                             </a>
                         </div>
                     </div>
 
-                    <!-- Live Simulated Telemetry Trace Card -->
-                    <div class="bg-slate-950/90 rounded-2xl p-5 border border-slate-800/80 font-mono text-xs space-y-3 shadow-xl">
+                    <!-- Live Telemetry Simulation View -->
+                    <div class="bg-slate-950/90 rounded-2xl p-5 border border-slate-800 font-mono text-xs space-y-3 shadow-xl">
                         <div class="flex items-center justify-between pb-2 border-b border-slate-800">
                             <span class="text-[11px] text-slate-400 uppercase tracking-wider">Live Agent Telemetry Feed</span>
                             <span class="text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> EXECUTING
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ACTIVE SESSION
                             </span>
                         </div>
 
                         <div class="space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">Input Payload:</span>
+                            <span class="text-[10px] text-slate-500 uppercase">Input Payload / Trigger:</span>
                             <pre class="bg-slate-900 p-2.5 rounded-lg text-slate-300 overflow-x-auto text-[11px]">${{agent.sampleInput}}</pre>
                         </div>
 
                         <div class="space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">Structured Decision Output:</span>
-                            <pre class="bg-indigo-950/40 border border-indigo-800/50 p-2.5 rounded-lg text-indigo-200 overflow-x-auto text-[11px]">${{agent.sampleOutput}}</pre>
+                            <span class="text-[10px] text-slate-500 uppercase">Agent Autonomous Execution:</span>
+                            <pre class="bg-${{agent.color}}-950/40 border border-${{agent.color}}-800/50 p-2.5 rounded-lg text-${{agent.color}}-200 overflow-x-auto text-[11px]">${{agent.sampleOutput}}</pre>
                         </div>
                     </div>
                 </div>
             `;
         }}
 
-        // Live Interactive Lead Dossier Generator
-        async function generateLiveDossier(e) {{
+        // Tester Agent Selector
+        let currentTesterAgent = "exec_bot";
+        function selectTesterAgent(agentId) {{
+            currentTesterAgent = agentId;
+            const btns = {{
+                exec_bot: document.getElementById("btn-test-exec"),
+                setter: document.getElementById("btn-test-setter"),
+                lead_dev: document.getElementById("btn-test-dev")
+            }};
+            Object.keys(btns).forEach(k => {{
+                if (btns[k]) {{
+                    if (k === agentId) {{
+                        btns[k].className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white flex items-center gap-1.5";
+                    }} else {{
+                        btns[k].className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5";
+                    }}
+                }}
+            }});
+
+            const descText = {{
+                exec_bot: "The Executive Sales Bot is analyzing buyer intent & synthesizing closing dossier...",
+                setter: "The Appointment Setter is negotiating calendar slots and formatting demo invite...",
+                lead_dev: "The Lead Developer is scraping domain firmographics and scoring buyer readiness..."
+            }};
+            document.getElementById("tester-loading-text").innerText = descText[agentId] || descText.exec_bot;
+        }}
+
+        // Run Interactive Agent Demo
+        async function runInteractiveAgentDemo(e) {{
             e.preventDefault();
             const comp = document.getElementById("demo-company").value;
             const ind = document.getElementById("demo-industry").value;
             const val = document.getElementById("demo-value").value;
 
-            document.getElementById("btn-demo-submit").disabled = true;
-            document.getElementById("dossier-output").classList.add("hidden");
-            document.getElementById("dossier-loading").classList.remove("hidden");
+            document.getElementById("btn-tester-submit").disabled = true;
+            document.getElementById("tester-output").classList.add("hidden");
+            document.getElementById("tester-loading").classList.remove("hidden");
 
-            // Format synthetic payload
-            const payload = {{
-                company: comp,
-                estimated_value: parseFloat(val),
-                industry: ind,
-                notes: `Generated via public landing page interactive dossier generator for ${{comp}}.`
-            }};
-
-            // Optional real backend call to CRM leads (falls back gracefully)
+            // Background submission to CRM Leads if available
             try {{
                 await fetch(LEAD_API_URL, {{
                     method: "POST",
                     headers: {{ "Content-Type": "application/json" }},
                     body: JSON.stringify({{
-                        name: `Contact at ${{comp}}`,
-                        email: `info@${{comp.toLowerCase().replace(/[^a-z0-9]/g, '')}}.example`,
+                        name: `Exec Lead for ${{comp}}`,
+                        email: `contact@${{comp.toLowerCase().replace(/[^a-z0-9]/g, '')}}.example`,
                         company: comp,
                         deal_size: parseFloat(val),
-                        notes: `Inbound request from ${{ind}} sector.`
+                        notes: `Inbound prospect via interactive landing page tester for ${{ind}} sector.`
                     }})
                 }});
             }} catch (err) {{
-                // Silent fallback for public unauthenticated visitors
+                // Silent fallback for unauthenticated public visitors
             }}
 
             setTimeout(() => {{
-                document.getElementById("dossier-loading").classList.add("hidden");
-                document.getElementById("dossier-output").classList.remove("hidden");
-                document.getElementById("btn-demo-submit").disabled = false;
+                document.getElementById("tester-loading").classList.add("hidden");
+                document.getElementById("tester-output").classList.remove("hidden");
+                document.getElementById("btn-tester-submit").disabled = false;
 
-                document.getElementById("out-company").innerText = comp;
-                document.getElementById("out-deal").innerText = "$" + Number(val).toLocaleString();
-                document.getElementById("out-tier").innerText = parseFloat(val) >= 250000 ? "STRATEGIC ENTERPRISE VIP" : "HIGH-VALUE ENTERPRISE";
-                document.getElementById("out-score").innerText = (93 + Math.floor(Math.random() * 6)) + "/100";
-                
-                document.getElementById("out-buyer-profile").innerText = 
-                    `High-intent enterprise organization operating in the ${{ind}} sector. Verified high buyer readiness. Critical operational priority is eliminating procurement bottlenecks and deploying autonomous replenishment pipelines.`;
+                document.getElementById("out-target-name").innerText = comp;
+                document.getElementById("out-acv").innerText = "$" + Number(val).toLocaleString();
 
-                document.getElementById("out-closing-strategy").innerText = 
-                    `Engage senior leadership with SLA-backed autonomous replenishment guarantees. Emphasize multi-agent DAG orchestration to integrate existing enterprise ERP and eliminate stockout vulnerability.`;
-            }}, 750);
+                if (currentTesterAgent === "setter") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 2: THE APPOINTMENT SETTER";
+                    document.getElementById("out-box-title-1").innerText = "Calendar Negotiation Status";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Prospect indicated availability for product walk-through. Setter normalized timezone to Eastern Time and offered 2 optimal 30-minute slots on team calendar.`;
+                    document.getElementById("out-box-title-2").innerText = "Confirmed Meeting Details";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Demo locked for Friday at 11:00 AM EDT with VP of Engineering at ${{comp}}. Automated calendar invitations sent with attached product deck.`;
+                    document.getElementById("out-next-step").innerText = "Sync Google/Outlook Calendar & Dispatch 24h Reminder Sequence";
+                }} else if (currentTesterAgent === "lead_dev") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 1: THE LEAD DEVELOPER";
+                    document.getElementById("out-box-title-1").innerText = "Enriched Account Intelligence";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Verified ${{comp}} is a high-growth player in ${{ind}}. Identified 4 decision-makers across Revenue & Operations with verified work emails.`;
+                    document.getElementById("out-box-title-2").innerText = "Intent Signal Analysis";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Detected active hiring for 8 sales and operational roles. Ingested into CRM with buyer intent readiness rated at 94/100.`;
+                    document.getElementById("out-next-step").innerText = "Route to Cold Outreach SDR for 1-to-1 Sequence Launch";
+                }} else {{
+                    // Default Executive Sales Bot
+                    document.getElementById("out-agent-badge").innerText = "AGENT 4: THE EXECUTIVE SALES BOT";
+                    document.getElementById("out-box-title-1").innerText = "Executive Buyer Assessment";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `High-intent enterprise organization operating in ${{ind}}. Primary operational bottleneck is fragmented sales tools and pipeline latency.`;
+                    document.getElementById("out-box-title-2").innerText = "Recommended Closing Strategy";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Package Full 5-Agent Workforce with SLA-guaranteed demo velocity. Position multi-agent DAG orchestration to integrate existing enterprise stack.`;
+                    document.getElementById("out-next-step").innerText = "Prepare Custom Proposal & Staged Commercial Pilot Contract";
+                }}
+            }}, 650);
         }}
 
-        // ROI Calculator Logic
-        function calculateRoi(val) {{
-            document.getElementById("roi-volume-label").innerText = val;
-            const hours = Math.round(val * 0.32);
-            const cost = Math.round(hours * 60);
-            const revenue = Math.round(val * 96);
+        // Stack Configurator Recalculation Logic
+        function recalculateStack() {{
+            const dev = document.getElementById("chk-dev").checked;
+            const sdr = document.getElementById("chk-sdr").checked;
+            const setter = document.getElementById("chk-setter").checked;
+            const exec = document.getElementById("chk-exec").checked;
+            const closer = document.getElementById("chk-closer").checked;
 
-            document.getElementById("roi-hours-saved").innerText = hours.toLocaleString() + " Hours";
-            document.getElementById("roi-cost-saved").innerText = "$" + cost.toLocaleString() + " / mo";
-            document.getElementById("roi-revenue-protected").innerText = "$" + revenue.toLocaleString() + " / mo";
+            let count = (dev ? 1 : 0) + (sdr ? 1 : 0) + (setter ? 1 : 0) + (exec ? 1 : 0) + (closer ? 1 : 0);
+            let demos = (dev ? 10 : 0) + (sdr ? 16 : 0) + (setter ? 22 : 0);
+            let deals = Math.round(demos * 0.22) + (exec ? 5 : 0) + (closer ? 4 : 0);
+            let pipeline = deals * 12000;
+
+            document.getElementById("stack-count").innerText = `${{count}} Agents`;
+            document.getElementById("stack-demos").innerText = `${{demos}} Demos`;
+            document.getElementById("stack-deals").innerText = `${{deals}} Closed`;
+            document.getElementById("stack-pipeline").innerText = `$${{pipeline.toLocaleString()}} / mo`;
         }}
 
-        // Initialize Default Agent Tab
+        // Initialize First Tab on Load
         document.addEventListener("DOMContentLoaded", () => {{
-            switchAgentTab("sales");
+            switchAgentTab("lead_dev");
+            recalculateStack();
         }});
     </script>
 </body>
