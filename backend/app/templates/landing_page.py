@@ -1,12 +1,13 @@
 """
 SaaS Marketing Landing Page Template
 Renders a modern, responsive, high-converting product showcase
-spotlighting the 5 Specialized Types of AI Sales Agents available for SaaS clients:
+spotlighting the 6 Specialized Types of AI Sales Agents available for SaaS clients:
 1. The Lead Developer Agent
-2. The Appointment Setter Agent
-3. The Cold Outreach SDR Agent
-4. The Executive Sales Bot
-5. The Objection Handler & Account Expansion Bot
+2. The Decision-Maker Pathfinder & Literature Bot
+3. The Appointment Setter Agent
+4. The Cold Outreach SDR Agent
+5. The Executive Sales Bot
+6. The Objection Handler & Account Expansion Bot
 """
 
 def render_landing_page(api_prefix: str = "") -> str:
@@ -19,7 +20,7 @@ def render_landing_page(api_prefix: str = "") -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexFlow AI • Autonomous AI Sales Agents Workforce for SaaS</title>
+    <title>NexFlow AI • Autonomous AI Sales Bots Workforce for SaaS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,7 +92,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="font-extrabold text-xl tracking-tight text-white">NexFlow<span class="text-indigo-400">.ai</span></span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">5 SALES AI AGENTS</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">6 SALES AI BOTS</span>
                     </div>
                     <span class="text-[11px] text-slate-400">Autonomous Sales Pipeline Workforce for SaaS</span>
                 </div>
@@ -100,7 +101,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             <!-- Desktop Nav Links -->
             <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
                 <a href="#agents" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-users-gear text-indigo-400 text-xs"></i> 5 Sales Agents
+                    <i class="fa-solid fa-users-gear text-indigo-400 text-xs"></i> 6 Sales Bots
                 </a>
                 <a href="#pipeline" class="hover:text-indigo-400 transition flex items-center gap-1.5">
                     <i class="fa-solid fa-diagram-project text-purple-400 text-xs"></i> Pipeline Architecture
@@ -122,7 +123,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <i class="fa-solid fa-shield-halved text-slate-400"></i> Management Console
                 </a>
                 <a href="#interactive-tester" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
-                    <span>Deploy Sales Agents</span>
+                    <span>Deploy Sales Bots</span>
                     <i class="fa-solid fa-arrow-right"></i>
                 </a>
             </div>
@@ -142,24 +143,24 @@ def render_landing_page(api_prefix: str = "") -> str:
             <!-- Main Heading -->
             <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight max-w-5xl mx-auto leading-[1.1]">
                 Hire an Autonomous AI Sales Team: <br>
-                <span class="gradient-text">The 5 Specialized Sales Agents</span> <br>
+                <span class="gradient-text">The 6 Specialized Sales Bots</span> <br>
                 Built to Scale SaaS Revenue
             </h1>
 
             <!-- Subtitle -->
             <p class="text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-normal">
-                Replace fragmented sales software with a dedicated team of <strong class="text-white font-semibold">5 specialized AI sales agents</strong>. From automated <strong class="text-indigo-400">Lead Development</strong> and <strong class="text-pink-400">Appointment Setting</strong> to high-touch <strong class="text-purple-400">Executive Sales Closers</strong>, your SaaS sales pipeline runs 24/7 without burning out reps.
+                Replace fragmented sales software with a dedicated team of <strong class="text-white font-semibold">6 specialized AI sales bots</strong>. From automated <strong class="text-indigo-400">Lead Development</strong> and phone/email <strong class="text-cyan-400">Decision-Maker Discovery &amp; Literature Dispatch</strong> to <strong class="text-pink-400">Appointment Setting</strong> and high-touch <strong class="text-purple-400">Executive Sales Closers</strong>, your SaaS sales pipeline runs 24/7 without burning out reps.
             </p>
 
             <!-- Primary CTAs -->
             <div class="flex flex-wrap items-center justify-center gap-4 pt-4">
                 <a href="#interactive-tester" class="px-8 py-4 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-2xl shadow-indigo-600/40 transition transform hover:-translate-y-0.5 flex items-center gap-3">
                     <i class="fa-solid fa-robot text-amber-300 text-base"></i>
-                    <span>Test Drive The Executive Sales Bot</span>
+                    <span>Test Drive The Sales Bots</span>
                 </a>
                 <a href="#stack-configurator" class="px-7 py-4 rounded-2xl text-sm font-bold text-slate-200 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 shadow-xl transition flex items-center gap-2.5">
                     <i class="fa-solid fa-sliders text-indigo-400"></i>
-                    <span>Configure Your 5-Agent Stack</span>
+                    <span>Configure Your 6-Bot Stack</span>
                 </a>
                 <a href="{console_url}" class="px-6 py-4 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
                     <i class="fa-solid fa-desktop text-xs text-indigo-400"></i>
@@ -168,11 +169,15 @@ def render_landing_page(api_prefix: str = "") -> str:
             </div>
 
             <!-- Key Performance Proof Ticker -->
-            <div class="pt-12 max-w-5xl mx-auto">
-                <div class="glass-panel rounded-2xl p-6 border border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div class="pt-12 max-w-6xl mx-auto">
+                <div class="glass-panel rounded-2xl p-6 border border-slate-800 grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                     <div class="space-y-1">
                         <div class="text-2xl sm:text-3xl font-black font-mono text-emerald-400">48+ Demos</div>
                         <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Booked / Mo per Client</div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-2xl sm:text-3xl font-black font-mono text-cyan-400">74% DM Opt-In</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Switchboard to DM Lit</div>
                     </div>
                     <div class="space-y-1">
                         <div class="text-2xl sm:text-3xl font-black font-mono text-indigo-400">&lt; 3 Minutes</div>
@@ -191,7 +196,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         </div>
     </section>
 
-    <!-- THE 5 SPECIALIZED SALES AI AGENTS OPTIONS -->
+    <!-- THE 6 SPECIALIZED SALES AI BOTS OPTIONS -->
     <section id="agents" class="py-24 relative border-t border-slate-900 bg-slate-950/70">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
@@ -200,11 +205,11 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span>SaaS Client Sales Agent Portfolio</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    The 5 Types of AI Sales Agents <br>
+                    The 6 Types of AI Sales Bots <br>
                     <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Available For Your SaaS Pipeline</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Choose one or deploy all five together. Each agent is pre-trained on high-converting B2B SaaS sales playbooks, objection frameworks, and appointment booking cadences.
+                    Choose individual bots or deploy all six together. Each bot is pre-trained on high-converting B2B SaaS sales playbooks, objection frameworks, phone switchboard discovery, and appointment booking cadences.
                 </p>
             </div>
 
@@ -315,7 +320,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span>Autonomous Handoff Architecture</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    How The 5 Sales Agents <br>
+                    How The 6 Autonomous Sales Bots <br>
                     <span class="gradient-text">Build Your Complete Pipeline</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
@@ -384,7 +389,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         </div>
     </section>
 
-    <!-- LIVE INTERACTIVE AGENT TESTER (TEST DRIVE THE EXECUTIVE SALES BOT) -->
+    <!-- LIVE INTERACTIVE AGENT TESTER -->
     <section id="interactive-tester" class="py-24 relative border-t border-slate-900 grid-bg">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
@@ -393,11 +398,11 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span>Interactive Real-Time Simulation</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    Test Drive Your AI Sales Agents: <br>
-                    <span class="gradient-text">See The Executive Sales Bot in Action</span>
+                    Test Drive Your AI Sales Workforce: <br>
+                    <span class="gradient-text">See The Decision-Maker &amp; Executive Bots in Action</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Enter your SaaS prospect details below. Watch your selected agent synthesize an instant executive closing dossier, complete with buyer readiness scoring and custom negotiation angles.
+                    Enter your SaaS prospect details below. Test drive the Decision-Maker Pathfinder &amp; Literature Bot, the Executive Sales Bot, the Appointment Setter, or the Lead Developer.
                 </p>
             </div>
 
@@ -405,18 +410,24 @@ def render_landing_page(api_prefix: str = "") -> str:
             <div class="glass-panel rounded-3xl p-6 sm:p-10 border border-slate-800 shadow-2xl space-y-8">
                 <!-- Agent Selector for Tester -->
                 <div class="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-800">
-                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider mr-2">Select Agent to Test:</span>
-                    <button type="button" onclick="selectTesterAgent('exec_bot')" id="btn-test-exec" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white flex items-center gap-1.5">
-                        <i class="fa-solid fa-chess-king"></i> Executive Sales Bot
+                    <span class="text-xs font-bold uppercase text-slate-400 tracking-wider mr-2">Select Bot to Test:</span>
+                    <button type="button" onclick="selectTesterAgent('discovery')" id="btn-test-discovery" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 text-white flex items-center gap-1.5 shadow-lg shadow-cyan-600/30">
+                        <i class="fa-solid fa-phone-volume text-white"></i> Phone/Email DM &amp; Literature Bot
                     </button>
-                    <button type="button" onclick="selectTesterAgent('discovery')" id="btn-test-discovery" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
-                        <i class="fa-solid fa-phone-volume text-cyan-400"></i> Phone/Email Decision-Maker &amp; Literature Bot
+                    <button type="button" onclick="selectTesterAgent('exec_bot')" id="btn-test-exec" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-chess-king text-purple-400"></i> Executive Sales Bot
+                    </button>
+                    <button type="button" onclick="selectTesterAgent('lead_dev')" id="btn-test-dev" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-database text-indigo-400"></i> Lead Developer
+                    </button>
+                    <button type="button" onclick="selectTesterAgent('sdr')" id="btn-test-sdr" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane text-emerald-400"></i> Cold Outreach SDR
                     </button>
                     <button type="button" onclick="selectTesterAgent('setter')" id="btn-test-setter" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-calendar-check text-pink-400"></i> Appointment Setter
                     </button>
-                    <button type="button" onclick="selectTesterAgent('lead_dev')" id="btn-test-dev" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
-                        <i class="fa-solid fa-database text-indigo-400"></i> Lead Developer
+                    <button type="button" onclick="selectTesterAgent('closer')" id="btn-test-closer" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-handshake-angle text-amber-400"></i> Objection Closer
                     </button>
                 </div>
 
@@ -500,7 +511,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         </div>
     </section>
 
-    <!-- INTERACTIVE 5-AGENT STACK CONFIGURATOR -->
+    <!-- INTERACTIVE 6-BOT STACK CONFIGURATOR -->
     <section id="stack-configurator" class="py-24 relative border-t border-slate-900 bg-slate-950/60">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
@@ -513,7 +524,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span class="gradient-text">&amp; Project Monthly Revenue Added</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Select which AI Sales Agents you want on your team. Watch your pipeline projections update live.
+                    Select which of the 6 AI Sales Bots you want on your team. Watch your pipeline projections update live.
                 </p>
             </div>
 
@@ -609,19 +620,19 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-800 text-center">
                     <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
                         <div class="text-slate-400 text-[10px] uppercase font-bold">Active Agents</div>
-                        <div class="text-2xl font-black font-mono text-indigo-400" id="stack-count">5 Agents</div>
+                        <div class="text-2xl font-black font-mono text-indigo-400" id="stack-count">6 Agents</div>
                     </div>
                     <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
                         <div class="text-slate-400 text-[10px] uppercase font-bold">Monthly Demos</div>
-                        <div class="text-2xl font-black font-mono text-pink-400" id="stack-demos">48 Demos</div>
+                        <div class="text-2xl font-black font-mono text-pink-400" id="stack-demos">60 Demos</div>
                     </div>
                     <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
                         <div class="text-slate-400 text-[10px] uppercase font-bold">Deals Closed</div>
-                        <div class="text-2xl font-black font-mono text-purple-400" id="stack-deals">14 Closed</div>
+                        <div class="text-2xl font-black font-mono text-purple-400" id="stack-deals">22 Closed</div>
                     </div>
                     <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
                         <div class="text-slate-400 text-[10px] uppercase font-bold">Projected Pipeline</div>
-                        <div class="text-2xl font-black font-mono text-emerald-400" id="stack-pipeline">$168,000 / mo</div>
+                        <div class="text-2xl font-black font-mono text-emerald-400" id="stack-pipeline">$264,000 / mo</div>
                     </div>
                 </div>
             </div>
@@ -641,7 +652,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span class="gradient-text">Your AI Sales Workforce</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    From single-agent appointment setting to an entire 5-agent autonomous enterprise workforce.
+                    From single-bot appointment setting to an entire 6-agent autonomous enterprise workforce.
                 </p>
             </div>
 
@@ -681,11 +692,11 @@ def render_landing_page(api_prefix: str = "") -> str:
                                 <span class="text-xs text-slate-400">/ month</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-400">Deploy 3 AI Sales Agents (Lead Developer + Cold SDR + Appointment Setter).</p>
+                        <p class="text-xs text-slate-400">Deploy 3 AI Sales Agents (e.g. Lead Developer + Decision-Maker Bot + Appointment Setter).</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-300">
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 3 AI Sales Agents Deployed</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 5,000 Pipeline Touches/mo</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Multi-Channel Email &amp; LinkedIn</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Multi-Channel Voice, Email &amp; LinkedIn</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 5 Seats Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Automated Follow-Up Sequences</div>
                         </div>
@@ -698,7 +709,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <!-- Full Executive Workforce Tier (Highlighted) -->
                 <div class="glass-panel rounded-3xl p-6 border-2 border-indigo-500 flex flex-col justify-between space-y-6 glow-indigo relative">
                     <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-[10px] tracking-wider uppercase shadow-lg">
-                        Full 5-Agent Suite
+                        Full 6-Agent Suite
                     </div>
                     <div class="space-y-4 pt-1">
                         <div class="space-y-1">
@@ -708,18 +719,18 @@ def render_landing_page(api_prefix: str = "") -> str:
                                 <span class="text-xs text-slate-400">/ month</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-300">All 5 AI Sales Agents deployed with executive proposal generation and objection closing.</p>
+                        <p class="text-xs text-slate-300">All 6 AI Sales Bots deployed with decision-maker phone/email discovery, executive proposal generation, and objection closing.</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-200">
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> All 5 AI Sales Agents Included</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> All 6 AI Sales Bots Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 25,000 Pipeline Touches/mo</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Decision-Maker &amp; Literature Dispatch Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> The Executive Sales Bot Included</div>
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> The Objection Closer Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 20 Seats + Custom Domain</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Dedicated HITL Takeover Queue</div>
                         </div>
                     </div>
                     <a href="{console_url}" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/40 transition text-center block">
-                        Deploy All 5 Agents
+                        Deploy All 6 Agents
                     </a>
                 </div>
 
@@ -784,7 +795,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 </div>
                 <div class="flex items-center gap-6 text-xs">
                     <a href="{console_url}" class="hover:text-white transition">Launch Console</a>
-                    <a href="#agents" class="hover:text-white transition">5 Sales Agents</a>
+                    <a href="#agents" class="hover:text-white transition">6 Sales Bots</a>
                     <a href="#pipeline" class="hover:text-white transition">Pipeline Funnel</a>
                     <a href="#pricing" class="hover:text-white transition">Pricing Plans</a>
                     <a href="{prefix}/docs" target="_blank" class="hover:text-white transition flex items-center gap-1">
@@ -808,7 +819,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         const API_PREFIX = "{prefix}";
         const LEAD_API_URL = "{lead_api_url}";
 
-        // The 5 AI Sales Agents Data Matrix
+        // The 6 AI Sales Bots Data Matrix
         const SALES_AGENTS = {{
             lead_dev: {{
                 id: "lead_dev",
@@ -1010,19 +1021,29 @@ def render_landing_page(api_prefix: str = "") -> str:
         }}
 
         // Tester Agent Selector
-        let currentTesterAgent = "exec_bot";
+        let currentTesterAgent = "discovery";
         function selectTesterAgent(agentId) {{
             currentTesterAgent = agentId;
             const btns = {{
-                exec_bot: document.getElementById("btn-test-exec"),
                 discovery: document.getElementById("btn-test-discovery"),
+                exec_bot: document.getElementById("btn-test-exec"),
+                lead_dev: document.getElementById("btn-test-dev"),
+                sdr: document.getElementById("btn-test-sdr"),
                 setter: document.getElementById("btn-test-setter"),
-                lead_dev: document.getElementById("btn-test-dev")
+                closer: document.getElementById("btn-test-closer")
+            }};
+            const activeColors = {{
+                discovery: "bg-cyan-600 shadow-cyan-600/30",
+                exec_bot: "bg-purple-600 shadow-purple-600/30",
+                lead_dev: "bg-indigo-600 shadow-indigo-600/30",
+                sdr: "bg-emerald-600 shadow-emerald-600/30",
+                setter: "bg-pink-600 shadow-pink-600/30",
+                closer: "bg-amber-600 shadow-amber-600/30"
             }};
             Object.keys(btns).forEach(k => {{
                 if (btns[k]) {{
                     if (k === agentId) {{
-                        btns[k].className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white flex items-center gap-1.5";
+                        btns[k].className = `px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 shadow-lg ${{activeColors[k] || 'bg-indigo-600'}}`;
                     }} else {{
                         btns[k].className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5";
                     }}
@@ -1030,12 +1051,14 @@ def render_landing_page(api_prefix: str = "") -> str:
             }});
 
             const descText = {{
-                exec_bot: "The Executive Sales Bot is analyzing buyer intent & synthesizing closing dossier...",
                 discovery: "The Decision-Maker Pathfinder & Literature Bot is calling/emailing switchboard & dispatching collateral...",
+                exec_bot: "The Executive Sales Bot is analyzing buyer intent & synthesizing closing dossier...",
+                lead_dev: "The Lead Developer is scraping domain firmographics and scoring buyer readiness...",
+                sdr: "The Cold Outreach SDR is generating hyper-personalized 1-to-1 multi-channel cadences...",
                 setter: "The Appointment Setter is negotiating calendar slots and formatting demo invite...",
-                lead_dev: "The Lead Developer is scraping domain firmographics and scoring buyer readiness..."
+                closer: "The Objection Closer is analyzing pricing friction and packaging contract concessions..."
             }};
-            document.getElementById("tester-loading-text").innerText = descText[agentId] || descText.exec_bot;
+            document.getElementById("tester-loading-text").innerText = descText[agentId] || descText.discovery;
         }}
 
         // Run Interactive Agent Demo
@@ -1078,20 +1101,11 @@ def render_landing_page(api_prefix: str = "") -> str:
                     document.getElementById("out-agent-badge").innerText = "AGENT 2: DECISION-MAKER & LITERATURE BOT";
                     document.getElementById("out-box-title-1").innerText = "Phone & Email Switchboard Discovery";
                     document.getElementById("out-box-desc-1").innerText = 
-                        `Autonomous Voice AI called ${{comp}} switchboard & dispatched exploratory email to front desk. Successfully navigated past gatekeeper and connected directly with Sarah Jenkins (VP Cloud Architecture).`;
+                        `Autonomous Voice AI phoned ${{comp}} switchboard & sent discovery inquiry to front office. Navigated past gatekeeper and connected directly with Sarah Jenkins (VP Cloud Architecture).`;
                     document.getElementById("out-box-title-2").innerText = "Marketing Literature Dispatched";
                     document.getElementById("out-box-desc-2").innerText = 
-                        `Engaged Sarah Jenkins, secured permission, and dispatched digital whitepapers via tracked email plus physical executive briefing kit via postal mail to warm up and set up the sale for later.`;
+                        `Secured permission during phone call. Dispatched digital architecture blueprint via tracked email and scheduled physical executive briefing folder via courier to warm up and set up the sale for later.`;
                     document.getElementById("out-next-step").innerText = "Track Content Engagement & Route to Appointment Setter for Meeting Booking";
-                }} else if (currentTesterAgent === "setter") {{
-                    document.getElementById("out-agent-badge").innerText = "AGENT 4: THE APPOINTMENT SETTER";
-                    document.getElementById("out-box-title-1").innerText = "Calendar Negotiation Status";
-                    document.getElementById("out-box-desc-1").innerText = 
-                        `Prospect indicated availability for product walk-through. Setter normalized timezone to Eastern Time and offered 2 optimal 30-minute slots on team calendar.`;
-                    document.getElementById("out-box-title-2").innerText = "Confirmed Meeting Details";
-                    document.getElementById("out-box-desc-2").innerText = 
-                        `Demo locked for Friday at 11:00 AM EDT with VP of Engineering at ${{comp}}. Automated calendar invitations sent with attached product deck.`;
-                    document.getElementById("out-next-step").innerText = "Sync Google/Outlook Calendar & Dispatch 24h Reminder Sequence";
                 }} else if (currentTesterAgent === "lead_dev") {{
                     document.getElementById("out-agent-badge").innerText = "AGENT 1: THE LEAD DEVELOPER";
                     document.getElementById("out-box-title-1").innerText = "Enriched Account Intelligence";
@@ -1101,6 +1115,33 @@ def render_landing_page(api_prefix: str = "") -> str:
                     document.getElementById("out-box-desc-2").innerText = 
                         `Detected active hiring for 8 sales and operational roles. Ingested into CRM with buyer intent readiness rated at 94/100.`;
                     document.getElementById("out-next-step").innerText = "Route to Decision-Maker & Literature Bot for Phone/Email Outreach";
+                }} else if (currentTesterAgent === "sdr") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 3: THE COLD OUTREACH SDR";
+                    document.getElementById("out-box-title-1").innerText = "1-to-1 Tailored Outbound Cadence";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Crafted bespoke sequence referencing ${{comp}}'s recent expansion into ${{ind}}. Dynamically tailored value props to VP of Engineering pain points.`;
+                    document.getElementById("out-box-title-2").innerText = "Multi-Channel Touchpoints";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Scheduled 4 personalized touchpoints across Email and LinkedIn InMail with verified delivery and reply sentiment tracking.`;
+                    document.getElementById("out-next-step").innerText = "Monitor Open & Reply Signals for Automatic Appointment Setter Handshake";
+                }} else if (currentTesterAgent === "setter") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 4: THE APPOINTMENT SETTER";
+                    document.getElementById("out-box-title-1").innerText = "Calendar Negotiation Status";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Prospect indicated availability for product walk-through. Setter normalized timezone to Eastern Time and offered 2 optimal 30-minute slots on team calendar.`;
+                    document.getElementById("out-box-title-2").innerText = "Confirmed Meeting Details";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Demo locked for Friday at 11:00 AM EDT with VP of Engineering at ${{comp}}. Automated calendar invitations sent with attached product deck.`;
+                    document.getElementById("out-next-step").innerText = "Sync Google/Outlook Calendar & Dispatch 24h Reminder Sequence";
+                }} else if (currentTesterAgent === "closer") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 6: THE OBJECTION CLOSER";
+                    document.getElementById("out-box-title-1").innerText = "Contract Friction Analysis";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Analyzed procurement pushback regarding upfront annual billing. Formulated concession package maintaining 82% margin while offering quarterly billing schedule.`;
+                    document.getElementById("out-box-title-2").innerText = "Rebuttal Strategy & Concessions";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Drafted executive concession response with SLA renewal guarantees to neutralize hesitation and accelerate contract signing.`;
+                    document.getElementById("out-next-step").innerText = "Issue Revised Master Services Agreement & Lock Closing Signature";
                 }} else {{
                     // Default Executive Sales Bot
                     document.getElementById("out-agent-badge").innerText = "AGENT 5: THE EXECUTIVE SALES BOT";
@@ -1109,7 +1150,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                         `High-intent enterprise organization operating in ${{ind}}. Primary operational bottleneck is fragmented sales tools and pipeline latency.`;
                     document.getElementById("out-box-title-2").innerText = "Recommended Closing Strategy";
                     document.getElementById("out-box-desc-2").innerText = 
-                        `Package Full 5-Agent Workforce with SLA-guaranteed demo velocity. Position multi-agent DAG orchestration to integrate existing enterprise stack.`;
+                        `Package Full 6-Agent Workforce with SLA-guaranteed demo velocity. Position multi-agent DAG orchestration to integrate existing enterprise stack.`;
                     document.getElementById("out-next-step").innerText = "Prepare Custom Proposal & Staged Commercial Pilot Contract";
                 }}
             }}, 650);
@@ -1138,6 +1179,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         // Initialize First Tab on Load
         document.addEventListener("DOMContentLoaded", () => {{
             switchAgentTab("lead_dev");
+            selectTesterAgent("discovery");
             recalculateStack();
         }});
     </script>

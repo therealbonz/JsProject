@@ -1619,7 +1619,7 @@ async def customer_portal_page(token: str):
 async def saas_landing_page():
     """
     Public Commercial SaaS Landing Page
-    Spotlights the 5 Specialized Types of AI Agents and Visual Pipeline Orchestration.
+    Spotlights the 6 Specialized Types of AI Sales Bots and Visual Pipeline Orchestration.
     """
     return HTMLResponse(content=render_landing_page(api_prefix="/JsProject"))
 
