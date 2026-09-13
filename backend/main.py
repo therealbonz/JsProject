@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
 from app.templates.signup_page import render_signup_page
@@ -57,7 +57,11 @@ async def lifespan(app: FastAPI):
                     ("notes", "TEXT"),
                     ("last_call_at", "DATETIME"),
                     ("last_call_notes", "TEXT"),
-                    ("last_call_outcome", "VARCHAR(100)")
+                    ("last_call_outcome", "VARCHAR(100)"),
+                    ("nurture_status", "VARCHAR(50) DEFAULT 'none'"),
+                    ("nurture_step", "INTEGER DEFAULT 0"),
+                    ("next_nurture_at", "DATETIME"),
+                    ("nurture_history", "TEXT DEFAULT '[]'")
                 ]
                 for col_name, col_type in new_cols:
                     if col_name not in cols:
@@ -177,6 +181,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(billing_checkout.router, prefix=prefix)
     app.include_router(pipeline_dag.router, prefix=prefix)
     app.include_router(voice_collateral.router, prefix=prefix)
+    app.include_router(nurture_router.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -2151,6 +2156,75 @@ Select a lead from the left to trigger autonomous research or outreach email dra
 
             <!-- Right Column: Closer Appointments, Human-in-the-Loop (HITL) Queue & Audit Logs -->
             <div class="space-y-6">
+                <!-- Inbound Cadence & Nurture Monitor Card -->
+                <div class="bg-slate-800/80 border border-cyan-500/40 rounded-xl p-5 shadow-xl space-y-3">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-700/60">
+                        <h2 class="font-semibold text-sm uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+                            <i class="fa-solid fa-bolt"></i> Inbound Cadence &amp; Nurture Monitor
+                        </h2>
+                        <div class="flex items-center gap-2">
+                            <span id="nurture-active-badge" class="px-2 py-0.5 text-xs font-bold rounded-full bg-cyan-950 text-cyan-300 border border-cyan-600/50">0 Active</span>
+                            <button onclick="fetchNurtureTelemetry()" class="text-xs text-slate-400 hover:text-white"><i class="fa-solid fa-rotate"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Key Nurture Telemetry Stats -->
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="p-2.5 bg-slate-900/90 rounded-lg border border-slate-800">
+                            <div class="text-[10px] text-slate-400 uppercase font-semibold">In Cadence</div>
+                            <div id="telemetry-in-cadence" class="text-base font-bold font-mono text-cyan-400">0</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-900/90 rounded-lg border border-slate-800">
+                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Demo Conv %</div>
+                            <div id="telemetry-conv-rate" class="text-base font-bold font-mono text-emerald-400">0.0%</div>
+                        </div>
+                        <div class="p-2.5 bg-slate-900/90 rounded-lg border border-slate-800">
+                            <div class="text-[10px] text-slate-400 uppercase font-semibold">Demos Booked</div>
+                            <div id="telemetry-demos-booked" class="text-base font-bold font-mono text-pink-400">0</div>
+                        </div>
+                    </div>
+
+                    <!-- 5-Step Cadence Breakdown -->
+                    <div class="space-y-1.5 pt-1">
+                        <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <span>5-Step Cadence Breakdown</span>
+                            <span class="text-slate-500 font-mono">Leads by Step</span>
+                        </div>
+                        <div class="grid grid-cols-5 gap-1.5 text-center font-mono text-[11px]">
+                            <div class="p-1.5 rounded bg-slate-950/80 border border-indigo-500/30">
+                                <div class="text-[9px] text-slate-400 font-sans">S1: Email</div>
+                                <div id="cadence-step-1-count" class="font-bold text-indigo-300">0</div>
+                            </div>
+                            <div class="p-1.5 rounded bg-slate-950/80 border border-cyan-500/30">
+                                <div class="text-[9px] text-slate-400 font-sans">S2: SMS</div>
+                                <div id="cadence-step-2-count" class="font-bold text-cyan-300">0</div>
+                            </div>
+                            <div class="p-1.5 rounded bg-slate-950/80 border border-emerald-500/30">
+                                <div class="text-[9px] text-slate-400 font-sans">S3: SDR</div>
+                                <div id="cadence-step-3-count" class="font-bold text-emerald-300">0</div>
+                            </div>
+                            <div class="p-1.5 rounded bg-slate-950/80 border border-purple-500/30">
+                                <div class="text-[9px] text-slate-400 font-sans">S4: Call</div>
+                                <div id="cadence-step-4-count" class="font-bold text-purple-300">0</div>
+                            </div>
+                            <div class="p-1.5 rounded bg-slate-950/80 border border-pink-500/30">
+                                <div class="text-[9px] text-slate-400 font-sans">S5: Close</div>
+                                <div id="cadence-step-5-count" class="font-bold text-pink-300">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cadence Control Buttons -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <button onclick="advanceSelectedLeadCadence()" class="flex-1 py-1.5 px-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold rounded-lg text-xs shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-forward-step"></i> Advance Lead
+                        </button>
+                        <button onclick="advanceAllDueCadences()" class="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate"></i> Scan Due
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Scheduled Closer Appointments Card -->
                 <div class="bg-slate-800/80 border border-emerald-600/40 rounded-xl p-5 shadow-xl">
                     <div class="flex justify-between items-center mb-3">
@@ -5748,6 +5822,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     document.getElementById("user-email").innerText = data.email;
                     
                     fetchLeads();
+                    fetchNurtureTelemetry();
                     fetchAppointments();
                     fetchHitlRequests();
                     fetchAuditLogs();
@@ -5906,6 +5981,21 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                             callBadgeHtml = `<div class="mt-1 text-[10px] text-slate-500 italic"><i class="fa-solid fa-phone-slash mr-1"></i>No calls logged</div>`;
                         }
 
+                        let nurtureBadgeHtml = "";
+                        if (l.nurture_status && l.nurture_status !== "none") {
+                            const nStep = l.nurture_step || 1;
+                            let nColor = "cyan";
+                            let statusText = l.nurture_status.replace(/_/g, ' ');
+                            if (l.nurture_status === "paused_replied") nColor = "amber";
+                            else if (l.nurture_status === "completed_booked") nColor = "emerald";
+                            nurtureBadgeHtml = `
+                                <div class="mt-1 flex items-center justify-between text-[10px] px-2 py-0.5 rounded bg-${nColor}-950/60 border border-${nColor}-800/40 text-${nColor}-300 font-mono">
+                                    <span><i class="fa-solid fa-bolt text-[9px] mr-1"></i>Cadence: Step ${nStep}/5</span>
+                                    <span class="uppercase text-[9px] font-sans">${escapeHtml(statusText)}</span>
+                                </div>
+                            `;
+                        }
+
                         div.innerHTML = `
                             <div class="flex justify-between items-center">
                                 <div>
@@ -5914,6 +6004,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                                 </div>
                                 <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">${l.lead_score} pts</span>
                             </div>
+                            ${nurtureBadgeHtml}
                             ${l.notes ? `<div class="text-[10px] text-amber-300/90 truncate flex items-center gap-1"><i class="fa-regular fa-note-sticky text-amber-400"></i> ${escapeHtml(l.notes)}</div>` : ''}
                             ${callBadgeHtml}
                         `;
@@ -5927,6 +6018,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                         const refreshed = leads.find(l => l.id === selectedLead.id);
                         selectLead(refreshed || leads[0]);
                     }
+                    fetchNurtureTelemetry();
                 } catch(e) {
                     console.error("Failed to fetch leads:", e);
                 }
@@ -6035,6 +6127,83 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     });
                 } catch(e) {
                     console.error("Failed to fetch calls:", e);
+                }
+            }
+
+            async function fetchNurtureTelemetry() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/nurture/telemetry", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+
+                    const inCadenceEl = document.getElementById("telemetry-in-cadence");
+                    const convRateEl = document.getElementById("telemetry-conv-rate");
+                    const demosBookedEl = document.getElementById("telemetry-demos-booked");
+                    const badgeEl = document.getElementById("nurture-active-badge");
+
+                    if (inCadenceEl) inCadenceEl.innerText = data.active_in_cadence || 0;
+                    if (convRateEl) convRateEl.innerText = (data.demo_conversion_rate_pct || 0) + "%";
+                    if (demosBookedEl) demosBookedEl.innerText = data.converted_demos_booked || 0;
+                    if (badgeEl) badgeEl.innerText = (data.active_in_cadence || 0) + " Active";
+
+                    const breakdown = data.step_breakdown || {};
+                    for (let s = 1; s <= 5; s++) {
+                        const el = document.getElementById("cadence-step-" + s + "-count");
+                        if (el) el.innerText = breakdown[s] || 0;
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch nurture telemetry:", err);
+                }
+            }
+
+            async function advanceSelectedLeadCadence() {
+                if (!selectedLead || !authToken) {
+                    showToast("No Account Selected", "Please select a lead first", "fa-triangle-exclamation", "warning");
+                    return;
+                }
+                const compName = selectedLead.company ? selectedLead.company.name : 'Lead';
+                try {
+                    const res = await fetch(API_BASE + "/nurture/advance", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ lead_id: selectedLead.id, force: true })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast("Cadence Advanced", `Step ${data.next_step || 'next'} triggered for ${compName}`, "fa-bolt", "success");
+                        await fetchLeads();
+                    } else {
+                        showToast("Advance Paused", data.detail || "Unable to advance cadence", "fa-circle-info", "warning");
+                    }
+                } catch (err) {
+                    showToast("Network Error", "Unable to advance cadence", "fa-circle-xmark", "error");
+                }
+            }
+
+            async function advanceAllDueCadences() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/nurture/advance", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ force: false })
+                    });
+                    const data = await res.json();
+                    showToast("Cadence Scan Complete", `${data.advanced_count || 0} due touchpoints executed across active leads.`, "fa-arrows-rotate", "success");
+                    await fetchLeads();
+                } catch (err) {
+                    showToast("Scan Error", "Failed to scan due cadences", "fa-circle-xmark", "error");
                 }
             }
 

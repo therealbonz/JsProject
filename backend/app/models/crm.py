@@ -61,6 +61,12 @@ class Lead(Base, CommonMixin, TenantMixin):
     last_call_notes = Column(Text, nullable=True)
     last_call_outcome = Column(String(100), nullable=True)
 
+    # Automated Inbound Nurturing Sequence (Phase 4)
+    nurture_status = Column(String(50), default="none", nullable=False)  # none, active, paused_replied, completed_booked, opted_out
+    nurture_step = Column(Integer, default=0, nullable=False)  # 0 to 5
+    next_nurture_at = Column(DateTime(timezone=True), nullable=True)
+    nurture_history = Column(JSON, default=list, nullable=False)
+
     # Relationships
     organization = relationship("Organization", back_populates="leads")
     company = relationship("Company", back_populates="leads")

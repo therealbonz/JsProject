@@ -110,6 +110,9 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <a href="#interactive-tester" class="hover:text-indigo-400 transition flex items-center gap-1.5">
                     <i class="fa-solid fa-wand-magic-sparkles text-amber-400 text-xs"></i> Live Agent Demo
                 </a>
+                <a href="#inbound-demo" class="hover:text-cyan-400 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-arrow-down text-cyan-400 text-xs"></i> Whitepaper &amp; Demo
+                </a>
                 <a href="#stack-configurator" class="hover:text-indigo-400 transition flex items-center gap-1.5">
                     <i class="fa-solid fa-calculator text-emerald-400 text-xs"></i> Stack Calculator
                 </a>
@@ -506,6 +509,163 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <div class="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between text-slate-400 text-[11px] font-mono">
                         <span>Autonomous Next Step: <strong class="text-emerald-400" id="out-next-step">Dispatch Calendar Setter &amp; Prepare Custom Contract Proposal</strong></span>
                         <span>Confidence: <strong>98.6%</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- INBOUND PIPELINE NURTURE & WHITEPAPER DISPATCH -->
+    <section id="inbound-demo" class="py-24 relative border-t border-slate-900 bg-slate-950/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+            <div class="text-center space-y-4 max-w-3xl mx-auto">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-800/50 text-xs font-semibold">
+                    <i class="fa-solid fa-bolt text-cyan-400"></i>
+                    <span>Autonomous Inbound Lead Nurturing Sequence</span>
+                </div>
+                <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+                    Request an Architecture Briefing <br>
+                    <span class="gradient-text">&amp; Download The 16-Page ROI Dossier</span>
+                </h2>
+                <p class="text-slate-400 text-sm sm:text-base">
+                    Experience the autonomous pipeline first-hand. Ingest your organization into our 5-step cadence: receive an instant Welcome &amp; Whitepaper email, automated SMS routing confirmation, and personalized SDR benchmarks.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start max-w-6xl mx-auto">
+                <!-- Left: Form Card -->
+                <div class="lg:col-span-6 glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-6">
+                    <div class="flex items-center gap-3 pb-4 border-b border-slate-800">
+                        <div class="h-10 w-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white">Inbound Lead Capture</h3>
+                            <p class="text-xs text-slate-400">Instant auto-enrollment into 5-touchpoint cadence</p>
+                        </div>
+                    </div>
+
+                    <form id="inbound-demo-form" onsubmit="submitInboundDemoCapture(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Your Full Name *</label>
+                                <input id="inbound-name" type="text" required placeholder="e.g. Marcus Vance" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-cyan-500 outline-none">
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Work Email *</label>
+                                <input id="inbound-email" type="email" required placeholder="m.vance@company.com" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-cyan-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Company Name *</label>
+                                <input id="inbound-company" type="text" required placeholder="Acme Systems" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-cyan-500 outline-none">
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Direct Phone (for SMS / Voice)</label>
+                                <input id="inbound-phone" type="tel" placeholder="+1 (555) 019-9832" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-cyan-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold uppercase text-slate-300 tracking-wider">Industry Sector</label>
+                            <select id="inbound-industry" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-cyan-500 outline-none">
+                                <option value="Enterprise SaaS & Cloud" selected>Enterprise SaaS &amp; Cloud</option>
+                                <option value="Supply Chain & Logistics">Supply Chain &amp; Logistics</option>
+                                <option value="Industrial & Warehousing">Industrial &amp; Warehousing</option>
+                                <option value="Fintech & Banking">Fintech &amp; Banking</option>
+                                <option value="Healthcare & Bio">Healthcare &amp; Bio</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" id="btn-inbound-submit" class="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-cyan-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Download Whitepaper &amp; Enroll in Cadence</span>
+                        </button>
+                    </form>
+
+                    <!-- Realtime Result Box -->
+                    <div id="inbound-result-box" class="hidden"></div>
+                </div>
+
+                <!-- Right: 5-Step Visual Cadence Timeline -->
+                <div class="lg:col-span-6 space-y-4">
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i>
+                        <span>Autonomous 5-Step Inbound Cadence Roadmap</span>
+                    </div>
+
+                    <div class="space-y-3 font-sans">
+                        <!-- Step 1 -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-start gap-3.5 hover:border-cyan-500/40 transition">
+                            <div class="h-8 w-8 rounded-lg bg-indigo-600/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-xs shrink-0">1</div>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-xs text-white">Instant Welcome &amp; 16-Page ROI Whitepaper</h4>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800/40">Minute 0 • Email</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Dispatches branded executive briefing PDF and dynamic ROI analysis via SendGrid immediately upon ingestion.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-start gap-3.5 hover:border-cyan-500/40 transition">
+                            <div class="h-8 w-8 rounded-lg bg-cyan-600/20 text-cyan-400 font-mono font-bold flex items-center justify-center text-xs shrink-0">2</div>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-xs text-white">Postal Routing &amp; SMS Confirmation</h4>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/40">Hour 2 • Twilio SMS</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Mobile notification confirming physical literature dispatch and personalized calendar demo link.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-start gap-3.5 hover:border-cyan-500/40 transition">
+                            <div class="h-8 w-8 rounded-lg bg-emerald-600/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-xs shrink-0">3</div>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-xs text-white">SDR Tailored Industry Insights</h4>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">Day 1 • 1-to-1 Email</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    1-to-1 SDR custom analysis with sector efficiency benchmarks and appointment booking prompt.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-start gap-3.5 hover:border-cyan-500/40 transition">
+                            <div class="h-8 w-8 rounded-lg bg-purple-600/20 text-purple-400 font-mono font-bold flex items-center justify-center text-xs shrink-0">4</div>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-xs text-white">Decision-Maker Voice AI / Lob Postcard</h4>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/40">Day 3 • Voice &amp; Postal</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Autonomous switchboard Voice AI consultation or priority USPS 22-digit IMb tracked glossy postcard.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-start gap-3.5 hover:border-cyan-500/40 transition">
+                            <div class="h-8 w-8 rounded-lg bg-pink-600/20 text-pink-400 font-mono font-bold flex items-center justify-center text-xs shrink-0">5</div>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-xs text-white">Senior Executive Sales Bot Consultation</h4>
+                                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-pink-950 text-pink-300 border border-pink-800/40">Day 6 • Executive Close</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Custom commercial proposal, enterprise tier reservation, and direct CTO office meeting invitation.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1090,6 +1250,24 @@ def render_landing_page(api_prefix: str = "") -> str:
                 // Silent fallback for unauthenticated public visitors
             }}
 
+            // Auto-enroll in Inbound Lead Nurturing Sequence
+            try {{
+                await fetch(API_PREFIX + "/api/v1/nurture/inbound-capture", {{
+                    method: "POST",
+                    headers: {{ "Content-Type": "application/json" }},
+                    body: JSON.stringify({{
+                        name: `Exec Lead for ${{comp}}`,
+                        email: `contact@${{comp.toLowerCase().replace(/[^a-z0-9]/g, '')}}.example.com`,
+                        company_name: comp,
+                        source: "interactive_agent_tester",
+                        industry: ind,
+                        custom_notes: `Tested ${{currentTesterAgent}} agent with target deal value $${{val}}.`
+                    }})
+                }});
+            }} catch (err) {{
+                // Non-blocking
+            }}
+
             setTimeout(() => {{
                 document.getElementById("tester-loading").classList.add("hidden");
                 document.getElementById("tester-output").classList.remove("hidden");
@@ -1175,6 +1353,81 @@ def render_landing_page(api_prefix: str = "") -> str:
             document.getElementById("stack-demos").innerText = `${{demos}} Demos`;
             document.getElementById("stack-deals").innerText = `${{deals}} Closed`;
             document.getElementById("stack-pipeline").innerText = `$${{pipeline.toLocaleString()}} / mo`;
+        }}
+
+        function escapeHtml(str) {{
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }}
+
+        // Inbound Demo & Whitepaper Submission
+        async function submitInboundDemoCapture(e) {{
+            e.preventDefault();
+            const btn = document.getElementById("btn-inbound-submit");
+            const resBox = document.getElementById("inbound-result-box");
+            const name = document.getElementById("inbound-name").value;
+            const email = document.getElementById("inbound-email").value;
+            const company = document.getElementById("inbound-company").value;
+            const phone = document.getElementById("inbound-phone").value;
+            const industry = document.getElementById("inbound-industry").value;
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>Enrolling in Cadence...</span>`;
+
+            try {{
+                const response = await fetch(`${{API_PREFIX}}/api/v1/nurture/inbound-capture`, {{
+                    method: "POST",
+                    headers: {{ "Content-Type": "application/json" }},
+                    body: JSON.stringify({{
+                        name: name,
+                        email: email,
+                        company_name: company,
+                        phone: phone,
+                        industry: industry,
+                        source: "landing_page_whitepaper_form"
+                    }})
+                }});
+
+                const data = await response.json();
+                if (response.ok && data.lead_id) {{
+                    resBox.classList.remove("hidden");
+                    resBox.innerHTML = `
+                        <div class="p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 space-y-2">
+                            <div class="flex items-center gap-2 font-bold text-sm">
+                                <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+                                <span>Cadence Enrolled! ROI Dossier &amp; Whitepaper Dispatched</span>
+                            </div>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                Welcome email with the 16-page Autonomous Workforce Whitepaper has been dispatched to <strong>${{escapeHtml(email)}}</strong>.
+                                Your lead ID is <span class="font-mono text-cyan-300">${{data.lead_id.substring(0, 8)}}...</span> and Step 1 of your 5-touchpoint nurture sequence is live!
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById("inbound-demo-form").reset();
+                }} else {{
+                    resBox.classList.remove("hidden");
+                    resBox.innerHTML = `
+                        <div class="p-3 rounded-xl bg-amber-950/80 border border-amber-500/50 text-amber-300 text-xs">
+                            <i class="fa-solid fa-triangle-exclamation mr-1"></i> ${{escapeHtml(data.detail || "Unable to enroll at this time. Please try again.")}}
+                        </div>
+                    `;
+                }}
+            }} catch (err) {{
+                resBox.classList.remove("hidden");
+                resBox.innerHTML = `
+                    <div class="p-3 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs">
+                        <i class="fa-solid fa-circle-xmark mr-1"></i> Network error connecting to nurture pipeline.
+                    </div>
+                `;
+            }} finally {{
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>Download Whitepaper &amp; Enroll in Cadence</span>`;
+            }}
         }}
 
         // Initialize First Tab on Load
