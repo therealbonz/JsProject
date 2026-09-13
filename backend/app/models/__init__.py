@@ -8,6 +8,7 @@ from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, In
 from app.models.developer import ApiKey, WebhookSubscription, WebhookDeliveryLog
 from app.models.metered_billing import MeteredUsageRecord, MeteredBillingInvoice
 from app.models.custom_domain import CustomDomain
+from app.models.workflow import Workflow, WorkflowExecution
 
 __all__ = [
     "Base",
@@ -46,5 +47,7 @@ __all__ = [
     "MeteredUsageRecord",
     "MeteredBillingInvoice",
     "CustomDomain",
+    "Workflow",
+    "WorkflowExecution",
 ]
 

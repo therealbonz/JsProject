@@ -41,6 +41,7 @@ class Organization(Base, CommonMixin):
     products = relationship("Product", back_populates="organization", cascade="all, delete-orphan")
     knowledge_docs = relationship("KnowledgeDocument", back_populates="organization", cascade="all, delete-orphan")
     custom_domains = relationship("CustomDomain", back_populates="organization", cascade="all, delete-orphan")
+    workflows = relationship("Workflow", back_populates="organization", cascade="all, delete-orphan")
 
 class User(Base, CommonMixin):
     __tablename__ = "users"

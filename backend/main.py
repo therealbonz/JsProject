@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -169,6 +169,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(metered_billing.router, prefix=prefix)
     app.include_router(custom_domains.router, prefix=prefix)
     app.include_router(support_copilot.router, prefix=prefix)
+    app.include_router(workflows.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1714,6 +1715,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-headset text-pink-400"></i>
                         <span>🤖 CRM 11: AI Support Copilot</span>
                         <span id="nav-badge-copilot" class="px-2 py-0.5 rounded-full text-[10px] bg-pink-950/80 text-pink-300 font-mono border border-pink-700/50">HITL</span>
+                    </button>
+                    <button id="tab-workflows" onclick="switchCrmMode('workflows')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-diagram-project text-amber-400"></i>
+                        <span>⚡ CRM 12: Visual Workflows</span>
+                        <span id="nav-badge-workflows" class="px-2 py-0.5 rounded-full text-[10px] bg-amber-950/80 text-amber-300 font-mono border border-amber-700/50">DAG</span>
                     </button>
                 </div>
 
@@ -5281,6 +5287,348 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
             </div>
         </div>
 
+        <!-- ============================================================== -->
+        <!-- CRM 12: Visual Workflow Automation Canvas & Multi-Agent View   -->
+        <!-- ============================================================== -->
+        <div id="view-workflows" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header & Action Bar -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-5">
+                <div>
+                    <h2 class="text-xl font-extrabold text-white flex items-center gap-2.5">
+                        <i class="fa-solid fa-diagram-project text-amber-400"></i>
+                        <span>Visual Workflow Automation &amp; Multi-Agent Orchestrator</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800/80">CRM 12</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Design, execute, and monitor autonomous event triggers, conditional branching, multi-agent AI tasks (Gemini), and cross-system domain actions.
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="sel-wf-filter" onchange="fetchWorkflows(this.value)" class="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 font-mono">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active Only</option>
+                        <option value="paused">Paused Only</option>
+                        <option value="draft">Drafts Only</option>
+                    </select>
+                    <button onclick="openNewWorkflowModal()" class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-2 transition shadow-lg shadow-amber-950/40 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> New Automation Canvas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header KPI Metrics Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl shadow-lg">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Configured Workflows</span>
+                        <i class="fa-solid fa-sitemap text-amber-400"></i>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-white font-mono" id="kpi-wf-total">0</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Tenant automation graphs</div>
+                </div>
+                <div class="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl shadow-lg">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Active Automations</span>
+                        <i class="fa-solid fa-play text-emerald-400"></i>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-emerald-400 font-mono" id="kpi-wf-active">0</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Actively listening for events</div>
+                </div>
+                <div class="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl shadow-lg">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Total Executions</span>
+                        <i class="fa-solid fa-bolt text-indigo-400"></i>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-indigo-400 font-mono" id="kpi-wf-runs">0</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Trigger-action executions</div>
+                </div>
+                <div class="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl shadow-lg">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Success Rate</span>
+                        <i class="fa-solid fa-circle-check text-cyan-400"></i>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-cyan-400 font-mono" id="kpi-wf-success-rate">100%</div>
+                    <div class="text-[11px] text-slate-500 mt-1">Error-free execution index</div>
+                </div>
+            </div>
+
+            <!-- Pre-Built Enterprise Recipes Gallery -->
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="h-6 w-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </span>
+                        <h3 class="text-sm font-bold text-slate-200">1-Click Enterprise Automation Recipes</h3>
+                    </div>
+                    <span class="text-[11px] text-slate-400">Deploy battle-tested multi-agent pipelines instantly</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                    <!-- Template 1 -->
+                    <div class="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 p-4 rounded-xl transition flex flex-col justify-between group">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800/60">Sales &amp; Inbound</span>
+                                <i class="fa-solid fa-trophy text-amber-400 text-sm"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition">VIP Lead Fast-Track</h4>
+                            <p class="text-[11px] text-slate-400 line-clamp-3">Filters leads &gt;= $10k, synthesizes Gemini executive dossier, routes to senior closer &amp; alerts team.</p>
+                        </div>
+                        <button onclick="instantiateWorkflowTemplate('tpl_vip_lead_enrichment')" class="mt-3 w-full py-1.5 bg-slate-800 hover:bg-amber-600 hover:text-slate-950 text-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-clone"></i> 1-Click Clone
+                        </button>
+                    </div>
+
+                    <!-- Template 2 -->
+                    <div class="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 p-4 rounded-xl transition flex flex-col justify-between group">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950 text-amber-300 border border-amber-800/60">Supply Chain</span>
+                                <i class="fa-solid fa-boxes-packing text-emerald-400 text-sm"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition">Autonomous Restock PO</h4>
+                            <p class="text-[11px] text-slate-400 line-clamp-3">Monitors burn rate spikes, verifies stockout risk &gt;= 70, drafts emergency PO &amp; generates supplier RFQ.</p>
+                        </div>
+                        <button onclick="instantiateWorkflowTemplate('tpl_critical_stockout')" class="mt-3 w-full py-1.5 bg-slate-800 hover:bg-amber-600 hover:text-slate-950 text-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-clone"></i> 1-Click Clone
+                        </button>
+                    </div>
+
+                    <!-- Template 3 -->
+                    <div class="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 p-4 rounded-xl transition flex flex-col justify-between group">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-950 text-pink-300 border border-pink-800/60">Customer Success</span>
+                                <i class="fa-solid fa-triangle-exclamation text-pink-400 text-sm"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition">Hostile Support SLA</h4>
+                            <p class="text-[11px] text-slate-400 line-clamp-3">Detects hostile customer sentiment in copilot, files critical HITL ticket, generates recovery plan &amp; pages manager.</p>
+                        </div>
+                        <button onclick="instantiateWorkflowTemplate('tpl_hostile_support_sla')" class="mt-3 w-full py-1.5 bg-slate-800 hover:bg-amber-600 hover:text-slate-950 text-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-clone"></i> 1-Click Clone
+                        </button>
+                    </div>
+
+                    <!-- Template 4 -->
+                    <div class="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 p-4 rounded-xl transition flex flex-col justify-between group">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800/60">SaaS Billing</span>
+                                <i class="fa-solid fa-receipt text-cyan-400 text-sm"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-white group-hover:text-amber-400 transition">Payment SaaS Onboarding</h4>
+                            <p class="text-[11px] text-slate-400 line-clamp-3">Validates payment receipt &gt;= $500, provisions enterprise SaaS license, sends credentials &amp; emits webhook.</p>
+                        </div>
+                        <button onclick="instantiateWorkflowTemplate('tpl_post_payment_onboarding')" class="mt-3 w-full py-1.5 bg-slate-800 hover:bg-amber-600 hover:text-slate-950 text-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-clone"></i> 1-Click Clone
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configured Workflows Table Card -->
+            <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl shadow-xl overflow-hidden">
+                <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-diagram-nested text-amber-400 text-sm"></i>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Tenant Workflow Automation Pipelines</h3>
+                    </div>
+                    <span id="wf-count-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">0 pipelines</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900/60 text-[11px] text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                            <tr>
+                                <th class="p-3.5">Pipeline Name &amp; Description</th>
+                                <th class="p-3.5">Trigger Event</th>
+                                <th class="p-3.5 text-center">Nodes</th>
+                                <th class="p-3.5 text-center">Executions</th>
+                                <th class="p-3.5 text-center">Success Rate</th>
+                                <th class="p-3.5 text-center">Status</th>
+                                <th class="p-3.5">Last Run</th>
+                                <th class="p-3.5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-workflows" class="divide-y divide-slate-800/60">
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-500">
+                                    <i class="fa-solid fa-diagram-project text-3xl mb-2 text-slate-600 block"></i>
+                                    No custom workflows configured yet. Choose a 1-Click recipe above or click "New Automation Canvas" to create one.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Visual Workflow Canvas Builder Modal (#modal-workflow-builder) -->
+        <!-- ============================================================== -->
+        <div id="modal-workflow-builder" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                <!-- Canvas Top Bar -->
+                <div class="px-5 py-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between gap-4 shrink-0">
+                    <div class="flex items-center gap-3">
+                        <span class="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-diagram-project"></i>
+                        </span>
+                        <div>
+                            <input id="canvas-wf-name" type="text" value="New Automation Pipeline" class="bg-transparent text-sm font-bold text-white border-b border-transparent hover:border-slate-700 focus:border-amber-400 outline-none px-1">
+                            <div class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                <span>Trigger: <code id="canvas-wf-trigger-badge" class="text-amber-400 font-mono">lead_created</code></span>
+                                <span>•</span>
+                                <span>Version <span id="canvas-wf-version">1</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5">
+                        <button onclick="addNodeToCanvas('condition')" class="px-2.5 py-1.5 bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-filter"></i> Add Filter
+                        </button>
+                        <button onclick="addNodeToCanvas('ai_agent')" class="px-2.5 py-1.5 bg-pink-950 hover:bg-pink-900 text-pink-300 border border-pink-800/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-robot"></i> Add AI Agent
+                        </button>
+                        <button onclick="addNodeToCanvas('action')" class="px-2.5 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-bolt"></i> Add Action
+                        </button>
+                        <button onclick="addNodeToCanvas('notification')" class="px-2.5 py-1.5 bg-sky-950 hover:bg-sky-900 text-sky-300 border border-sky-800/80 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-paper-plane"></i> Add Alert
+                        </button>
+
+                        <div class="h-5 w-px bg-slate-800 mx-1"></div>
+
+                        <button onclick="testActiveWorkflowFromCanvas()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-vial text-amber-400"></i> Dry Run
+                        </button>
+                        <button onclick="saveWorkflowCanvas()" id="btn-save-canvas" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-amber-950/30">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Canvas
+                        </button>
+                        <button onclick="closeWorkflowBuilder()" class="p-1.5 text-slate-400 hover:text-white transition cursor-pointer">
+                            <i class="fa-solid fa-xmark text-base"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Canvas Workspace Area -->
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- Left: Interactive Visual Flow Canvas Area -->
+                    <div id="wf-canvas-area" class="flex-1 bg-slate-950/90 relative overflow-auto p-8 select-none" style="background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 24px 24px;">
+                        <!-- SVG Connectors Layer -->
+                        <svg id="canvas-svg-lines" class="absolute inset-0 w-full h-full pointer-events-none" style="min-width: 1200px; min-height: 800px;"></svg>
+
+                        <!-- Nodes Container -->
+                        <div id="canvas-nodes-container" class="relative" style="min-width: 1200px; min-height: 800px;">
+                            <!-- Dynamically generated node cards -->
+                        </div>
+                    </div>
+
+                    <!-- Right: Node Inspector Sidebar -->
+                    <div id="wf-node-inspector" class="w-80 bg-slate-900 border-l border-slate-800 p-4 flex flex-col justify-between overflow-y-auto shrink-0">
+                        <div class="space-y-4">
+                            <div class="border-b border-slate-800 pb-3">
+                                <span class="text-[10px] font-mono text-slate-500 uppercase tracking-wider block">Selected Node Inspector</span>
+                                <h4 id="inspector-node-title" class="text-xs font-bold text-white mt-1">Select a Node</h4>
+                            </div>
+
+                            <div class="space-y-3" id="inspector-form-fields">
+                                <p class="text-xs text-slate-500 italic">Click on any node in the canvas to configure its trigger criteria, conditions, or agent instruction.</p>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-800">
+                            <button id="btn-delete-node" onclick="deleteSelectedNode()" class="hidden w-full py-1.5 bg-red-950 hover:bg-red-900 text-red-300 border border-red-800/60 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i class="fa-solid fa-trash-can"></i> Remove Selected Node
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Dry-Run Simulation Modal (#modal-workflow-test)                -->
+        <!-- ============================================================== -->
+        <div id="modal-workflow-test" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                <div class="px-5 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="h-7 w-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-vial"></i>
+                        </span>
+                        <h3 class="text-sm font-bold text-white">Live Workflow Simulation &amp; Dry Run</h3>
+                    </div>
+                    <button onclick="closeWorkflowTestModal()" class="text-slate-400 hover:text-white transition cursor-pointer">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 overflow-y-auto space-y-4">
+                    <!-- Preset Selector -->
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400 font-semibold">Event Payload Configuration:</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] text-slate-500">Presets:</span>
+                            <button onclick="applyTestPreset('vip')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded text-[11px] font-mono cursor-pointer">VIP Lead</button>
+                            <button onclick="applyTestPreset('stockout')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded text-[11px] font-mono cursor-pointer">Stockout Alert</button>
+                            <button onclick="applyTestPreset('hostile')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-pink-300 rounded text-[11px] font-mono cursor-pointer">Hostile Ticket</button>
+                            <button onclick="applyTestPreset('payment')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded text-[11px] font-mono cursor-pointer">Payment $2,500</button>
+                        </div>
+                    </div>
+
+                    <textarea id="txt-wf-test-payload" rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-amber-300 outline-none focus:border-amber-500"></textarea>
+
+                    <button onclick="runWorkflowDryRunSimulation()" id="btn-run-simulation" class="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-amber-950/40">
+                        <i class="fa-solid fa-play"></i> Execute Dry Run Simulation
+                    </button>
+
+                    <!-- Simulation Trace Results Area -->
+                    <div id="wf-simulation-results-box" class="hidden space-y-3 pt-2">
+                        <div class="flex items-center justify-between text-xs border-t border-slate-800 pt-3">
+                            <span class="font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-circle-check text-emerald-400"></i> Execution Trace Telemetry
+                            </span>
+                            <span id="sim-overall-duration" class="font-mono text-[11px] text-slate-400">0.0 ms</span>
+                        </div>
+                        <div id="wf-simulation-steps-stream" class="space-y-2.5">
+                            <!-- Dynamic Step Logs -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- Execution History Runs Modal (#modal-workflow-runs)            -->
+        <!-- ============================================================== -->
+        <div id="modal-workflow-runs" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                <div class="px-5 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <span class="h-7 w-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-bold text-white" id="modal-runs-title">Workflow Execution History</h3>
+                            <div class="text-[11px] text-slate-400" id="modal-runs-subtitle">Past execution logs and step breakdown</div>
+                        </div>
+                    </div>
+                    <button onclick="closeWorkflowRunsModal()" class="text-slate-400 hover:text-white transition cursor-pointer">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 overflow-y-auto space-y-4">
+                    <div id="wf-runs-list" class="space-y-2">
+                        <!-- Dynamic Runs List -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -6143,6 +6491,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const viewMetered = document.getElementById("view-metered");
                 const viewDomains = document.getElementById("view-domains");
                 const viewCopilot = document.getElementById("view-copilot");
+                const viewWorkflows = document.getElementById("view-workflows");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
@@ -6154,6 +6503,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const tabMetered = document.getElementById("tab-metered");
                 const tabDomains = document.getElementById("tab-domains");
                 const tabCopilot = document.getElementById("tab-copilot");
+                const tabWorkflows = document.getElementById("tab-workflows");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -6167,6 +6517,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (tabMetered) tabMetered.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabDomains) tabDomains.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabCopilot) tabCopilot.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabWorkflows) tabWorkflows.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
@@ -6179,6 +6530,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (viewMetered) viewMetered.classList.add("hidden");
                 if (viewDomains) viewDomains.classList.add("hidden");
                 if (viewCopilot) viewCopilot.classList.add("hidden");
+                if (viewWorkflows) viewWorkflows.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -6233,6 +6585,10 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     if (viewCopilot) viewCopilot.classList.remove("hidden");
                     if (tabCopilot) tabCopilot.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-pink-600 text-white shadow-md";
                     fetchCopilotConversations();
+                } else if (mode === 'workflows') {
+                    if (viewWorkflows) viewWorkflows.classList.remove("hidden");
+                    if (tabWorkflows) tabWorkflows.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-amber-500 text-slate-950 font-bold shadow-md";
+                    fetchWorkflows();
                 }
             }
 
@@ -11035,6 +11391,709 @@ ${p.ai_drafted_outreach}
                 } catch(e) {
                     alert("Error resolving conversation: " + e.message);
                 }
+            }
+
+            // ==============================================================
+            // CRM 12: Visual Workflow Automation Canvas JavaScript Handlers
+            // ==============================================================
+            let allWorkflows = [];
+            let activeCanvasWorkflow = null;
+            let selectedCanvasNodeId = null;
+            let activeTestingWorkflowId = null;
+
+            async function fetchWorkflows(statusFilter = "") {
+                if (!authToken) return;
+                try {
+                    const url = statusFilter ? `${API_BASE}/workflows?status=${encodeURIComponent(statusFilter)}` : `${API_BASE}/workflows`;
+                    const res = await fetch(url, {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) return;
+                    allWorkflows = await res.json();
+
+                    // Update KPIs
+                    const total = allWorkflows.length;
+                    const active = allWorkflows.filter(w => w.is_active && w.status === 'active').length;
+                    const runs = allWorkflows.reduce((acc, w) => acc + (w.total_runs || 0), 0);
+                    const successful = allWorkflows.reduce((acc, w) => acc + (w.successful_runs || 0), 0);
+                    const rate = runs > 0 ? Math.round((successful / runs) * 100) : 100;
+
+                    document.getElementById("kpi-wf-total").innerText = total;
+                    document.getElementById("kpi-wf-active").innerText = active;
+                    document.getElementById("kpi-wf-runs").innerText = runs;
+                    document.getElementById("kpi-wf-success-rate").innerText = `${rate}%`;
+                    document.getElementById("wf-count-badge").innerText = `${total} pipeline${total === 1 ? '' : 's'}`;
+
+                    const tbody = document.getElementById("tbody-workflows");
+                    if (total === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-500">
+                                    <i class="fa-solid fa-diagram-project text-3xl mb-2 text-slate-600 block"></i>
+                                    No custom workflows configured yet. Choose a 1-Click recipe above or click "New Automation Canvas" to create one.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    tbody.innerHTML = allWorkflows.map(w => {
+                        const triggerIcons = {
+                            "lead_created": "fa-user-plus text-amber-400",
+                            "order_placed": "fa-bag-shopping text-emerald-400",
+                            "payment_received": "fa-receipt text-cyan-400",
+                            "support_escalated": "fa-headset text-pink-400",
+                            "stockout_risk_high": "fa-triangle-exclamation text-red-400",
+                            "license_renewal_approaching": "fa-key text-indigo-400",
+                            "manual_trigger": "fa-hand text-slate-400"
+                        };
+                        const iconClass = triggerIcons[w.trigger_type] || "fa-bolt text-amber-400";
+                        const statusBadge = w.is_active 
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">ACTIVE</span>`
+                            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">PAUSED</span>`;
+                        const lastRun = w.last_run_at ? new Date(w.last_run_at).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Never';
+
+                        return `
+                            <tr class="hover:bg-slate-900/50 transition">
+                                <td class="p-3.5">
+                                    <div class="font-bold text-white text-xs flex items-center gap-2">
+                                        <span>${escapeHtml(w.name)}</span>
+                                        <span class="text-[10px] text-slate-500 font-mono">v${w.version}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">${escapeHtml(w.description || 'Custom multi-step automated event pipeline.')}</div>
+                                </td>
+                                <td class="p-3.5 font-mono text-[11px] text-slate-300">
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-900 border border-slate-800">
+                                        <i class="fa-solid ${iconClass}"></i>
+                                        <code>${escapeHtml(w.trigger_type)}</code>
+                                    </span>
+                                </td>
+                                <td class="p-3.5 text-center font-mono text-slate-300 font-bold">${w.node_count || 1}</td>
+                                <td class="p-3.5 text-center font-mono text-slate-300">${w.total_runs || 0}</td>
+                                <td class="p-3.5 text-center font-mono font-bold ${w.success_rate_pct >= 95 ? 'text-emerald-400' : 'text-amber-400'}">${w.success_rate_pct || 100}%</td>
+                                <td class="p-3.5 text-center cursor-pointer" onclick="toggleWorkflowActive('${w.id}')" title="Click to toggle active/paused status">
+                                    ${statusBadge}
+                                </td>
+                                <td class="p-3.5 text-slate-400 text-[11px]">${lastRun}</td>
+                                <td class="p-3.5 text-right space-x-1.5 shrink-0">
+                                    <button onclick="openWorkflowBuilder('${w.id}')" class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-800/80 rounded-lg text-[11px] font-semibold transition cursor-pointer">
+                                        <i class="fa-solid fa-pen-ruler mr-1"></i> Canvas
+                                    </button>
+                                    <button onclick="openWorkflowTestModal('${w.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold transition cursor-pointer">
+                                        <i class="fa-solid fa-vial text-amber-400 mr-1"></i> Dry Run
+                                    </button>
+                                    <button onclick="openWorkflowRunsModal('${w.id}')" class="px-2.5 py-1 bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 rounded-lg text-[11px] font-semibold transition cursor-pointer">
+                                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> Logs
+                                    </button>
+                                    <button onclick="deleteWorkflow('${w.id}')" class="px-2 py-1 text-slate-500 hover:text-red-400 transition cursor-pointer">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+                } catch(e) {
+                    console.error("Error fetching workflows:", e);
+                }
+            }
+
+            async function instantiateWorkflowTemplate(templateId) {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(`${API_BASE}/workflows/templates/${templateId}/instantiate`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to clone template: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+                    const wf = await res.json();
+                    await fetchWorkflows();
+                    openWorkflowBuilder(wf.id);
+                } catch(e) {
+                    alert("Error instantiating template: " + e.message);
+                }
+            }
+
+            async function openNewWorkflowModal() {
+                activeCanvasWorkflow = {
+                    id: null,
+                    name: "New Autonomous Pipeline",
+                    description: "Custom event-driven workflow automation.",
+                    trigger_type: "lead_created",
+                    trigger_config: {},
+                    status: "active",
+                    is_active: true,
+                    version: 1,
+                    canvas_data: {
+                        nodes: [
+                            {"id": "node-1", "type": "trigger", "label": "Event: Lead Created", "position": {"x": 60, "y": 140}, "config": {"event": "lead_created"}},
+                            {"id": "node-2", "type": "ai_agent", "label": "AI Lead Analyzer", "position": {"x": 320, "y": 140}, "config": {"agent_role": "Lead Enrichment Specialist", "instruction": "Score inbound lead and craft first touchpoint"}},
+                            {"id": "node-3", "type": "action", "label": "Assign Sales Rep", "position": {"x": 580, "y": 140}, "config": {"action_type": "assign_sales_rep", "target_rep": "Senior Sales Executive"}}
+                        ],
+                        edges: [
+                            {"id": "edge-1-2", "source": "node-1", "target": "node-2"},
+                            {"id": "edge-2-3", "source": "node-2", "target": "node-3"}
+                        ],
+                        zoom: 1.0
+                    },
+                    steps: [
+                        {"id": "step-1", "node_id": "node-1", "node_type": "trigger", "name": "Event: Lead Created", "config": {"event": "lead_created"}},
+                        {"id": "step-2", "node_id": "node-2", "node_type": "ai_agent", "name": "AI Lead Analyzer", "config": {"agent_role": "Lead Enrichment Specialist", "instruction": "Score inbound lead and craft first touchpoint"}},
+                        {"id": "step-3", "node_id": "node-3", "node_type": "action", "name": "Assign Sales Rep", "config": {"action_type": "assign_sales_rep", "target_rep": "Senior Sales Executive"}}
+                    ]
+                };
+
+                document.getElementById("canvas-wf-name").value = activeCanvasWorkflow.name;
+                document.getElementById("canvas-wf-trigger-badge").innerText = activeCanvasWorkflow.trigger_type;
+                document.getElementById("canvas-wf-version").innerText = "1";
+                renderCanvasNodes();
+                document.getElementById("modal-workflow-builder").classList.remove("hidden");
+            }
+
+            async function openWorkflowBuilder(workflowId) {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(`${API_BASE}/workflows/${workflowId}`, {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) return;
+                    activeCanvasWorkflow = await res.json();
+                    document.getElementById("canvas-wf-name").value = activeCanvasWorkflow.name;
+                    document.getElementById("canvas-wf-trigger-badge").innerText = activeCanvasWorkflow.trigger_type;
+                    document.getElementById("canvas-wf-version").innerText = activeCanvasWorkflow.version;
+
+                    renderCanvasNodes();
+                    document.getElementById("modal-workflow-builder").classList.remove("hidden");
+                } catch(e) {
+                    alert("Error loading workflow canvas: " + e.message);
+                }
+            }
+
+            function closeWorkflowBuilder() {
+                document.getElementById("modal-workflow-builder").classList.add("hidden");
+                activeCanvasWorkflow = null;
+                selectedCanvasNodeId = null;
+            }
+
+            function renderCanvasNodes() {
+                if (!activeCanvasWorkflow) return;
+                const nodes = (activeCanvasWorkflow.canvas_data || {}).nodes || [];
+                const edges = (activeCanvasWorkflow.canvas_data || {}).edges || [];
+                const container = document.getElementById("canvas-nodes-container");
+                const svg = document.getElementById("canvas-svg-lines");
+
+                // Render Nodes
+                container.innerHTML = nodes.map(n => {
+                    const isSelected = n.id === selectedCanvasNodeId;
+                    const typeColors = {
+                        "trigger": { bg: "bg-amber-950/90", border: "border-amber-500", text: "text-amber-300", icon: "fa-bolt" },
+                        "condition": { bg: "bg-indigo-950/90", border: "border-indigo-500", text: "text-indigo-300", icon: "fa-filter" },
+                        "ai_agent": { bg: "bg-pink-950/90", border: "border-pink-500", text: "text-pink-300", icon: "fa-robot" },
+                        "action": { bg: "bg-emerald-950/90", border: "border-emerald-500", text: "text-emerald-300", icon: "fa-circle-play" },
+                        "notification": { bg: "bg-sky-950/90", border: "border-sky-500", text: "text-sky-300", icon: "fa-paper-plane" },
+                        "webhook": { bg: "bg-violet-950/90", border: "border-violet-500", text: "text-violet-300", icon: "fa-network-wired" }
+                    };
+                    const styling = typeColors[n.type] || typeColors["action"];
+                    const posX = n.position ? n.position.x : 100;
+                    const posY = n.position ? n.position.y : 100;
+
+                    return `
+                        <div id="canvas-node-${n.id}" onclick="selectCanvasNode('${n.id}')" class="absolute w-52 rounded-xl p-3.5 cursor-pointer shadow-xl transition transform hover:scale-102 border-2 ${styling.bg} ${isSelected ? 'border-amber-400 ring-2 ring-amber-400/50' : styling.border}" style="left: ${posX}px; top: ${posY}px;">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-mono uppercase tracking-wider font-bold ${styling.text} flex items-center gap-1.5">
+                                    <i class="fa-solid ${styling.icon}"></i> ${n.type}
+                                </span>
+                                <span class="h-2 w-2 rounded-full ${isSelected ? 'bg-amber-400 animate-ping' : 'bg-slate-600'}"></span>
+                            </div>
+                            <h5 class="font-bold text-xs text-white mt-1.5 truncate">${escapeHtml(n.label)}</h5>
+                            <div class="text-[10px] text-slate-400 truncate mt-1 bg-slate-950/60 px-2 py-1 rounded font-mono">
+                                ${JSON.stringify(n.config || {}).slice(0, 30)}...
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+
+                // Render SVG Connecting Lines
+                let svgHtml = `
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
+                        </marker>
+                    </defs>
+                `;
+
+                edges.forEach(e => {
+                    const sourceNode = nodes.find(n => n.id === e.source);
+                    const targetNode = nodes.find(n => n.id === e.target);
+                    if (sourceNode && targetNode) {
+                        const x1 = (sourceNode.position ? sourceNode.position.x : 100) + 208; // right edge
+                        const y1 = (sourceNode.position ? sourceNode.position.y : 100) + 40;  // center height
+                        const x2 = (targetNode.position ? targetNode.position.x : 200);       // left edge
+                        const y2 = (targetNode.position ? targetNode.position.y : 100) + 40;
+
+                        const dx = (x2 - x1) / 2;
+                        svgHtml += `
+                            <path d="M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6,4" fill="none" marker-end="url(#arrow)" />
+                        `;
+                    }
+                });
+                svg.innerHTML = svgHtml;
+            }
+
+            function selectCanvasNode(nodeId) {
+                if (!activeCanvasWorkflow) return;
+                selectedCanvasNodeId = nodeId;
+                renderCanvasNodes();
+
+                const node = ((activeCanvasWorkflow.canvas_data || {}).nodes || []).find(n => n.id === nodeId);
+                if (!node) return;
+
+                document.getElementById("inspector-node-title").innerText = `${node.label} (${node.type})`;
+                document.getElementById("btn-delete-node").classList.remove("hidden");
+
+                const fields = document.getElementById("inspector-form-fields");
+                let formHtml = `
+                    <div>
+                        <label class="block text-[11px] text-slate-400 font-semibold mb-1">Step Label / Name</label>
+                        <input type="text" value="${escapeHtml(node.label)}" onchange="updateSelectedNodeLabel(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500">
+                    </div>
+                `;
+
+                if (node.type === 'condition') {
+                    formHtml += `
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Field Name (Payload key)</label>
+                            <input type="text" value="${escapeHtml(node.config.field || 'estimated_value')}" onchange="updateSelectedNodeConfig('field', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-amber-300 outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Comparison Operator</label>
+                            <select onchange="updateSelectedNodeConfig('operator', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono">
+                                <option value=">=" ${node.config.operator === '>=' ? 'selected' : ''}>&gt;= (Greater or Equal)</option>
+                                <option value="==" ${node.config.operator === '==' ? 'selected' : ''}>== (Exact Match)</option>
+                                <option value="!=" ${node.config.operator === '!=' ? 'selected' : ''}>!= (Not Equal)</option>
+                                <option value=">" ${node.config.operator === '>' ? 'selected' : ''}>&gt; (Strictly Greater)</option>
+                                <option value="<" ${node.config.operator === '<' ? 'selected' : ''}>&lt; (Strictly Less)</option>
+                                <option value="contains" ${node.config.operator === 'contains' ? 'selected' : ''}>contains (Substring)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Target Threshold Value</label>
+                            <input type="text" value="${escapeHtml(String(node.config.value || '10000'))}" onchange="updateSelectedNodeConfig('value', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white outline-none focus:border-amber-500">
+                        </div>
+                    `;
+                } else if (node.type === 'ai_agent') {
+                    formHtml += `
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">AI Agent Role Persona</label>
+                            <input type="text" value="${escapeHtml(node.config.agent_role || 'Executive Closer Agent')}" onchange="updateSelectedNodeConfig('agent_role', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Prompt / Directive Instruction</label>
+                            <textarea rows="4" onchange="updateSelectedNodeConfig('instruction', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-pink-300 outline-none focus:border-pink-500 resize-none">${escapeHtml(node.config.instruction || node.config.prompt_template || 'Analyze context and recommend strategic next steps')}</textarea>
+                        </div>
+                    `;
+                } else if (node.type === 'action') {
+                    formHtml += `
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Action Type</label>
+                            <select onchange="updateSelectedNodeConfig('action_type', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono">
+                                <option value="assign_sales_rep" ${node.config.action_type === 'assign_sales_rep' ? 'selected' : ''}>Assign Sales Rep</option>
+                                <option value="generate_purchase_order" ${node.config.action_type === 'generate_purchase_order' ? 'selected' : ''}>Generate Restock PO</option>
+                                <option value="create_priority_hitl" ${node.config.action_type === 'create_priority_hitl' ? 'selected' : ''}>Create Priority HITL Ticket</option>
+                                <option value="provision_saas_license" ${node.config.action_type === 'provision_saas_license' ? 'selected' : ''}>Provision SaaS License</option>
+                            </select>
+                        </div>
+                    `;
+                } else if (node.type === 'notification') {
+                    formHtml += `
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Notification Channel</label>
+                            <select onchange="updateSelectedNodeConfig('channel', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono">
+                                <option value="email" ${node.config.channel === 'email' ? 'selected' : ''}>Email Alert</option>
+                                <option value="sms" ${node.config.channel === 'sms' ? 'selected' : ''}>SMS Message</option>
+                                <option value="slack" ${node.config.channel === 'slack' ? 'selected' : ''}>Slack / Teams Webhook</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-semibold mb-1">Target Recipient</label>
+                            <input type="text" value="${escapeHtml(node.config.recipient || 'sales-ops@enterprise.example')}" onchange="updateSelectedNodeConfig('recipient', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white outline-none focus:border-amber-500">
+                        </div>
+                    `;
+                }
+
+                fields.innerHTML = formHtml;
+            }
+
+            function updateSelectedNodeLabel(newLabel) {
+                if (!activeCanvasWorkflow || !selectedCanvasNodeId) return;
+                const node = ((activeCanvasWorkflow.canvas_data || {}).nodes || []).find(n => n.id === selectedCanvasNodeId);
+                if (node) {
+                    node.label = newLabel;
+                    renderCanvasNodes();
+                }
+            }
+
+            function updateSelectedNodeConfig(key, value) {
+                if (!activeCanvasWorkflow || !selectedCanvasNodeId) return;
+                const node = ((activeCanvasWorkflow.canvas_data || {}).nodes || []).find(n => n.id === selectedCanvasNodeId);
+                if (node) {
+                    if (!node.config) node.config = {};
+                    node.config[key] = value;
+                }
+            }
+
+            function addNodeToCanvas(nodeType) {
+                if (!activeCanvasWorkflow) return;
+                const nodes = (activeCanvasWorkflow.canvas_data || {}).nodes || [];
+                const edges = (activeCanvasWorkflow.canvas_data || {}).edges || [];
+                const newId = `node-${nodes.length + 1}`;
+                const lastNode = nodes[nodes.length - 1];
+                const newX = lastNode ? (lastNode.position ? lastNode.position.x : 100) + 240 : 100;
+                const newY = lastNode ? (lastNode.position ? lastNode.position.y : 100) : 140;
+
+                const defaultLabels = {
+                    "condition": "Filter Threshold",
+                    "ai_agent": "Gemini Copilot Agent",
+                    "action": "Execute Action",
+                    "notification": "Dispatch Alert"
+                };
+
+                const newNode = {
+                    id: newId,
+                    type: nodeType,
+                    label: defaultLabels[nodeType] || "Step Node",
+                    position: { x: newX, y: newY },
+                    config: nodeType === 'condition' ? { field: 'estimated_value', operator: '>=', value: 5000 } : {}
+                };
+                nodes.push(newNode);
+
+                if (lastNode) {
+                    edges.push({
+                        id: `edge-${lastNode.id}-${newId}`,
+                        source: lastNode.id,
+                        target: newId
+                    });
+                }
+
+                activeCanvasWorkflow.canvas_data.nodes = nodes;
+                activeCanvasWorkflow.canvas_data.edges = edges;
+                // Sync steps array
+                activeCanvasWorkflow.steps.push({
+                    id: `step-${nodes.length}`,
+                    node_id: newId,
+                    node_type: nodeType,
+                    name: newNode.label,
+                    config: newNode.config
+                });
+
+                selectCanvasNode(newId);
+            }
+
+            function deleteSelectedNode() {
+                if (!activeCanvasWorkflow || !selectedCanvasNodeId) return;
+                const nodes = (activeCanvasWorkflow.canvas_data || {}).nodes || [];
+                if (nodes.length <= 1) {
+                    alert("A workflow must have at least one trigger node.");
+                    return;
+                }
+                activeCanvasWorkflow.canvas_data.nodes = nodes.filter(n => n.id !== selectedCanvasNodeId);
+                activeCanvasWorkflow.canvas_data.edges = ((activeCanvasWorkflow.canvas_data || {}).edges || []).filter(e => e.source !== selectedCanvasNodeId && e.target !== selectedCanvasNodeId);
+                activeCanvasWorkflow.steps = (activeCanvasWorkflow.steps || []).filter(s => s.node_id !== selectedCanvasNodeId);
+
+                selectedCanvasNodeId = null;
+                document.getElementById("btn-delete-node").classList.add("hidden");
+                document.getElementById("inspector-node-title").innerText = "Select a Node";
+                document.getElementById("inspector-form-fields").innerHTML = `<p class="text-xs text-slate-500 italic">Click on any node in the canvas to configure its settings.</p>`;
+                renderCanvasNodes();
+            }
+
+            async function saveWorkflowCanvas() {
+                if (!authToken || !activeCanvasWorkflow) return;
+                const btn = document.getElementById("btn-save-canvas");
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+
+                try {
+                    const name = document.getElementById("canvas-wf-name").value.trim() || "Untitled Pipeline";
+                    activeCanvasWorkflow.name = name;
+
+                    let res;
+                    if (activeCanvasWorkflow.id) {
+                        res = await fetch(`${API_BASE}/workflows/${activeCanvasWorkflow.id}`, {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": "Bearer " + authToken,
+                                "X-Organization-Id": currentOrgId
+                            },
+                            body: JSON.stringify({
+                                name: activeCanvasWorkflow.name,
+                                canvas_data: activeCanvasWorkflow.canvas_data,
+                                steps: activeCanvasWorkflow.steps
+                            })
+                        });
+                    } else {
+                        res = await fetch(`${API_BASE}/workflows`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": "Bearer " + authToken,
+                                "X-Organization-Id": currentOrgId
+                            },
+                            body: JSON.stringify({
+                                name: activeCanvasWorkflow.name,
+                                trigger_type: activeCanvasWorkflow.trigger_type,
+                                canvas_data: activeCanvasWorkflow.canvas_data,
+                                steps: activeCanvasWorkflow.steps
+                            })
+                        });
+                    }
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to save workflow: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+
+                    const saved = await res.json();
+                    activeCanvasWorkflow = saved;
+                    await fetchWorkflows();
+                    alert("✅ Workflow canvas saved successfully!");
+                } catch(e) {
+                    alert("Error saving canvas: " + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Save Canvas`;
+                }
+            }
+
+            async function toggleWorkflowActive(workflowId) {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(`${API_BASE}/workflows/${workflowId}/toggle`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (res.ok) fetchWorkflows();
+                } catch(e) {
+                    console.error("Error toggling workflow:", e);
+                }
+            }
+
+            async function deleteWorkflow(workflowId) {
+                if (!authToken) return;
+                if (!confirm("Are you sure you want to delete this workflow and all execution telemetry?")) return;
+                try {
+                    const res = await fetch(`${API_BASE}/workflows/${workflowId}`, {
+                        method: "DELETE",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (res.ok) fetchWorkflows();
+                } catch(e) {
+                    alert("Error deleting workflow: " + e.message);
+                }
+            }
+
+            function testActiveWorkflowFromCanvas() {
+                if (activeCanvasWorkflow && activeCanvasWorkflow.id) {
+                    openWorkflowTestModal(activeCanvasWorkflow.id);
+                } else {
+                    alert("Please save your workflow before running a dry-run test.");
+                }
+            }
+
+            function openWorkflowTestModal(workflowId) {
+                activeTestingWorkflowId = workflowId;
+                applyTestPreset('vip');
+                document.getElementById("wf-simulation-results-box").classList.add("hidden");
+                document.getElementById("modal-workflow-test").classList.remove("hidden");
+            }
+
+            function closeWorkflowTestModal() {
+                document.getElementById("modal-workflow-test").classList.add("hidden");
+                activeTestingWorkflowId = null;
+            }
+
+            function applyTestPreset(presetKey) {
+                const presets = {
+                    "vip": {
+                        "event_type": "lead_created",
+                        "lead_id": "lead-vip-9988",
+                        "company_name": "Apex Structural Systems",
+                        "estimated_value": 28500,
+                        "contact_name": "Marcus Vance",
+                        "customer_email": "marcus@apexstructural.example"
+                    },
+                    "stockout": {
+                        "event_type": "stockout_risk_high",
+                        "client_id": "client-restock-101",
+                        "account_name": "Evergreen Timber Mill",
+                        "stockout_risk_score": 88,
+                        "burn_rate": 340.50,
+                        "days_to_stockout": 3
+                    },
+                    "hostile": {
+                        "event_type": "support_escalated",
+                        "conversation_id": "conv-support-4411",
+                        "sentiment": "hostile",
+                        "last_customer_message": "This shipment is 10 days late and unacceptable. I need a supervisor immediately!",
+                        "account_manager": "Sarah Jenkins"
+                    },
+                    "payment": {
+                        "event_type": "payment_received",
+                        "order_number": "ORD-9920",
+                        "amount": 2500,
+                        "payment_status": "paid",
+                        "customer_email": "finance@cascadeholdings.example"
+                    }
+                };
+
+                const data = presets[presetKey] || presets["vip"];
+                document.getElementById("txt-wf-test-payload").value = JSON.stringify(data, null, 2);
+            }
+
+            async function runWorkflowDryRunSimulation() {
+                if (!authToken || !activeTestingWorkflowId) return;
+                const btn = document.getElementById("btn-run-simulation");
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Simulating Execution Trace...`;
+
+                try {
+                    let payload = {};
+                    try {
+                        payload = JSON.parse(document.getElementById("txt-wf-test-payload").value);
+                    } catch(jsonErr) {
+                        alert("Invalid JSON in test payload: " + jsonErr.message);
+                        return;
+                    }
+
+                    const res = await fetch(`${API_BASE}/workflows/${activeTestingWorkflowId}/test`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ trigger_payload: payload })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Simulation failed: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+
+                    const trace = await res.json();
+                    document.getElementById("sim-overall-duration").innerText = `${trace.execution_time_ms} ms`;
+                    const stepsStream = document.getElementById("wf-simulation-steps-stream");
+
+                    stepsStream.innerHTML = trace.step_logs.map((s, idx) => {
+                        const statusBadge = s.status === 'success' 
+                            ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">SUCCESS</span>`
+                            : (s.status === 'skipped'
+                                ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">SKIPPED</span>`
+                                : `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-red-950 text-red-300">FAILED</span>`);
+
+                        return `
+                            <div class="bg-slate-950 border border-slate-800/90 rounded-xl p-3 text-xs space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-bold text-white flex items-center gap-2">
+                                        <span class="h-5 w-5 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono">${idx + 1}</span>
+                                        <span>${escapeHtml(s.label)}</span>
+                                        <span class="text-[10px] font-mono text-slate-500">[${s.node_type}]</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[10px] font-mono text-slate-400">${s.duration_ms}ms</span>
+                                        ${statusBadge}
+                                    </div>
+                                </div>
+                                <div class="text-[11px] font-mono bg-slate-900/90 p-2 rounded-lg text-slate-300 overflow-x-auto">
+                                    ${JSON.stringify(s.output, null, 2)}
+                                </div>
+                            </div>
+                        `;
+                    }).join("");
+
+                    document.getElementById("wf-simulation-results-box").classList.remove("hidden");
+                } catch(e) {
+                    alert("Error running simulation: " + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-play"></i> Execute Dry Run Simulation`;
+                }
+            }
+
+            async function openWorkflowRunsModal(workflowId) {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(`${API_BASE}/workflows/${workflowId}/runs`, {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) return;
+                    const runs = await res.json();
+                    const container = document.getElementById("wf-runs-list");
+
+                    if (runs.length === 0) {
+                        container.innerHTML = `
+                            <div class="p-8 text-center text-slate-500 text-xs">
+                                <i class="fa-solid fa-clock-rotate-left text-2xl text-slate-600 block mb-2"></i>
+                                No execution runs recorded for this workflow yet.
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = runs.map(r => {
+                            const dateStr = new Date(r.started_at).toLocaleString();
+                            const statusBadge = r.status === 'completed'
+                                ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">COMPLETED</span>`
+                                : `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-red-950 text-red-300 border border-red-800 font-bold">FAILED</span>`;
+
+                            return `
+                                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-white">${r.trigger_event_type}</span>
+                                            <span class="text-[10px] font-mono text-slate-400">${r.execution_time_ms} ms</span>
+                                            <span class="text-[10px] font-mono text-slate-500">${r.step_count} steps</span>
+                                        </div>
+                                        <div class="text-[11px] text-slate-400 mt-0.5 font-mono">${dateStr}</div>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        ${statusBadge}
+                                    </div>
+                                </div>
+                            `;
+                        }).join("");
+                    }
+
+                    document.getElementById("modal-workflow-runs").classList.remove("hidden");
+                } catch(e) {
+                    alert("Error loading workflow runs: " + e.message);
+                }
+            }
+
+            function closeWorkflowRunsModal() {
+                document.getElementById("modal-workflow-runs").classList.add("hidden");
             }
 
             // Auto-login default tenant on load
