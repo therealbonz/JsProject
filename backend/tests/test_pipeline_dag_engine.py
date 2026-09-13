@@ -159,7 +159,8 @@ async def test_full_autonomous_dag_execution():
 
         # Verify Stage 2 literature dispatch is tracked
         t2 = data["timeline"][1]
-        assert "Autonomous B2B Architecture Blueprint" in t2["literature_dispatched"][0]
+        assert "Postal Executive Briefing Letter" in t2["literature_dispatched"][0]
+        assert "USPS Tracking" in t2["literature_dispatched"][0]
 
         # Verify Stage 4 appointment was locked
         t4 = data["timeline"][3]

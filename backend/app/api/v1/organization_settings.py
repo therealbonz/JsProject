@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,6 +46,7 @@ async def get_organization_settings(
     has_webhook = bool(current_org.stripe_webhook_secret and current_org.stripe_webhook_secret.strip())
     has_twilio = bool(current_org.twilio_auth_token and current_org.twilio_auth_token.strip())
     has_sendgrid = bool(current_org.sendgrid_api_key and current_org.sendgrid_api_key.strip())
+    has_lob = bool(current_org.lob_api_key and current_org.lob_api_key.strip())
 
     return OrganizationSettingsResponse(
         id=current_org.id,
@@ -72,7 +73,10 @@ async def get_organization_settings(
         masked_sendgrid_key=_mask_key(current_org.sendgrid_api_key) if has_sendgrid else None,
         email_from_address=current_org.email_from_address,
         email_from_name=current_org.email_from_name,
-        is_email_configured=has_sendgrid
+        is_email_configured=has_sendgrid,
+        has_lob_key=has_lob,
+        masked_lob_key=_mask_key(current_org.lob_api_key) if has_lob else None,
+        is_lob_configured=has_lob
     )
 
 @router.put("/settings", response_model=OrganizationSettingsResponse)
@@ -152,6 +156,14 @@ async def update_organization_settings(
     if payload.email_from_name is not None:
         current_org.email_from_name = payload.email_from_name.strip() or None
 
+    # Lob Physical Collateral API credentials
+    if payload.lob_api_key is not None:
+        val = payload.lob_api_key.strip()
+        if val and "••••" not in val:
+            current_org.lob_api_key = val
+        elif val == "":
+            current_org.lob_api_key = None
+
     await db.commit()
     await db.refresh(current_org)
 
@@ -159,6 +171,7 @@ async def update_organization_settings(
     has_webhook = bool(current_org.stripe_webhook_secret and current_org.stripe_webhook_secret.strip())
     has_twilio = bool(current_org.twilio_auth_token and current_org.twilio_auth_token.strip())
     has_sendgrid = bool(current_org.sendgrid_api_key and current_org.sendgrid_api_key.strip())
+    has_lob = bool(current_org.lob_api_key and current_org.lob_api_key.strip())
 
     return OrganizationSettingsResponse(
         id=current_org.id,
@@ -185,7 +198,10 @@ async def update_organization_settings(
         masked_sendgrid_key=_mask_key(current_org.sendgrid_api_key) if has_sendgrid else None,
         email_from_address=current_org.email_from_address,
         email_from_name=current_org.email_from_name,
-        is_email_configured=has_sendgrid
+        is_email_configured=has_sendgrid,
+        has_lob_key=has_lob,
+        masked_lob_key=_mask_key(current_org.lob_api_key) if has_lob else None,
+        is_lob_configured=has_lob
     )
 
 @router.post("/notifications/test-sms")

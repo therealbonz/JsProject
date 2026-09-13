@@ -31,6 +31,7 @@ class Organization(Base, CommonMixin):
     sendgrid_api_key = Column(String(100), nullable=True)
     email_from_address = Column(String(255), nullable=True)
     email_from_name = Column(String(255), nullable=True)
+    lob_api_key = Column(String(100), nullable=True)
     default_commission_rate = Column(Float, default=10.0, nullable=False)
 
     # Relationships

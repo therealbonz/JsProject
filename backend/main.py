@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
 from app.templates.signup_page import render_signup_page
@@ -45,6 +45,7 @@ async def lifespan(app: FastAPI):
                     ("sendgrid_api_key", "VARCHAR(100)"),
                     ("email_from_address", "VARCHAR(255)"),
                     ("email_from_name", "VARCHAR(255)"),
+                    ("lob_api_key", "VARCHAR(100)"),
                     ("default_commission_rate", "FLOAT DEFAULT 10.0")
                 ]
                 for col_name, col_type in org_cols:
@@ -175,6 +176,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(workflows.router, prefix=prefix)
     app.include_router(billing_checkout.router, prefix=prefix)
     app.include_router(pipeline_dag.router, prefix=prefix)
+    app.include_router(voice_collateral.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -3241,8 +3243,8 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             Configure your enterprise Twilio and SendGrid credentials to dispatch real-time SMS and branded transactional emails upon replenishment restocks, invoice payments, and delivery checkpoint scans. If left blank, notifications operate in local simulation mode.
                         </p>
 
-                        <!-- Two Sub-Sections: Twilio SMS and SendGrid Email -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                        <!-- Three Sub-Sections: Twilio SMS, SendGrid Email, and Lob Postal Collateral -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
                             <!-- Twilio SMS Box -->
                             <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3.5">
                                 <div class="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -3298,6 +3300,36 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                     <div class="pt-1">
                                         <button type="button" onclick="promptSendTestEmail()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-purple-300 font-semibold rounded-lg text-xs border border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer">
                                             <i class="fa-solid fa-paper-plane"></i> Send Test Branded Email
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lob.com Postal Mail Box -->
+                            <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3.5">
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                                    <span class="font-bold text-xs text-slate-200 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-mail-bulk text-amber-400"></i> Lob Postal Collateral
+                                    </span>
+                                    <span id="badge-lob-status" class="text-[10px] font-mono text-slate-400">Simulation</span>
+                                </div>
+
+                                <div class="space-y-3 text-xs">
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Lob API Key</label>
+                                        <input type="password" id="setting-lob-key" placeholder="live_... or test_..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-amber-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Postal Carrier</label>
+                                        <input type="text" readonly value="USPS First-Class Mail (Tracking Included)" class="w-full bg-slate-900/60 border border-slate-800 rounded-lg p-2 text-slate-400 text-xs cursor-not-allowed">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-400 mb-1 font-semibold">Collateral Format</label>
+                                        <input type="text" readonly value="8.5x11 Briefing Letter & Postcard" class="w-full bg-slate-900/60 border border-slate-800 rounded-lg p-2 text-slate-400 text-xs cursor-not-allowed">
+                                    </div>
+                                    <div class="pt-1">
+                                        <button type="button" onclick="promptSendTestPostal()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold rounded-lg text-xs border border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                            <i class="fa-solid fa-envelopes-bulk"></i> Dispatch Sample Postal Letter
                                         </button>
                                     </div>
                                 </div>
@@ -8599,6 +8631,26 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                         }
                     }
 
+                    // Lob Postal Gateway
+                    const lobKey = document.getElementById("setting-lob-key");
+                    if (lobKey) {
+                        if (data.has_lob_key && data.masked_lob_key) {
+                            lobKey.value = data.masked_lob_key;
+                        } else {
+                            lobKey.value = "";
+                        }
+                    }
+                    const lobBadge = document.getElementById("badge-lob-status");
+                    if (lobBadge) {
+                        if (data.is_lob_configured) {
+                            lobBadge.innerHTML = `<i class="fa-solid fa-circle-check text-amber-400"></i> Lob Live`;
+                            lobBadge.className = "text-[10px] font-mono text-amber-400 font-semibold";
+                        } else {
+                            lobBadge.innerHTML = `<i class="fa-solid fa-bolt text-slate-400"></i> Simulation Ready`;
+                            lobBadge.className = "text-[10px] font-mono text-slate-400";
+                        }
+                    }
+
                     // Status ribbons
                     const labelOrg = document.getElementById("label-settings-org-id");
                     if (labelOrg) labelOrg.innerText = data.brand_name || data.name || data.slug || "Active";
@@ -8743,6 +8795,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     sendgrid_api_key: document.getElementById("setting-sendgrid-key")?.value.trim() || undefined,
                     email_from_address: document.getElementById("setting-email-from")?.value.trim() || undefined,
                     email_from_name: document.getElementById("setting-email-name")?.value.trim() || undefined,
+                    lob_api_key: document.getElementById("setting-lob-key")?.value.trim() || undefined,
                 };
 
                 try {
@@ -8763,10 +8816,54 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                         fetchOrganizationSettings();
                     } else {
                         const err = await res.json();
-                        alert("Failed to save settings: " + (err.detail || res.statusText));
+                        alert("Error saving settings: " + (err.detail || "Server error"));
                     }
-                } catch(err) {
-                    alert("Error saving settings: " + err.message);
+                } catch(e) {
+                    alert("Network error saving settings: " + e.message);
+                }
+            }
+
+            async function promptSendTestPostal() {
+                if (!authToken) return;
+                const recName = prompt("Enter recipient decision-maker name for postal briefing dispatch:", "Elena Rostova, VP of Procurement");
+                if (!recName || !recName.trim()) return;
+
+                try {
+                    showToast("Dispatching Postal Collateral...", "Generating print-ready PDF letter & registering with Lob.com / USPS...", "fa-envelopes-bulk", "info");
+                    // Fetch existing leads to find one to attach to
+                    const leadRes = await fetch("/api/v1/leads?limit=1", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    const leads = await leadRes.json();
+                    if (!leads || leads.length === 0) {
+                        alert("Please create or import at least one lead first before sending postal mail.");
+                        return;
+                    }
+                    const targetLead = leads[0];
+
+                    const res = await fetch("/api/v1/collateral/dispatch-postal", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            lead_id: targetLead.id,
+                            template_id: "executive_briefing_letter",
+                            recipient_name: recName.trim(),
+                            recipient_title: "VP of Procurement"
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const modeText = data.mode === "live_lob" ? "Live Lob.com API" : "Simulated USPS First-Class";
+                        showToast("Postal Letter Dispatched!", `Carrier: ${data.carrier}. Tracking #: ${data.tracking_number} (Est: ${data.estimated_delivery_date}) [${modeText}]`, "fa-mail-bulk", "success");
+                    } else {
+                        alert("Postal Dispatch Failed: " + (data.error || JSON.stringify(data)));
+                    }
+                } catch(e) {
+                    alert("Error dispatching postal collateral: " + e.message);
                 }
             }
 

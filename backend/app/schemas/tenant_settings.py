@@ -1,4 +1,4 @@
-﻿from typing import Optional
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 class OrganizationSettingsResponse(BaseModel):
@@ -33,6 +33,11 @@ class OrganizationSettingsResponse(BaseModel):
     email_from_name: Optional[str] = None
     is_email_configured: bool = False
 
+    # Physical Postal Collateral Gateway (Lob.com)
+    has_lob_key: bool = False
+    masked_lob_key: Optional[str] = None
+    is_lob_configured: bool = False
+
     model_config = ConfigDict(from_attributes=True)
 
 class OrganizationSettingsUpdateRequest(BaseModel):
@@ -48,13 +53,14 @@ class OrganizationSettingsUpdateRequest(BaseModel):
     stripe_secret_key: Optional[str] = None
     stripe_webhook_secret: Optional[str] = None
 
-    # Notification Gateways
+    # Notification & Collateral Gateways
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
     twilio_from_number: Optional[str] = None
     sendgrid_api_key: Optional[str] = None
     email_from_address: Optional[str] = None
     email_from_name: Optional[str] = None
+    lob_api_key: Optional[str] = None
 
 class PublicBrandResponse(BaseModel):
     org_id: str

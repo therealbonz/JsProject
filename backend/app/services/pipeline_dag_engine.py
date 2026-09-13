@@ -10,6 +10,8 @@ from sqlalchemy.orm import selectinload
 from app.models.crm import Lead, Company, Contact, Appointment, Opportunity, CallLog
 from app.models.tenant import Organization
 from app.models.base import get_utc_now
+from app.services.voice_ai_service import VoiceAIService
+from app.services.collateral_dispatch_service import CollateralDispatchService
 
 logger = logging.getLogger(__name__)
 
@@ -222,34 +224,41 @@ class PipelineDagEngine:
             await db.flush()
             lead.contact_id = contact.id
 
-        now = get_utc_now()
-        call_log = CallLog(
-            organization_id=lead.organization_id,
-            lead_id=lead.id,
-            company_id=company.id if company else None,
-            contact_id=contact.id if contact else None,
-            caller_name="NexFlow Decision-Maker Discovery Bot (Voice AI)",
-            called_at=now,
-            duration_minutes=4,
-            outcome="connected",
-            notes=(
-                f"Autonomous Voice AI called {comp_name} switchboard. Gatekeeper confirmed Marcus Vance "
-                f"is head of procurement and technical architecture. Connected to Marcus directly. "
-                f"Marcus agreed to review digital whitepaper and requested executive briefing packet."
-            ),
-            next_steps="Dispatch digital architecture PDF and queue postal executive folder."
+        # Trigger Voice AI Switchboard Call (Twilio REST or high-fidelity simulation)
+        voice_res = await VoiceAIService.initiate_discovery_call(
+            db=db,
+            lead=lead,
+            target_phone=contact.phone if contact else None,
+            caller_name="The Decision-Maker Pathfinder (Twilio Voice AI)"
         )
-        db.add(call_log)
 
+        # Trigger Physical Postal Collateral Dispatch (Lob.com API or simulation)
+        postal_res = await CollateralDispatchService.dispatch_postal_collateral(
+            db=db,
+            lead=lead,
+            template_id="executive_briefing_letter",
+            recipient_name=f"{contact.first_name} {contact.last_name}" if contact else "Marcus Vance",
+            recipient_title=contact.job_title if contact else "VP of Engineering & Architecture"
+        )
+
+        # Trigger Digital Whitepaper Dispatch (SendGrid email delivery)
+        digital_res = await CollateralDispatchService.dispatch_digital_whitepaper(
+            db=db,
+            lead=lead,
+            to_email=contact.email if contact else None,
+            recipient_name=f"{contact.first_name} {contact.last_name}" if contact else "Marcus Vance"
+        )
+
+        now = get_utc_now()
         lead.last_call_at = now
-        lead.last_call_outcome = "connected"
-        lead.last_call_notes = "Decision-maker verified. Literature dispatch approved."
+        lead.last_call_outcome = voice_res.get("outcome", "connected")
+        lead.last_call_notes = f"Voice AI Call SID {voice_res.get('call_sid')} completed. Postal USPS tracking {postal_res.get('tracking_number')}."
         lead.pipeline_stage = "connected"
         lead.assigned_agent_id = "discovery"
 
         literature = [
-            "NexFlow Autonomous B2B Architecture Blueprint (Tracked PDF)",
-            "Executive Physical Briefing Folder (Courier Postal Mail)"
+            f"Postal Executive Briefing Letter (USPS Tracking: {postal_res.get('tracking_number')})",
+            f"Autonomous 6-Bot Workforce Whitepaper (Dispatched to {digital_res.get('to_email')})"
         ]
 
         await db.commit()
@@ -259,7 +268,12 @@ class PipelineDagEngine:
             "agent": "The Decision-Maker Pathfinder & Literature Bot",
             "decision_maker_name": f"{contact.first_name} {contact.last_name}" if contact else "Marcus Vance",
             "decision_maker_title": contact.job_title if contact else "VP of Engineering",
-            "call_outcome": "connected",
+            "call_outcome": voice_res.get("outcome", "connected"),
+            "call_sid": voice_res.get("call_sid"),
+            "postal_tracking_number": postal_res.get("tracking_number"),
+            "postal_carrier": postal_res.get("carrier", "USPS"),
+            "postal_preview_url": postal_res.get("preview_url"),
+            "digital_whitepaper_sent": digital_res.get("success", True),
             "literature_dispatched": literature,
             "pipeline_stage": lead.pipeline_stage,
             "next_handoff": "cold_outreach_sdr"
