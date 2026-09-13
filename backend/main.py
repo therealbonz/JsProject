@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing
+from app.core.middleware import TenantHostMiddleware
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -128,7 +129,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configure CORS
+# Configure CORS and Host-based Tenant Resolution
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -136,6 +137,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TenantHostMiddleware)
 
 # Register API routers (support root and /JsProject sub-directory path)
 for prefix in ["/api/v1", "/JsProject/api/v1"]:
@@ -157,6 +159,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(executive_analytics.router, prefix=prefix)
     app.include_router(developer.router, prefix=prefix)
     app.include_router(metered_billing.router, prefix=prefix)
+    app.include_router(custom_domains.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1428,6 +1431,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-gauge-high text-teal-400"></i>
                         <span>📈 CRM 9: Metered Billing</span>
                         <span id="nav-badge-metered" class="px-2 py-0.5 rounded-full text-[10px] bg-teal-950/80 text-teal-300 font-mono border border-teal-700/50">Usage</span>
+                    </button>
+                    <button id="tab-domains" onclick="switchCrmMode('domains')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-globe text-emerald-400"></i>
+                        <span>🌐 CRM 10: Custom Domains</span>
+                        <span id="nav-badge-domains" class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/80 text-emerald-300 font-mono border border-emerald-700/50">SSL</span>
                     </button>
                 </div>
 
@@ -4555,6 +4563,294 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
             </div>
         </div>
 
+        <!-- ============================================================================== -->
+        <!-- CRM 10: CUSTOM WHITE-LABEL DOMAINS & HOST ROUTING -->
+        <!-- ============================================================================== -->
+        <div id="view-domains" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Strip -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">STEP 13 • HOST ROUTING</span>
+                        <h2 class="text-lg font-bold text-white tracking-wide">🌐 CRM 10: Custom White-Label Domains</h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Map enterprise branded domains to your SaaS tenant with automated CNAME DNS checks, Let's Encrypt SSL, and dynamic host-based routing.
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="fetchCustomDomains()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium cursor-pointer flex items-center gap-1.5 border border-slate-700">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                    </button>
+                    <button onclick="openRegisterDomainModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer shadow-lg shadow-emerald-900/30 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-plus"></i> Register Custom Domain
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Total Configured</span>
+                        <div class="h-8 w-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-globe"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-white font-mono" id="kpi-domains-total">0</div>
+                    <span class="text-[11px] text-slate-500">Registered custom hosts</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">DNS Verified</span>
+                        <div class="h-8 w-8 rounded-lg bg-teal-600/20 text-teal-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-teal-400 font-mono" id="kpi-domains-verified">0</div>
+                    <span class="text-[11px] text-slate-500">Passing CNAME/TXT checks</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Active SSL Certs</span>
+                        <div class="h-8 w-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-2xl font-extrabold text-indigo-400 font-mono" id="kpi-domains-ssl">0</div>
+                    <span class="text-[11px] text-slate-500">Let's Encrypt certificates active</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Primary Domain</span>
+                        <div class="h-8 w-8 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm font-bold text-amber-400 font-mono truncate" id="kpi-domains-primary">None Set</div>
+                    <span class="text-[11px] text-slate-500">Default tenant portal host</span>
+                </div>
+            </div>
+
+            <!-- DNS Guide Box -->
+            <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+                <div class="flex items-start gap-3">
+                    <div class="h-8 w-8 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <i class="fa-solid fa-network-wired text-sm"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold text-slate-200">How to Connect Your Domain DNS:</span>
+                        <p class="text-slate-400 text-[11px] mt-0.5">
+                            Create a <span class="text-emerald-400 font-mono font-semibold">CNAME</span> record at your DNS registrar pointing to <code class="bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 font-mono text-indigo-300">therealbonz.com</code> with TTL 300. Or create a <span class="text-emerald-400 font-mono font-semibold">TXT</span> record at <code class="bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 font-mono text-indigo-300">_jsproject-challenge.&lt;yourdomain&gt;</code>.
+                        </p>
+                    </div>
+                </div>
+                <button onclick="testSimulateDnsResolution()" class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-mono border border-slate-700 cursor-pointer">
+                    <i class="fa-solid fa-vial mr-1 text-teal-400"></i> Run DNS Probe Test
+                </button>
+            </div>
+
+            <!-- Domains Table -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                    <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-emerald-400"></i> Registered Hostnames &amp; SSL Certificates
+                    </h3>
+                    <span id="domains-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">0 domains</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="bg-slate-950 text-slate-400 text-[10px] font-mono uppercase tracking-wider border-b border-slate-800">
+                                <th class="p-3.5">Domain Name</th>
+                                <th class="p-3.5">DNS Status</th>
+                                <th class="p-3.5">SSL / TLS</th>
+                                <th class="p-3.5">Routing Role</th>
+                                <th class="p-3.5">CNAME Target</th>
+                                <th class="p-3.5">Last Checked</th>
+                                <th class="p-3.5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="domains-table-tbody" class="divide-y divide-slate-800/50">
+                            <tr>
+                                <td colspan="7" class="p-8 text-center text-slate-500 italic">No custom domains configured yet. Click "Register Custom Domain" to add your first domain.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Register Custom Domain -->
+        <div id="modal-register-domain" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-globe text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Register Custom White-Label Domain</h3>
+                    </div>
+                    <button onclick="closeRegisterDomainModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Domain or Subdomain <span class="text-rose-400">*</span></label>
+                        <input id="in-reg-domain-name" type="text" placeholder="portal.acmecorp.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-emerald-500 outline-none">
+                        <span class="text-[10px] text-slate-500 mt-1 block">Enter fully qualified domain (e.g., portal.mybrand.com or client.apexsupply.io).</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">DNS Verification Strategy</label>
+                        <select id="in-reg-domain-method" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs">
+                            <option value="cname">CNAME Record (Recommended for subdomains)</option>
+                            <option value="txt">TXT Challenge Record (Recommended for root apex domains)</option>
+                        </select>
+                    </div>
+
+                    <!-- Custom Branding Overrides Accordion -->
+                    <div class="border border-slate-800 rounded-xl p-3 bg-slate-950/60 space-y-2.5">
+                        <div class="flex items-center justify-between cursor-pointer" onclick="toggleDomainBrandingFields()">
+                            <span class="font-semibold text-slate-300 flex items-center gap-1.5 text-[11px]">
+                                <i class="fa-solid fa-paintbrush text-emerald-400"></i> Domain-Specific Branding Overrides (Optional)
+                            </span>
+                            <i id="icon-domain-branding-chevron" class="fa-solid fa-chevron-down text-slate-500 text-xs"></i>
+                        </div>
+                        <div id="domain-branding-fields" class="space-y-2.5 pt-2 hidden border-t border-slate-800/80">
+                            <div>
+                                <label class="block text-slate-400 text-[10px] mb-0.5">Brand Title Override</label>
+                                <input id="in-reg-brand-name" type="text" placeholder="Acme Logistics Portal" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 text-xs">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-slate-400 text-[10px] mb-0.5">Accent Color (Hex)</label>
+                                    <input id="in-reg-accent-color" type="text" placeholder="#059669" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 font-mono text-xs">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 text-[10px] mb-0.5">Support Email</label>
+                                    <input id="in-reg-support-email" type="email" placeholder="support@acmecorp.com" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 text-xs">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 text-[10px] mb-0.5">Logo URL</label>
+                                <input id="in-reg-logo-url" type="url" placeholder="https://..." class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 text-xs font-mono">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeRegisterDomainModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                    <button id="btn-submit-register-domain" onclick="submitRegisterCustomDomain()" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Register &amp; Generate DNS Tokens
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: View Nginx & Certbot SSL Configuration -->
+        <div id="modal-domain-nginx" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-indigo-400">
+                        <i class="fa-solid fa-server text-lg"></i>
+                        <h3 id="modal-nginx-title" class="font-bold text-sm text-slate-100">Nginx Reverse Proxy &amp; SSL Configuration</h3>
+                    </div>
+                    <button onclick="closeDomainNginxModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <p class="text-slate-400 text-[11px]">
+                        Save this configuration into your Nginx directory (e.g. <code id="nginx-config-filename" class="text-indigo-300 font-mono">/etc/nginx/conf.d/custom_domain.conf</code>), test with <code class="text-emerald-300 font-mono">nginx -t</code>, and reload Nginx.
+                    </p>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-slate-400 font-semibold text-[11px]">Nginx Server Block Snippet:</span>
+                            <button onclick="copyNginxConfigSnippet()" class="text-indigo-400 hover:text-indigo-300 text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-copy"></i> Copy Snippet
+                            </button>
+                        </div>
+                        <pre id="code-nginx-snippet" class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto max-h-60"></pre>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-slate-400 font-semibold text-[11px]">Automated Certbot SSL Command:</span>
+                            <button onclick="copyCertbotCommand()" class="text-emerald-400 hover:text-emerald-300 text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-copy"></i> Copy Command
+                            </button>
+                        </div>
+                        <pre id="code-certbot-cmd" class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto"></pre>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeDomainNginxModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Custom Domain Branded Live Preview -->
+        <div id="modal-domain-preview" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-emerald-400">
+                        <i class="fa-solid fa-eye text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Live Branded Portal Simulator</h3>
+                    </div>
+                    <button onclick="closeDomainPreviewModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                            <span class="text-slate-400 text-[11px]">Simulated Browser URL:</span>
+                            <span id="prev-browser-url" class="font-mono text-emerald-400 font-bold text-xs bg-slate-900 px-2 py-0.5 rounded border border-slate-700">https://portal.acmecorp.com</span>
+                        </div>
+
+                        <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/90 space-y-3" id="prev-card-container">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div id="prev-brand-logo-box" class="h-10 w-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-base border border-emerald-500/30">
+                                        <i class="fa-solid fa-building"></i>
+                                    </div>
+                                    <div>
+                                        <h4 id="prev-brand-name" class="font-bold text-sm text-white">Acme Brand Portal</h4>
+                                        <span id="prev-brand-status" class="text-[10px] text-emerald-400 flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-check text-[9px]"></i> Dynamic Host Routing Active
+                                        </span>
+                                    </div>
+                                </div>
+                                <span id="prev-ssl-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-700">🔒 HTTPS Verified</span>
+                            </div>
+
+                            <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Support Contact:</span>
+                                    <span id="prev-brand-support" class="font-mono text-slate-300">support@acmecorp.com</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Theme Accent:</span>
+                                    <span id="prev-brand-accent" class="font-mono text-emerald-400 font-semibold">#059669</span>
+                                </div>
+                            </div>
+
+                            <p id="prev-brand-footer" class="text-[10px] text-slate-500 text-center italic">
+                                Powered by Acme Enterprise Private Network
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeDomainPreviewModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -5415,6 +5711,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const viewFinancials = document.getElementById("view-financials");
                 const viewDeveloper = document.getElementById("view-developer");
                 const viewMetered = document.getElementById("view-metered");
+                const viewDomains = document.getElementById("view-domains");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
@@ -5424,6 +5721,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const tabFinancials = document.getElementById("tab-financials");
                 const tabDeveloper = document.getElementById("tab-developer");
                 const tabMetered = document.getElementById("tab-metered");
+                const tabDomains = document.getElementById("tab-domains");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -5435,6 +5733,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (tabFinancials) tabFinancials.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabDeveloper) tabDeveloper.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabMetered) tabMetered.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabDomains) tabDomains.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
@@ -5445,6 +5744,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (viewFinancials) viewFinancials.classList.add("hidden");
                 if (viewDeveloper) viewDeveloper.classList.add("hidden");
                 if (viewMetered) viewMetered.classList.add("hidden");
+                if (viewDomains) viewDomains.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -5491,6 +5791,10 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     if (viewMetered) viewMetered.classList.remove("hidden");
                     if (tabMetered) tabMetered.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-teal-600 text-white shadow-md";
                     fetchMeteredBillingData();
+                } else if (mode === 'domains') {
+                    if (viewDomains) viewDomains.classList.remove("hidden");
+                    if (tabDomains) tabDomains.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-emerald-600 text-white shadow-md";
+                    fetchCustomDomains();
                 }
             }
 
@@ -9722,6 +10026,324 @@ ${p.ai_drafted_outreach}
 
             function closeMeteredInvoiceModal() {
                 document.getElementById("modal-metered-invoice-details").classList.add("hidden");
+            }
+
+            // ==============================================================================
+            // CRM 10: CUSTOM WHITE-LABEL DOMAINS JAVASCRIPT HANDLERS
+            // ==============================================================================
+            let cachedDomainsList = [];
+
+            async function fetchCustomDomains() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/domains", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const domains = await res.json();
+                    cachedDomainsList = domains;
+
+                    // Update KPIs
+                    const total = domains.length;
+                    const verified = domains.filter(d => d.verification_status === "verified").length;
+                    const sslActive = domains.filter(d => d.ssl_status === "active").length;
+                    const primary = domains.find(d => d.is_primary);
+
+                    document.getElementById("kpi-domains-total").innerText = total;
+                    document.getElementById("kpi-domains-verified").innerText = verified;
+                    document.getElementById("kpi-domains-ssl").innerText = sslActive;
+                    document.getElementById("kpi-domains-primary").innerText = primary ? primary.domain : "None Set";
+                    document.getElementById("domains-count-badge").innerText = `${total} domain${total === 1 ? '' : 's'}`;
+
+                    const tbody = document.getElementById("domains-table-tbody");
+                    if (!tbody) return;
+
+                    if (domains.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 italic">No custom domains configured yet. Click "Register Custom Domain" to add your first domain.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = domains.map(d => {
+                        const isVer = d.verification_status === "verified";
+                        const statusBadge = isVer
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800"><i class="fa-solid fa-check mr-1"></i>Verified</span>`
+                            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800"><i class="fa-solid fa-clock mr-1"></i>${d.verification_status.toUpperCase()}</span>`;
+
+                        const sslBadge = d.ssl_status === "active"
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-800"><i class="fa-solid fa-lock mr-1"></i>Active SSL</span>`
+                            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">Pending</span>`;
+
+                        const roleBadge = d.is_primary
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 flex items-center gap-1 w-fit"><i class="fa-solid fa-star text-[9px]"></i>Primary</span>`
+                            : `<span class="px-2 py-0.5 rounded-full text-[10px] text-slate-400 bg-slate-800/80 border border-slate-700">Alias</span>`;
+
+                        const lastChecked = d.last_checked_at
+                            ? new Date(d.last_checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : "Never";
+
+                        return `
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td class="p-3.5">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-globe text-slate-400"></i>
+                                        <span class="font-bold text-white font-mono text-xs">${escapeHtml(d.domain)}</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 font-mono mt-0.5">Token: ${escapeHtml(d.verification_token)}</div>
+                                </td>
+                                <td class="p-3.5">${statusBadge}</td>
+                                <td class="p-3.5">${sslBadge}</td>
+                                <td class="p-3.5">${roleBadge}</td>
+                                <td class="p-3.5 font-mono text-[11px] text-indigo-300">${escapeHtml(d.cname_target)}</td>
+                                <td class="p-3.5 text-slate-400 text-[11px] font-mono">${lastChecked}</td>
+                                <td class="p-3.5 text-right">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <button onclick="triggerVerifyCustomDomain('${d.id}')" title="Verify DNS Record" class="p-1.5 bg-slate-800 hover:bg-emerald-600/30 hover:text-emerald-300 text-slate-300 rounded border border-slate-700 text-xs transition cursor-pointer">
+                                            <i class="fa-solid fa-rotate"></i>
+                                        </button>
+                                        <button onclick="viewDomainNginxConfig('${d.id}')" title="View Nginx &amp; SSL Snippet" class="p-1.5 bg-slate-800 hover:bg-indigo-600/30 hover:text-indigo-300 text-slate-300 rounded border border-slate-700 text-xs transition cursor-pointer">
+                                            <i class="fa-solid fa-server"></i>
+                                        </button>
+                                        <button onclick="previewCustomDomainBranding('${d.id}')" title="Live Portal Preview" class="p-1.5 bg-slate-800 hover:bg-teal-600/30 hover:text-teal-300 text-slate-300 rounded border border-slate-700 text-xs transition cursor-pointer">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                        ${!d.is_primary ? `
+                                            <button onclick="setPrimaryCustomDomain('${d.id}')" title="Set as Primary Host" class="p-1.5 bg-slate-800 hover:bg-amber-600/30 hover:text-amber-300 text-slate-300 rounded border border-slate-700 text-xs transition cursor-pointer">
+                                                <i class="fa-solid fa-star"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button onclick="deleteCustomDomain('${d.id}')" title="Delete Domain" class="p-1.5 bg-slate-800 hover:bg-rose-600/30 hover:text-rose-400 text-slate-400 rounded border border-slate-700 text-xs transition cursor-pointer">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+                } catch (e) {
+                    console.error("fetchCustomDomains error:", e);
+                }
+            }
+
+            function openRegisterDomainModal() {
+                document.getElementById("in-reg-domain-name").value = "";
+                document.getElementById("in-reg-domain-method").value = "cname";
+                document.getElementById("in-reg-brand-name").value = "";
+                document.getElementById("in-reg-accent-color").value = "";
+                document.getElementById("in-reg-support-email").value = "";
+                document.getElementById("in-reg-logo-url").value = "";
+                document.getElementById("modal-register-domain").classList.remove("hidden");
+            }
+
+            function closeRegisterDomainModal() {
+                document.getElementById("modal-register-domain").classList.add("hidden");
+            }
+
+            function toggleDomainBrandingFields() {
+                const box = document.getElementById("domain-branding-fields");
+                const icon = document.getElementById("icon-domain-branding-chevron");
+                if (box.classList.contains("hidden")) {
+                    box.classList.remove("hidden");
+                    icon.className = "fa-solid fa-chevron-up text-slate-500 text-xs";
+                } else {
+                    box.classList.add("hidden");
+                    icon.className = "fa-solid fa-chevron-down text-slate-500 text-xs";
+                }
+            }
+
+            async function submitRegisterCustomDomain() {
+                const domain = document.getElementById("in-reg-domain-name").value.trim();
+                const method = document.getElementById("in-reg-domain-method").value;
+                const brandName = document.getElementById("in-reg-brand-name").value.trim();
+                const accentColor = document.getElementById("in-reg-accent-color").value.trim();
+                const supportEmail = document.getElementById("in-reg-support-email").value.trim();
+                const logoUrl = document.getElementById("in-reg-logo-url").value.trim();
+
+                if (!domain) {
+                    alert("Please enter a domain or subdomain.");
+                    return;
+                }
+
+                const overrides = {};
+                if (brandName) overrides.brand_name = brandName;
+                if (accentColor) overrides.brand_accent_color = accentColor;
+                if (supportEmail) overrides.support_email = supportEmail;
+                if (logoUrl) overrides.brand_logo_url = logoUrl;
+
+                const btn = document.getElementById("btn-submit-register-domain");
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Registering...`;
+
+                try {
+                    const res = await fetch(API_BASE + "/domains", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            domain: domain,
+                            verification_method: method,
+                            custom_theme_overrides: overrides
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to register domain: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+
+                    closeRegisterDomainModal();
+                    await fetchCustomDomains();
+                } catch (e) {
+                    alert("Network error registering domain: " + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Register &amp; Generate DNS Tokens`;
+                }
+            }
+
+            async function triggerVerifyCustomDomain(domainId) {
+                try {
+                    const res = await fetch(`${API_BASE}/domains/${domainId}/verify?simulate=true`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+
+                    const result = await res.json();
+                    if (!res.ok) {
+                        alert("Verification check failed: " + (result.detail || "Unknown error"));
+                        return;
+                    }
+
+                    await fetchCustomDomains();
+                    alert(`DNS Verification Result: ${result.message}`);
+                } catch (e) {
+                    alert("Error triggering verification: " + e.message);
+                }
+            }
+
+            async function setPrimaryCustomDomain(domainId) {
+                try {
+                    const res = await fetch(`${API_BASE}/domains/${domainId}/primary`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to set primary domain: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+
+                    await fetchCustomDomains();
+                } catch (e) {
+                    alert("Error setting primary domain: " + e.message);
+                }
+            }
+
+            async function viewDomainNginxConfig(domainId) {
+                try {
+                    const res = await fetch(`${API_BASE}/domains/${domainId}/nginx-config`, {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        alert("Failed to fetch Nginx configuration.");
+                        return;
+                    }
+
+                    const data = await res.json();
+                    document.getElementById("modal-nginx-title").innerText = `Nginx & SSL Configuration (${data.domain})`;
+                    document.getElementById("nginx-config-filename").innerText = `/etc/nginx/conf.d/${data.config_filename}`;
+                    document.getElementById("code-nginx-snippet").innerText = data.nginx_server_block;
+                    document.getElementById("code-certbot-cmd").innerText = data.certbot_command;
+
+                    document.getElementById("modal-domain-nginx").classList.remove("hidden");
+                } catch (e) {
+                    alert("Error loading Nginx config: " + e.message);
+                }
+            }
+
+            function closeDomainNginxModal() {
+                document.getElementById("modal-domain-nginx").classList.add("hidden");
+            }
+
+            function copyNginxConfigSnippet() {
+                const text = document.getElementById("code-nginx-snippet").innerText;
+                navigator.clipboard.writeText(text);
+                alert("Nginx server block snippet copied to clipboard!");
+            }
+
+            function copyCertbotCommand() {
+                const text = document.getElementById("code-certbot-cmd").innerText;
+                navigator.clipboard.writeText(text);
+                alert("Certbot command copied to clipboard!");
+            }
+
+            function previewCustomDomainBranding(domainId) {
+                const d = cachedDomainsList.find(item => item.id === domainId);
+                if (!d) return;
+
+                const overrides = d.custom_theme_overrides || {};
+                const brandTitle = overrides.brand_name || "Enterprise Brand Portal";
+                const accent = overrides.brand_accent_color || "#059669";
+                const email = overrides.support_email || "support@" + d.domain;
+                const footer = overrides.custom_footer_text || "Powered by " + brandTitle + " Private Cloud";
+
+                document.getElementById("prev-browser-url").innerText = `https://${d.domain}`;
+                document.getElementById("prev-brand-name").innerText = brandTitle;
+                document.getElementById("prev-brand-support").innerText = email;
+                document.getElementById("prev-brand-accent").innerText = accent;
+                document.getElementById("prev-brand-footer").innerText = footer;
+
+                const logoBox = document.getElementById("prev-brand-logo-box");
+                if (overrides.brand_logo_url) {
+                    logoBox.innerHTML = `<img src="${escapeHtml(overrides.brand_logo_url)}" class="h-full w-full object-cover rounded-xl" alt="Brand Logo">`;
+                } else {
+                    logoBox.innerHTML = `<i class="fa-solid fa-building" style="color: ${accent}"></i>`;
+                }
+
+                document.getElementById("modal-domain-preview").classList.remove("hidden");
+            }
+
+            function closeDomainPreviewModal() {
+                document.getElementById("modal-domain-preview").classList.add("hidden");
+            }
+
+            async function deleteCustomDomain(domainId) {
+                if (!confirm("Are you sure you want to remove this custom domain? Existing DNS routing will cease.")) return;
+                try {
+                    const res = await fetch(`${API_BASE}/domains/${domainId}`, {
+                        method: "DELETE",
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Failed to delete domain: " + (err.detail || "Unknown error"));
+                        return;
+                    }
+                    await fetchCustomDomains();
+                } catch (e) {
+                    alert("Error deleting domain: " + e.message);
+                }
+            }
+
+            function testSimulateDnsResolution() {
+                openRegisterDomainModal();
+                document.getElementById("in-reg-domain-name").value = `portal.test-${Date.now().toString().slice(-4)}.local`;
             }
 
             // Auto-login default tenant on load

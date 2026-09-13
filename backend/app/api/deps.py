@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -95,6 +95,7 @@ async def get_current_user(
     return user
 
 async def get_current_tenant(
+    request: Request,
     current_user: User = Depends(get_current_user),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
     x_organization_id: Optional[str] = Header(None, alias="X-Organization-Id"),
@@ -115,13 +116,17 @@ async def get_current_tenant(
             if org:
                 return current_user, org, "admin"
 
-    # Look for membership
-    if x_organization_id:
+    # Look for membership, checking explicit header first, then host-based domain scoping
+    target_org_id = x_organization_id
+    if not target_org_id and hasattr(request, "state") and getattr(request.state, "tenant_org", None):
+        target_org_id = request.state.tenant_org.id
+
+    if target_org_id:
         stmt = select(OrganizationMembership, Organization).join(
             Organization, Organization.id == OrganizationMembership.organization_id
         ).where(
             OrganizationMembership.user_id == current_user.id,
-            OrganizationMembership.organization_id == x_organization_id,
+            OrganizationMembership.organization_id == target_org_id,
             Organization.status == "active"
         )
     else:

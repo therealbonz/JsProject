@@ -7,6 +7,7 @@ from app.models.hitl import HumanAssistanceRequest, AgentTask, AuditLog, Complia
 from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, InventoryItem
 from app.models.developer import ApiKey, WebhookSubscription, WebhookDeliveryLog
 from app.models.metered_billing import MeteredUsageRecord, MeteredBillingInvoice
+from app.models.custom_domain import CustomDomain
 
 __all__ = [
     "Base",
@@ -44,5 +45,6 @@ __all__ = [
     "WebhookDeliveryLog",
     "MeteredUsageRecord",
     "MeteredBillingInvoice",
+    "CustomDomain",
 ]
 
