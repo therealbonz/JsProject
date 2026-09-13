@@ -209,26 +209,30 @@ def render_landing_page(api_prefix: str = "") -> str:
             </div>
 
             <!-- Agent Selector Tabs -->
-            <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 max-w-5xl mx-auto">
+            <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 max-w-6xl mx-auto">
                 <button onclick="switchAgentTab('lead_dev')" id="tab-btn-lead_dev" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-lg">
                     <i class="fa-solid fa-database text-indigo-200"></i>
                     <span>1. The Lead Developer</span>
                 </button>
+                <button onclick="switchAgentTab('discovery')" id="tab-btn-discovery" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-phone-volume text-cyan-400"></i>
+                    <span>2. Decision-Maker &amp; Literature Bot</span>
+                </button>
                 <button onclick="switchAgentTab('setter')" id="tab-btn-setter" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
                     <i class="fa-solid fa-calendar-check text-pink-400"></i>
-                    <span>2. The Appointment Setter</span>
+                    <span>3. The Appointment Setter</span>
                 </button>
                 <button onclick="switchAgentTab('sdr')" id="tab-btn-sdr" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
                     <i class="fa-solid fa-paper-plane text-emerald-400"></i>
-                    <span>3. The Cold Outreach SDR</span>
+                    <span>4. The Cold Outreach SDR</span>
                 </button>
                 <button onclick="switchAgentTab('exec_bot')" id="tab-btn-exec_bot" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
                     <i class="fa-solid fa-chess-king text-purple-400"></i>
-                    <span>4. The Executive Sales Bot</span>
+                    <span>5. The Executive Sales Bot</span>
                 </button>
                 <button onclick="switchAgentTab('closer')" id="tab-btn-closer" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
                     <i class="fa-solid fa-handshake-angle text-amber-400"></i>
-                    <span>5. The Objection Closer</span>
+                    <span>6. The Objection Closer</span>
                 </button>
             </div>
 
@@ -237,56 +241,66 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <!-- Dynamically rendered via JS -->
             </div>
 
-            <!-- Comprehensive 5 Agent Cards Matrix -->
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 pt-6">
+            <!-- Comprehensive Agent Cards Matrix -->
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-6">
                 <!-- Card 1 -->
-                <div onclick="switchAgentTab('lead_dev')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-indigo-500/50 transition cursor-pointer group">
-                    <div class="h-10 w-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                <div onclick="switchAgentTab('lead_dev')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-indigo-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-base group-hover:scale-110 transition">
                         <i class="fa-solid fa-database"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">1. The Lead Developer</div>
-                    <p class="text-xs text-slate-400">Scrapes &amp; enriches ideal B2B accounts. Detects buyer intent signals and verified emails automatically.</p>
-                    <div class="text-[11px] font-mono text-indigo-400 font-semibold">1,000+ Enriched Accounts/Day</div>
+                    <div class="font-bold text-xs text-white">1. The Lead Developer</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Scrapes &amp; enriches ideal B2B accounts with verified emails and intent signals.</p>
+                    <div class="text-[10px] font-mono text-indigo-400 font-semibold">1k+ Accounts/Day</div>
                 </div>
 
-                <!-- Card 2 -->
-                <div onclick="switchAgentTab('setter')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-pink-500/50 transition cursor-pointer group">
-                    <div class="h-10 w-10 rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
-                        <i class="fa-solid fa-calendar-check"></i>
+                <!-- Card 2 (NEW: Decision-Maker Pathfinder & Literature Bot) -->
+                <div onclick="switchAgentTab('discovery')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-cyan-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center text-base group-hover:scale-110 transition">
+                        <i class="fa-solid fa-phone-volume"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">2. The Appointment Setter</div>
-                    <p class="text-xs text-slate-400">Conversational 2-way booking via Email, LinkedIn &amp; SMS. Normalizes timezones and handles reminders.</p>
-                    <div class="text-[11px] font-mono text-pink-400 font-semibold">48 Demos Booked / Mo Avg</div>
+                    <div class="font-bold text-xs text-white">2. DM &amp; Literature Bot</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Contacts via phone &amp; email to find decision-makers and dispatches marketing collateral.</p>
+                    <div class="text-[10px] font-mono text-cyan-400 font-semibold">74% DM Opt-in Rate</div>
                 </div>
 
                 <!-- Card 3 -->
-                <div onclick="switchAgentTab('sdr')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-emerald-500/50 transition cursor-pointer group">
-                    <div class="h-10 w-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
-                        <i class="fa-solid fa-paper-plane"></i>
+                <div onclick="switchAgentTab('setter')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-pink-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center text-base group-hover:scale-110 transition">
+                        <i class="fa-solid fa-calendar-check"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">3. Cold Outreach SDR</div>
-                    <p class="text-xs text-slate-400">Crafts 1-to-1 personalized cold email and LinkedIn sequences referencing prospect news and pain points.</p>
-                    <div class="text-[11px] font-mono text-emerald-400 font-semibold">28% Cold Reply Rate</div>
+                    <div class="font-bold text-xs text-white">3. Appointment Setter</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Conversational 2-way booking onto rep Google &amp; Outlook calendars.</p>
+                    <div class="text-[10px] font-mono text-pink-400 font-semibold">48 Demos Booked / Mo</div>
                 </div>
 
                 <!-- Card 4 -->
-                <div onclick="switchAgentTab('exec_bot')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-purple-500/50 transition cursor-pointer group">
-                    <div class="h-10 w-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
-                        <i class="fa-solid fa-chess-king"></i>
+                <div onclick="switchAgentTab('sdr')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-emerald-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-base group-hover:scale-110 transition">
+                        <i class="fa-solid fa-paper-plane"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">4. The Executive Sales Bot</div>
-                    <p class="text-xs text-slate-400">Synthesizes custom closing dossiers, drafts enterprise proposals, builds business cases, and maps decision makers.</p>
-                    <div class="text-[11px] font-mono text-purple-400 font-semibold">Wins 5-Figure &amp; 6-Figure Deals</div>
+                    <div class="font-bold text-xs text-white">4. Cold Outreach SDR</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Delivers hyper-personalized 1-to-1 multi-channel cold sequences.</p>
+                    <div class="text-[10px] font-mono text-emerald-400 font-semibold">28% Cold Reply Rate</div>
                 </div>
 
                 <!-- Card 5 -->
-                <div onclick="switchAgentTab('closer')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3 hover:border-amber-500/50 transition cursor-pointer group">
-                    <div class="h-10 w-10 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                <div onclick="switchAgentTab('exec_bot')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-purple-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-lg group-hover:scale-110 transition">
+                        <i class="fa-solid fa-chess-king"></i>
+                    </div>
+                    <div class="font-bold text-xs text-white">5. Executive Sales Bot</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Synthesizes deal closing dossiers, proposals, and ROI business cases.</p>
+                    <div class="text-[10px] font-mono text-purple-400 font-semibold">Wins 5 &amp; 6-Figure Deals</div>
+                </div>
+
+                <!-- Card 6 -->
+                <div onclick="switchAgentTab('closer')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-amber-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center text-base group-hover:scale-110 transition">
                         <i class="fa-solid fa-handshake-angle"></i>
                     </div>
-                    <div class="font-bold text-sm text-white">5. The Objection Closer</div>
-                    <p class="text-xs text-slate-400">Overcomes pricing friction, security questions, and contract stalls with approved concessions and terms.</p>
-                    <div class="text-[11px] font-mono text-amber-400 font-semibold">Recovers 35% Stalled Deals</div>
+                    <div class="font-bold text-xs text-white">6. The Objection Closer</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Overcomes pricing friction, stalls, and recovers stuck negotiations.</p>
+                    <div class="text-[10px] font-mono text-amber-400 font-semibold">Recovers 35% Stalls</div>
                 </div>
             </div>
         </div>
@@ -309,52 +323,61 @@ def render_landing_page(api_prefix: str = "") -> str:
                 </p>
             </div>
 
-            <!-- Pipeline Visual Stepper -->
+            <!-- Pipeline Visual Stepper (6-Stage Autonomous Flow) -->
             <div class="glass-panel rounded-3xl p-8 border border-slate-800 relative overflow-hidden">
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 relative z-10">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 relative z-10">
                     <!-- Stage 1 -->
-                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
-                        <div class="h-8 w-8 rounded-lg bg-indigo-600/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-xs">01</div>
-                        <div class="font-bold text-xs text-white uppercase tracking-wider text-indigo-400">Lead Development</div>
-                        <h4 class="font-bold text-sm text-slate-200">The Lead Developer</h4>
-                        <p class="text-xs text-slate-400">Scrapes verified emails, checks tech stack compatibility, and calculates buyer intent.</p>
-                        <div class="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/40">✓ Enriched ICP Account</div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-indigo-600/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-xs">01</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-indigo-400">Lead Research</div>
+                        <h4 class="font-bold text-xs text-slate-200">The Lead Developer</h4>
+                        <p class="text-[11px] text-slate-400">Scrapes verified emails and intent signals.</p>
+                        <div class="text-[9px] font-mono text-emerald-400 bg-emerald-950/40 p-1.5 rounded border border-emerald-800/40">✓ Enriched ICP Account</div>
                     </div>
 
-                    <!-- Stage 2 -->
-                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
-                        <div class="h-8 w-8 rounded-lg bg-emerald-600/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-xs">02</div>
-                        <div class="font-bold text-xs text-white uppercase tracking-wider text-emerald-400">Outreach Cadence</div>
-                        <h4 class="font-bold text-sm text-slate-200">The Cold Outreach SDR</h4>
-                        <p class="text-xs text-slate-400">Delivers tailored 1-to-1 multi-channel hooks and nurtures prospect curiosity.</p>
-                        <div class="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/40">✓ Positive Reply Detected</div>
+                    <!-- Stage 2: NEW Decision-Maker Discovery & Literature Dispatch -->
+                    <div class="bg-slate-900/90 border border-cyan-500/50 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-cyan-600/20 text-cyan-400 font-mono font-bold flex items-center justify-center text-xs">02</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-cyan-400">DM Discovery &amp; Literature</div>
+                        <h4 class="font-bold text-xs text-slate-200">DM &amp; Literature Bot</h4>
+                        <p class="text-[11px] text-slate-400">Calls/emails switchboard, connects with DM, and emails/mails literature.</p>
+                        <div class="text-[9px] font-mono text-cyan-400 bg-cyan-950/40 p-1.5 rounded border border-cyan-800/40">✓ Literature Sent &amp; Warmed</div>
                     </div>
 
                     <!-- Stage 3 -->
-                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
-                        <div class="h-8 w-8 rounded-lg bg-pink-600/20 text-pink-400 font-mono font-bold flex items-center justify-center text-xs">03</div>
-                        <div class="font-bold text-xs text-white uppercase tracking-wider text-pink-400">Demo Scheduling</div>
-                        <h4 class="font-bold text-sm text-slate-200">The Appointment Setter</h4>
-                        <p class="text-xs text-slate-400">Negotiates meeting availability and drops confirmed demo into your calendar.</p>
-                        <div class="text-[10px] font-mono text-pink-400 bg-pink-950/40 p-2 rounded-lg border border-pink-800/40">✓ Calendar Invite Confirmed</div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-emerald-600/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-xs">03</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-emerald-400">Outreach Cadence</div>
+                        <h4 class="font-bold text-xs text-slate-200">Cold Outreach SDR</h4>
+                        <p class="text-[11px] text-slate-400">Delivers tailored 1-to-1 multi-channel sequences.</p>
+                        <div class="text-[9px] font-mono text-emerald-400 bg-emerald-950/40 p-1.5 rounded border border-emerald-800/40">✓ Positive Reply Detected</div>
                     </div>
 
                     <!-- Stage 4 -->
-                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
-                        <div class="h-8 w-8 rounded-lg bg-purple-600/20 text-purple-400 font-mono font-bold flex items-center justify-center text-xs">04</div>
-                        <div class="font-bold text-xs text-white uppercase tracking-wider text-purple-400">Proposal &amp; Closing</div>
-                        <h4 class="font-bold text-sm text-slate-200">The Executive Sales Bot</h4>
-                        <p class="text-xs text-slate-400">Assembles executive deal dossiers, bespoke pricing proposals, and closing tactics.</p>
-                        <div class="text-[10px] font-mono text-purple-400 bg-purple-950/40 p-2 rounded-lg border border-purple-800/40">✓ Custom Proposal Sent</div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-pink-600/20 text-pink-400 font-mono font-bold flex items-center justify-center text-xs">04</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-pink-400">Demo Scheduling</div>
+                        <h4 class="font-bold text-xs text-slate-200">Appointment Setter</h4>
+                        <p class="text-[11px] text-slate-400">Locks confirmed demo into rep calendars.</p>
+                        <div class="text-[9px] font-mono text-pink-400 bg-pink-950/40 p-1.5 rounded border border-pink-800/40">✓ Calendar Invite Confirmed</div>
                     </div>
 
                     <!-- Stage 5 -->
-                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3 relative">
-                        <div class="h-8 w-8 rounded-lg bg-amber-600/20 text-amber-400 font-mono font-bold flex items-center justify-center text-xs">05</div>
-                        <div class="font-bold text-xs text-white uppercase tracking-wider text-amber-400">Contract &amp; Retention</div>
-                        <h4 class="font-bold text-sm text-slate-200">The Objection Closer</h4>
-                        <p class="text-xs text-slate-400">Neutralizes price or timing hesitations, finalizes contracts, and drives renewals.</p>
-                        <div class="text-[10px] font-mono text-amber-400 bg-amber-950/40 p-2 rounded-lg border border-amber-800/40">✓ Deal Signed &amp; Renewed</div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-purple-600/20 text-purple-400 font-mono font-bold flex items-center justify-center text-xs">05</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-purple-400">Executive Closing</div>
+                        <h4 class="font-bold text-xs text-slate-200">Executive Sales Bot</h4>
+                        <p class="text-[11px] text-slate-400">Assembles deal dossiers &amp; bespoke proposals.</p>
+                        <div class="text-[9px] font-mono text-purple-400 bg-purple-950/40 p-1.5 rounded border border-purple-800/40">✓ Custom Proposal Sent</div>
+                    </div>
+
+                    <!-- Stage 6 -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-amber-600/20 text-amber-400 font-mono font-bold flex items-center justify-center text-xs">06</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-amber-400">Contract &amp; Stalls</div>
+                        <h4 class="font-bold text-xs text-slate-200">The Objection Closer</h4>
+                        <p class="text-[11px] text-slate-400">Neutralizes pricing friction &amp; contract stalls.</p>
+                        <div class="text-[9px] font-mono text-amber-400 bg-amber-950/40 p-1.5 rounded border border-amber-800/40">✓ Deal Signed &amp; Renewed</div>
                     </div>
                 </div>
             </div>
@@ -386,11 +409,14 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <button type="button" onclick="selectTesterAgent('exec_bot')" id="btn-test-exec" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-chess-king"></i> Executive Sales Bot
                     </button>
+                    <button type="button" onclick="selectTesterAgent('discovery')" id="btn-test-discovery" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-phone-volume text-cyan-400"></i> Phone/Email Decision-Maker &amp; Literature Bot
+                    </button>
                     <button type="button" onclick="selectTesterAgent('setter')" id="btn-test-setter" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
-                        <i class="fa-solid fa-calendar-check"></i> Appointment Setter
+                        <i class="fa-solid fa-calendar-check text-pink-400"></i> Appointment Setter
                     </button>
                     <button type="button" onclick="selectTesterAgent('lead_dev')" id="btn-test-dev" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
-                        <i class="fa-solid fa-database"></i> Lead Developer
+                        <i class="fa-solid fa-database text-indigo-400"></i> Lead Developer
                     </button>
                 </div>
 
@@ -510,10 +536,24 @@ def render_landing_page(api_prefix: str = "") -> str:
 
                     <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="chk-sdr" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <input type="checkbox" id="chk-discovery" checked onchange="recalculateStack()" class="w-4 h-4 accent-cyan-500 rounded">
                             <div>
                                 <div class="font-bold text-sm text-white flex items-center gap-2">
-                                    <span>2. The Cold Outreach SDR</span>
+                                    <span>2. Decision-Maker &amp; Literature Bot</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300">DM DISCOVERY &amp; LITERATURE</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Calls &amp; emails switchboard to uncover DM, pitch value, and email/mail marketing collateral</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-cyan-400">+74% DM Opt-in</span>
+                    </label>
+
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-sdr" checked onchange="recalculateStack()" class="w-4 h-4 accent-emerald-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>3. The Cold Outreach SDR</span>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300">OUTBOUND CADENCE</span>
                                 </div>
                                 <div class="text-xs text-slate-400">Delivers personalized multi-channel cold sequences across Email &amp; LinkedIn</div>
@@ -524,10 +564,10 @@ def render_landing_page(api_prefix: str = "") -> str:
 
                     <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="chk-setter" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <input type="checkbox" id="chk-setter" checked onchange="recalculateStack()" class="w-4 h-4 accent-pink-500 rounded">
                             <div>
                                 <div class="font-bold text-sm text-white flex items-center gap-2">
-                                    <span>3. The Appointment Setter</span>
+                                    <span>4. The Appointment Setter</span>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-pink-950 text-pink-300">MEETING BOOKER</span>
                                 </div>
                                 <div class="text-xs text-slate-400">Conversational 2-way booking directly onto rep Google/Outlook calendars</div>
@@ -538,10 +578,10 @@ def render_landing_page(api_prefix: str = "") -> str:
 
                     <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="chk-exec" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <input type="checkbox" id="chk-exec" checked onchange="recalculateStack()" class="w-4 h-4 accent-purple-500 rounded">
                             <div>
                                 <div class="font-bold text-sm text-white flex items-center gap-2">
-                                    <span>4. The Executive Sales Bot</span>
+                                    <span>5. The Executive Sales Bot</span>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950 text-purple-300">DEAL STRATEGIST</span>
                                 </div>
                                 <div class="text-xs text-slate-400">Synthesizes executive dossiers, custom proposals, and enterprise closing angles</div>
@@ -552,10 +592,10 @@ def render_landing_page(api_prefix: str = "") -> str:
 
                     <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="chk-closer" checked onchange="recalculateStack()" class="w-4 h-4 accent-indigo-500 rounded">
+                            <input type="checkbox" id="chk-closer" checked onchange="recalculateStack()" class="w-4 h-4 accent-amber-500 rounded">
                             <div>
                                 <div class="font-bold text-sm text-white flex items-center gap-2">
-                                    <span>5. The Objection Closer &amp; Expansion Bot</span>
+                                    <span>6. The Objection Closer &amp; Expansion Bot</span>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-300">OBJECTION HANDLING</span>
                                 </div>
                                 <div class="text-xs text-slate-400">Recovers stalled contract negotiations and drives renewal expansion</div>
@@ -789,9 +829,29 @@ def render_landing_page(api_prefix: str = "") -> str:
                 impactMetric: "1,000+ Verified Accounts/Day",
                 badge: "LEAD DEVELOPMENT"
             }},
+            discovery: {{
+                id: "discovery",
+                number: "2",
+                name: "The Decision-Maker Pathfinder & Literature Bot",
+                subtitle: "Phone & Email Switchboard Navigator & Collateral Dispatcher",
+                icon: "fa-phone-volume",
+                color: "cyan",
+                description: "Autonomously contacts target companies via conversational voice AI phone calls and exploratory emails to navigate past switchboards and gatekeepers to discover the true decision-maker. Once connected, speaks with them directly, introduces high-impact SaaS value, and secures opt-in consent to email digital whitepapers or postal mail executive briefing literature to warm up and set up the sale for downstream closers.",
+                skills: [
+                    "Voice AI Switchboard & Gatekeeper Phone Navigation",
+                    "Exploratory Front-Desk Email Discovery Sequences",
+                    "Direct Decision-Maker Voice & Email Connection",
+                    "Digital Whitepaper & Physical Postal Collateral Dispatch",
+                    "Warm Pipeline Staging for Downstream Closers"
+                ],
+                sampleInput: `{{"target_company": "Titanium Cloud Systems", "switchboard_phone": "+1-800-555-0199", "inquiry_target": "Discover VP Procurement & Head of Architecture"}}`,
+                sampleOutput: `{{"status": "decision_maker_connected", "decision_maker": "Sarah Jenkins (VP Cloud Architecture)", "contact_channels": "Voice Switchboard AI + Direct Email", "literature_dispatched": ["Architecture Benchmark Whitepaper (Email PDF)", "Executive Briefing Packet (Postal Mail)"], "sale_readiness": "warm_staged"}}`,
+                impactMetric: "74% Switchboard to DM Conversion",
+                badge: "DM & LITERATURE BOT"
+            }},
             setter: {{
                 id: "setter",
-                number: "2",
+                number: "3",
                 name: "The Appointment Setter Agent",
                 subtitle: "2-Way Conversational Calendar Booking Engine",
                 icon: "fa-calendar-check",
@@ -810,7 +870,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             }},
             sdr: {{
                 id: "sdr",
-                number: "3",
+                number: "4",
                 name: "The Cold Outreach SDR Agent",
                 subtitle: "Hyper-Personalized Multi-Channel Outbound Generator",
                 icon: "fa-paper-plane",
@@ -829,7 +889,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             }},
             exec_bot: {{
                 id: "exec_bot",
-                number: "4",
+                number: "5",
                 name: "The Executive Sales Bot",
                 subtitle: "Senior Deal Strategist & Executive Closing Architect",
                 icon: "fa-chess-king",
@@ -848,7 +908,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             }},
             closer: {{
                 id: "closer",
-                number: "5",
+                number: "6",
                 name: "The Objection Closer & Expansion Bot",
                 subtitle: "Negotiation Safeguards & Customer Expansion Engine",
                 icon: "fa-handshake-angle",
@@ -872,7 +932,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             if (!agent) return;
 
             // Highlight Tab Buttons
-            const tabs = ['lead_dev', 'setter', 'sdr', 'exec_bot', 'closer'];
+            const tabs = ['lead_dev', 'discovery', 'setter', 'sdr', 'exec_bot', 'closer'];
             tabs.forEach(t => {{
                 const btn = document.getElementById(`tab-btn-${{t}}`);
                 if (btn) {{
@@ -955,6 +1015,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             currentTesterAgent = agentId;
             const btns = {{
                 exec_bot: document.getElementById("btn-test-exec"),
+                discovery: document.getElementById("btn-test-discovery"),
                 setter: document.getElementById("btn-test-setter"),
                 lead_dev: document.getElementById("btn-test-dev")
             }};
@@ -970,6 +1031,7 @@ def render_landing_page(api_prefix: str = "") -> str:
 
             const descText = {{
                 exec_bot: "The Executive Sales Bot is analyzing buyer intent & synthesizing closing dossier...",
+                discovery: "The Decision-Maker Pathfinder & Literature Bot is calling/emailing switchboard & dispatching collateral...",
                 setter: "The Appointment Setter is negotiating calendar slots and formatting demo invite...",
                 lead_dev: "The Lead Developer is scraping domain firmographics and scoring buyer readiness..."
             }};
@@ -1012,8 +1074,17 @@ def render_landing_page(api_prefix: str = "") -> str:
                 document.getElementById("out-target-name").innerText = comp;
                 document.getElementById("out-acv").innerText = "$" + Number(val).toLocaleString();
 
-                if (currentTesterAgent === "setter") {{
-                    document.getElementById("out-agent-badge").innerText = "AGENT 2: THE APPOINTMENT SETTER";
+                if (currentTesterAgent === "discovery") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 2: DECISION-MAKER & LITERATURE BOT";
+                    document.getElementById("out-box-title-1").innerText = "Phone & Email Switchboard Discovery";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Autonomous Voice AI called ${{comp}} switchboard & dispatched exploratory email to front desk. Successfully navigated past gatekeeper and connected directly with Sarah Jenkins (VP Cloud Architecture).`;
+                    document.getElementById("out-box-title-2").innerText = "Marketing Literature Dispatched";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Engaged Sarah Jenkins, secured permission, and dispatched digital whitepapers via tracked email plus physical executive briefing kit via postal mail to warm up and set up the sale for later.`;
+                    document.getElementById("out-next-step").innerText = "Track Content Engagement & Route to Appointment Setter for Meeting Booking";
+                }} else if (currentTesterAgent === "setter") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 4: THE APPOINTMENT SETTER";
                     document.getElementById("out-box-title-1").innerText = "Calendar Negotiation Status";
                     document.getElementById("out-box-desc-1").innerText = 
                         `Prospect indicated availability for product walk-through. Setter normalized timezone to Eastern Time and offered 2 optimal 30-minute slots on team calendar.`;
@@ -1029,10 +1100,10 @@ def render_landing_page(api_prefix: str = "") -> str:
                     document.getElementById("out-box-title-2").innerText = "Intent Signal Analysis";
                     document.getElementById("out-box-desc-2").innerText = 
                         `Detected active hiring for 8 sales and operational roles. Ingested into CRM with buyer intent readiness rated at 94/100.`;
-                    document.getElementById("out-next-step").innerText = "Route to Cold Outreach SDR for 1-to-1 Sequence Launch";
+                    document.getElementById("out-next-step").innerText = "Route to Decision-Maker & Literature Bot for Phone/Email Outreach";
                 }} else {{
                     // Default Executive Sales Bot
-                    document.getElementById("out-agent-badge").innerText = "AGENT 4: THE EXECUTIVE SALES BOT";
+                    document.getElementById("out-agent-badge").innerText = "AGENT 5: THE EXECUTIVE SALES BOT";
                     document.getElementById("out-box-title-1").innerText = "Executive Buyer Assessment";
                     document.getElementById("out-box-desc-1").innerText = 
                         `High-intent enterprise organization operating in ${{ind}}. Primary operational bottleneck is fragmented sales tools and pipeline latency.`;
@@ -1047,13 +1118,14 @@ def render_landing_page(api_prefix: str = "") -> str:
         // Stack Configurator Recalculation Logic
         function recalculateStack() {{
             const dev = document.getElementById("chk-dev").checked;
+            const discovery = document.getElementById("chk-discovery") ? document.getElementById("chk-discovery").checked : true;
             const sdr = document.getElementById("chk-sdr").checked;
             const setter = document.getElementById("chk-setter").checked;
             const exec = document.getElementById("chk-exec").checked;
             const closer = document.getElementById("chk-closer").checked;
 
-            let count = (dev ? 1 : 0) + (sdr ? 1 : 0) + (setter ? 1 : 0) + (exec ? 1 : 0) + (closer ? 1 : 0);
-            let demos = (dev ? 10 : 0) + (sdr ? 16 : 0) + (setter ? 22 : 0);
+            let count = (dev ? 1 : 0) + (discovery ? 1 : 0) + (sdr ? 1 : 0) + (setter ? 1 : 0) + (exec ? 1 : 0) + (closer ? 1 : 0);
+            let demos = (dev ? 10 : 0) + (discovery ? 12 : 0) + (sdr ? 16 : 0) + (setter ? 22 : 0);
             let deals = Math.round(demos * 0.22) + (exec ? 5 : 0) + (closer ? 4 : 0);
             let pipeline = deals * 12000;
 

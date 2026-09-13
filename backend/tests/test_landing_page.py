@@ -37,12 +37,16 @@ async def test_landing_page_spotlights_5_ai_agents():
         assert res.status_code == 200
         html = res.text
 
-        # Verify all 5 Sales AI Agents are documented in the page
+        # Verify all Sales AI Agents (including Decision-Maker Pathfinder & Literature Bot) are documented in the page
         assert "The Lead Developer" in html
+        assert "Decision-Maker" in html
+        assert "Literature" in html
         assert "The Appointment Setter" in html
         assert "Cold Outreach SDR" in html
         assert "The Executive Sales Bot" in html
         assert "The Objection Closer" in html
+        assert "btn-test-discovery" in html
+        assert "chk-discovery" in html
 
         # Verify agent capabilities and business impacts
         assert "Autonomous Sales Skills" in html
