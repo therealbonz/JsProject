@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing
 from app.services.gemini_service import gemini_service
 
 # Configure Logging
@@ -156,6 +156,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(team.router, prefix=prefix)
     app.include_router(executive_analytics.router, prefix=prefix)
     app.include_router(developer.router, prefix=prefix)
+    app.include_router(metered_billing.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1422,6 +1423,11 @@ async def dashboard_home():
                         <i class="fa-solid fa-code text-violet-400"></i>
                         <span>⚡ CRM 8: Developer &amp; Webhooks</span>
                         <span id="nav-badge-webhooks" class="px-2 py-0.5 rounded-full text-[10px] bg-violet-950/80 text-violet-300 font-mono border border-violet-700/50">API</span>
+                    </button>
+                    <button id="tab-metered" onclick="switchCrmMode('metered')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <i class="fa-solid fa-gauge-high text-teal-400"></i>
+                        <span>📈 CRM 9: Metered Billing</span>
+                        <span id="nav-badge-metered" class="px-2 py-0.5 rounded-full text-[10px] bg-teal-950/80 text-teal-300 font-mono border border-teal-700/50">Usage</span>
                     </button>
                 </div>
 
@@ -4307,6 +4313,248 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
             </div>
         </div>
 
+        <!-- ========================================================================= -->
+        <!-- CRM 9: Metered Usage Billing & Automated Overages View -->
+        <!-- ========================================================================= -->
+        <div id="view-metered" class="hidden max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-teal-950/70 via-slate-900 to-emerald-950/70 border border-teal-500/40 rounded-2xl p-6 shadow-2xl space-y-4 ring-1 ring-teal-400/20">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-12 w-12 rounded-xl bg-teal-600/20 text-teal-400 border border-teal-500/40 flex items-center justify-center text-2xl shadow-lg shadow-teal-500/20 shrink-0">
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-black text-white tracking-wide">CRM 9: Metered Usage Billing &amp; Overages</h2>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 uppercase tracking-wider font-mono">Step 12 Engine</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">Real-time resource metering, tier included allowances, run-rate projections, and automated card-on-file overage settlements.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
+                            <span class="text-[11px] text-slate-400 font-medium">License:</span>
+                            <select id="metered-license-selector" onchange="onMeteredLicenseSelectChanged()" class="bg-transparent text-xs text-teal-300 font-semibold focus:outline-none cursor-pointer">
+                                <option value="">Loading licenses...</option>
+                            </select>
+                        </div>
+                        <button onclick="openSimulateMeteredModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 shadow-md cursor-pointer">
+                            <i class="fa-solid fa-bolt text-amber-400"></i>
+                            <span>Simulate Usage</span>
+                        </button>
+                        <button onclick="settleActiveLicenseCycle()" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-lg shadow-teal-900/40 cursor-pointer">
+                            <i class="fa-solid fa-credit-card"></i>
+                            <span>Settle &amp; Auto-Charge Cycle</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 Live KPI Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+                    <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center text-lg shrink-0">
+                            <i class="fa-solid fa-receipt"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 font-medium">Accrued Overages</div>
+                            <div id="metered-kpi-accrued" class="text-lg font-black text-white font-mono">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg shrink-0">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 font-medium">Projected Run-Rate</div>
+                            <div id="metered-kpi-projected" class="text-lg font-black text-indigo-300 font-mono">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0">
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 font-medium">Settled Revenue</div>
+                            <div id="metered-kpi-settled" class="text-lg font-black text-emerald-400 font-mono">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-lg shrink-0">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 font-medium">Cycle Days Left</div>
+                            <div id="metered-kpi-days-left" class="text-lg font-black text-amber-300 font-mono">0 days</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-Time Metric Gauges Section -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-teal-400"></i>
+                        <span>Live Resource Consumption vs. Included Plan Allowances</span>
+                    </h3>
+                    <span id="metered-client-badge" class="text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">Select license to view telemetry</span>
+                </div>
+
+                <div id="metered-gauges-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="p-8 text-center text-slate-500 italic col-span-full">Loading consumption gauges...</div>
+                </div>
+            </div>
+
+            <!-- Historical Metered Invoices Table -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark text-teal-400"></i>
+                        <h3 class="font-bold text-sm text-slate-200">Historical Metered Billing Statements</h3>
+                    </div>
+                    <span id="metered-invoices-count" class="text-xs text-slate-400 font-mono">0 settled invoices</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800/80 uppercase font-mono text-[10px] tracking-wider">
+                                <th class="pb-3 font-semibold">Invoice #</th>
+                                <th class="pb-3 font-semibold">Client Account</th>
+                                <th class="pb-3 font-semibold">Billing Window</th>
+                                <th class="pb-3 font-semibold">Total Overage</th>
+                                <th class="pb-3 font-semibold">Method</th>
+                                <th class="pb-3 font-semibold">Status</th>
+                                <th class="pb-3 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metered-invoices-tbody" class="divide-y divide-slate-800/50">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-slate-500 italic">No metered settlement invoices found yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Simulate Metered Usage Telemetry -->
+        <div id="modal-simulate-metered" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-teal-500/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-teal-400">
+                        <i class="fa-solid fa-bolt text-lg text-amber-400"></i>
+                        <h3 class="font-bold text-sm text-slate-100">Simulate Consumption Telemetry</h3>
+                    </div>
+                    <button onclick="closeSimulateMeteredModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Target SaaS License</label>
+                        <select id="in-sim-meter-license" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                            <option value="">Select license...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Billable Metric</label>
+                        <select id="in-sim-meter-metric" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200">
+                            <option value="api_calls">REST API Calls</option>
+                            <option value="ai_agent_runs">Autonomous AI Agent Runs</option>
+                            <option value="procurement_orders">Autonomous Procurement POs</option>
+                            <option value="edi_transactions">EDI 850/856 Supply Transactions</option>
+                            <option value="storage_mb">Cloud Storage (MB)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1 font-medium">Quantity to Ingest</label>
+                        <input id="in-sim-meter-qty" type="number" value="10000" min="1" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono">
+                    </div>
+
+                    <div>
+                        <span class="block text-slate-400 mb-1.5 font-medium">Quick Presets:</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="presetMeteredSim('api_calls', 15000)" class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-[11px] text-teal-300 font-mono text-left cursor-pointer">+15k API Calls</button>
+                            <button onclick="presetMeteredSim('ai_agent_runs', 75)" class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-[11px] text-indigo-300 font-mono text-left cursor-pointer">+75 AI Runs</button>
+                            <button onclick="presetMeteredSim('procurement_orders', 15)" class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-[11px] text-amber-300 font-mono text-left cursor-pointer">+15 PO Orders</button>
+                            <button onclick="presetMeteredSim('edi_transactions', 50)" class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-[11px] text-emerald-300 font-mono text-left cursor-pointer">+50 EDI ASNs</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button onclick="closeSimulateMeteredModal()" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Cancel</button>
+                    <button id="btn-submit-meter-sim" onclick="submitSimulateMeteredUsage()" class="py-2 px-4 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-paper-plane"></i> Record Telemetry Event
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: View Metered Invoice Statement Details -->
+        <div id="modal-metered-invoice-details" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-teal-500/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div class="flex items-center gap-2 text-teal-400">
+                        <i class="fa-solid fa-file-invoice text-lg"></i>
+                        <h3 id="inv-modal-title" class="font-bold text-sm text-slate-100">Metered Billing Statement</h3>
+                    </div>
+                    <button onclick="closeMeteredInvoiceModal()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px]">
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">Client Account:</span>
+                            <span id="inv-modal-client" class="text-white font-bold">-</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">Billing Window:</span>
+                            <span id="inv-modal-window" class="text-slate-300">-</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">Payment Method:</span>
+                            <span id="inv-modal-method" class="text-teal-300 font-semibold">-</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-[10px]">Settlement Status:</span>
+                            <span id="inv-modal-status" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 inline-block">-</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h4 class="font-semibold text-slate-300 text-xs">Itemized Metric Overages</h4>
+                        <div class="overflow-x-auto border border-slate-800 rounded-xl">
+                            <table class="w-full text-left text-xs">
+                                <thead>
+                                    <tr class="bg-slate-950 text-slate-400 text-[10px] font-mono uppercase">
+                                        <th class="p-2.5">Metric</th>
+                                        <th class="p-2.5">Included</th>
+                                        <th class="p-2.5">Consumed</th>
+                                        <th class="p-2.5">Overage Units</th>
+                                        <th class="p-2.5">Unit Rate</th>
+                                        <th class="p-2.5 text-right">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inv-modal-tbody" class="divide-y divide-slate-800/50">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-2 text-sm font-bold text-slate-200">
+                        <span>Total Overage Amount:</span>
+                        <span id="inv-modal-total" class="font-mono text-emerald-400 text-base">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button onclick="closeMeteredInvoiceModal()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold cursor-pointer">Close</button>
+                </div>
+            </div>
+        </div>
+
         <script>
             const BASE_PREFIX = window.location.pathname.startsWith("/JsProject") ? "/JsProject" : "";
             const API_BASE = BASE_PREFIX + "/api/v1";
@@ -5166,6 +5414,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const viewTeam = document.getElementById("view-team");
                 const viewFinancials = document.getElementById("view-financials");
                 const viewDeveloper = document.getElementById("view-developer");
+                const viewMetered = document.getElementById("view-metered");
                 const tabProspects = document.getElementById("tab-prospects");
                 const tabClients = document.getElementById("tab-clients");
                 const tabFulfillment = document.getElementById("tab-fulfillment");
@@ -5174,6 +5423,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 const tabTeam = document.getElementById("tab-team");
                 const tabFinancials = document.getElementById("tab-financials");
                 const tabDeveloper = document.getElementById("tab-developer");
+                const tabMetered = document.getElementById("tab-metered");
 
                 // Reset all tabs to inactive state
                 tabProspects.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
@@ -5184,6 +5434,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (tabTeam) tabTeam.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabFinancials) tabFinancials.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
                 if (tabDeveloper) tabDeveloper.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                if (tabMetered) tabMetered.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
 
                 viewProspects.classList.add("hidden");
                 viewClients.classList.add("hidden");
@@ -5193,6 +5444,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (viewTeam) viewTeam.classList.add("hidden");
                 if (viewFinancials) viewFinancials.classList.add("hidden");
                 if (viewDeveloper) viewDeveloper.classList.add("hidden");
+                if (viewMetered) viewMetered.classList.add("hidden");
 
                 if (mode === 'prospects') {
                     viewProspects.classList.remove("hidden");
@@ -5235,6 +5487,10 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     if (viewDeveloper) viewDeveloper.classList.remove("hidden");
                     if (tabDeveloper) tabDeveloper.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-violet-600 text-white shadow-md";
                     fetchDeveloperData();
+                } else if (mode === 'metered') {
+                    if (viewMetered) viewMetered.classList.remove("hidden");
+                    if (tabMetered) tabMetered.className = "px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-teal-600 text-white shadow-md";
+                    fetchMeteredBillingData();
                 }
             }
 
@@ -9132,6 +9388,340 @@ ${p.ai_drafted_outreach}
                 } catch (e) {
                     console.error("fetchEventCatalog error:", e);
                 }
+            }
+
+            // =========================================================================
+            // CRM 9: Metered Usage Billing & Automated Overages Handlers
+            // =========================================================================
+            let currentMeteredLicenseId = "";
+            let meteredLicensesList = [];
+
+            async function fetchMeteredBillingData() {
+                if (!authToken) return;
+                try {
+                    // 1. Fetch licenses to populate selector
+                    const licRes = await fetch(API_BASE + "/saas-licenses", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (licRes.ok) {
+                        meteredLicensesList = await licRes.json();
+                        const selector = document.getElementById("metered-license-selector");
+                        const simSelector = document.getElementById("in-sim-meter-license");
+
+                        if (selector && meteredLicensesList.length > 0) {
+                            selector.innerHTML = meteredLicensesList.map(lic => `
+                                <option value="${lic.id}">${escapeHtml(lic.license_key)} (${escapeHtml(lic.plan_tier.toUpperCase())})</option>
+                            `).join("");
+                            if (!currentMeteredLicenseId) {
+                                currentMeteredLicenseId = meteredLicensesList[0].id;
+                            }
+                            selector.value = currentMeteredLicenseId;
+                        } else if (selector) {
+                            selector.innerHTML = `<option value="">No active licenses</option>`;
+                        }
+
+                        if (simSelector) {
+                            simSelector.innerHTML = meteredLicensesList.map(lic => `
+                                <option value="${lic.id}">${escapeHtml(lic.license_key)} - ${escapeHtml(lic.plan_tier.toUpperCase())}</option>
+                            `).join("");
+                            if (currentMeteredLicenseId) simSelector.value = currentMeteredLicenseId;
+                        }
+                    }
+
+                    // 2. Fetch summary for active license
+                    if (currentMeteredLicenseId) {
+                        await fetchMeteredSummary(currentMeteredLicenseId);
+                    }
+
+                    // 3. Fetch historical settled invoices
+                    await fetchMeteredInvoices();
+                } catch (e) {
+                    console.error("fetchMeteredBillingData error:", e);
+                }
+            }
+
+            async function onMeteredLicenseSelectChanged() {
+                const selector = document.getElementById("metered-license-selector");
+                if (selector) {
+                    currentMeteredLicenseId = selector.value;
+                    const simSelector = document.getElementById("in-sim-meter-license");
+                    if (simSelector) simSelector.value = currentMeteredLicenseId;
+                    await fetchMeteredSummary(currentMeteredLicenseId);
+                }
+            }
+
+            async function fetchMeteredSummary(licenseId) {
+                const container = document.getElementById("metered-gauges-container");
+                if (!container || !authToken) return;
+
+                try {
+                    const res = await fetch(API_BASE + `/metered-billing/licenses/${licenseId}/summary`, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) {
+                        container.innerHTML = `<div class="p-6 text-center text-rose-400">Failed to load meter gauges</div>`;
+                        return;
+                    }
+                    const summary = await res.json();
+
+                    // Update KPIs
+                    const accruedEl = document.getElementById("metered-kpi-accrued");
+                    const projEl = document.getElementById("metered-kpi-projected");
+                    const daysEl = document.getElementById("metered-kpi-days-left");
+                    const badgeEl = document.getElementById("metered-client-badge");
+
+                    if (accruedEl) accruedEl.innerText = "$" + (summary.total_accrued_overage || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    if (projEl) projEl.innerText = "$" + (summary.projected_cycle_overage || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    if (daysEl) daysEl.innerText = `${summary.days_remaining_in_cycle || 0} days`;
+                    if (badgeEl) badgeEl.innerText = `${summary.client_name} • ${summary.plan_tier.toUpperCase()} TIER • ${summary.license_key}`;
+
+                    // Render Metric Gauges
+                    container.innerHTML = summary.metrics.map(m => {
+                        const pct = Math.min(100, m.utilization_pct || 0);
+                        const isOverage = m.overage_units > 0;
+                        const barColor = isOverage ? "bg-rose-500" : (pct > 80 ? "bg-amber-500" : "bg-teal-500");
+                        const badgeColor = isOverage ? "bg-rose-950/80 text-rose-300 border-rose-800/80" : "bg-teal-950/80 text-teal-300 border-teal-800/80";
+
+                        return `
+                            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-bold text-sm text-slate-200">${escapeHtml(m.display_name)}</h4>
+                                        <span class="text-[10px] text-slate-500 font-mono">Rate: $${m.unit_overage_rate.toFixed(4)} / ${escapeHtml(m.unit_label)}</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border font-mono ${badgeColor}">
+                                        ${isOverage ? 'OVERAGE' : pct.toFixed(0) + '% USED'}
+                                    </span>
+                                </div>
+
+                                <div class="space-y-1.5">
+                                    <div class="flex justify-between text-xs font-mono">
+                                        <span class="text-slate-400">Consumed: <strong class="text-white">${m.consumed_units.toLocaleString()}</strong></span>
+                                        <span class="text-slate-500">Plan Quota: ${m.included_units.toLocaleString()}</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                                        <div class="${barColor} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono">
+                                    <span class="text-slate-400">Overage: <strong class="${isOverage ? 'text-rose-400' : 'text-slate-500'}">${m.overage_units.toLocaleString()}</strong></span>
+                                    <span class="text-teal-400 font-bold">Accrued: $${m.accrued_charge.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join("");
+                } catch (e) {
+                    console.error("fetchMeteredSummary error:", e);
+                }
+            }
+
+            async function fetchMeteredInvoices() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/metered-billing/invoices", {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const invoices = await res.json();
+
+                    const countEl = document.getElementById("metered-invoices-count");
+                    if (countEl) countEl.innerText = `${invoices.length} settled statements`;
+
+                    let totalSettled = 0;
+                    invoices.forEach(inv => {
+                        if (inv.payment_status === "paid") totalSettled += inv.total_billed_amount;
+                    });
+                    const settledKpi = document.getElementById("metered-kpi-settled");
+                    if (settledKpi) settledKpi.innerText = "$" + totalSettled.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                    const tbody = document.getElementById("metered-invoices-tbody");
+                    if (!tbody) return;
+
+                    if (invoices.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-500 italic">No metered settlement invoices found yet.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = invoices.map(inv => {
+                        const start = new Date(inv.cycle_start).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+                        const end = new Date(inv.cycle_end).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
+                        const isPaid = inv.payment_status === "paid";
+                        const statusBadge = isPaid
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono"><i class="fa-solid fa-check mr-1"></i>PAID</span>`
+                            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 font-mono">PENDING</span>`;
+
+                        return `
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td class="py-3 font-mono font-bold text-teal-300">${escapeHtml(inv.invoice_number)}</td>
+                                <td class="py-3 font-medium text-slate-200">${escapeHtml(inv.client_name || 'Client Account')}</td>
+                                <td class="py-3 font-mono text-slate-400">${start} - ${end}</td>
+                                <td class="py-3 font-mono font-bold text-white">$${inv.total_billed_amount.toFixed(2)}</td>
+                                <td class="py-3 text-slate-400 capitalize">${escapeHtml(inv.payment_method.replace(/_/g, ' '))}</td>
+                                <td class="py-3">${statusBadge}</td>
+                                <td class="py-3 text-right">
+                                    <button onclick="viewMeteredInvoiceDetails('${inv.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 rounded-lg text-xs font-semibold transition cursor-pointer">
+                                        <i class="fa-solid fa-eye mr-1"></i> View Line Items
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
+                } catch (e) {
+                    console.error("fetchMeteredInvoices error:", e);
+                }
+            }
+
+            function openSimulateMeteredModal() {
+                const modal = document.getElementById("modal-simulate-metered");
+                const simSelector = document.getElementById("in-sim-meter-license");
+                if (simSelector && currentMeteredLicenseId) {
+                    simSelector.value = currentMeteredLicenseId;
+                }
+                if (modal) modal.classList.remove("hidden");
+            }
+
+            function closeSimulateMeteredModal() {
+                const modal = document.getElementById("modal-simulate-metered");
+                if (modal) modal.classList.add("hidden");
+            }
+
+            function presetMeteredSim(metric, qty) {
+                const mSelect = document.getElementById("in-sim-meter-metric");
+                const qInput = document.getElementById("in-sim-meter-qty");
+                if (mSelect) mSelect.value = metric;
+                if (qInput) qInput.value = qty;
+            }
+
+            async function submitSimulateMeteredUsage() {
+                if (!authToken) return;
+                const licId = document.getElementById("in-sim-meter-license").value;
+                const metric = document.getElementById("in-sim-meter-metric").value;
+                const qty = parseFloat(document.getElementById("in-sim-meter-qty").value || "1");
+                const btn = document.getElementById("btn-submit-meter-sim");
+
+                if (!licId) {
+                    alert("Please select a SaaS license");
+                    return;
+                }
+
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Ingesting...`;
+                }
+
+                try {
+                    const res = await fetch(API_BASE + "/metered-billing/usage", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            license_id: licId,
+                            metric_name: metric,
+                            quantity: qty,
+                            source: "web_console_simulator",
+                            metadata: { simulated_by: "Web Console", timestamp: new Date().toISOString() }
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error ingesting usage: " + (err.detail || "Server error"));
+                        return;
+                    }
+
+                    closeSimulateMeteredModal();
+                    await fetchMeteredSummary(currentMeteredLicenseId);
+                } catch (e) {
+                    alert("Exception ingesting usage: " + e.message);
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Record Telemetry Event`;
+                    }
+                }
+            }
+
+            async function settleActiveLicenseCycle() {
+                if (!authToken || !currentMeteredLicenseId) {
+                    alert("Please select a license first");
+                    return;
+                }
+
+                if (!confirm("Close and settle current metered billing cycle? This will calculate overage charges, generate an itemized invoice, and auto-charge stored payment methods.")) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch(API_BASE + `/metered-billing/licenses/${currentMeteredLicenseId}/settle`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            auto_charge: true,
+                            notes: "Settled from web console"
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Error settling cycle: " + (err.detail || "Server error"));
+                        return;
+                    }
+
+                    const invoice = await res.json();
+                    alert(`Cycle successfully settled! Invoice #${invoice.invoice_number} created for $${invoice.total_billed_amount.toFixed(2)} (${invoice.payment_status.toUpperCase()}).`);
+                    await fetchMeteredSummary(currentMeteredLicenseId);
+                    await fetchMeteredInvoices();
+                } catch (e) {
+                    alert("Exception settling cycle: " + e.message);
+                }
+            }
+
+            async function viewMeteredInvoiceDetails(invoiceId) {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + `/metered-billing/invoices/${invoiceId}`, {
+                        headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
+                    });
+                    if (!res.ok) return;
+                    const inv = await res.json();
+
+                    document.getElementById("inv-modal-title").innerText = `Statement #${inv.invoice_number}`;
+                    document.getElementById("inv-modal-client").innerText = inv.client_name || "Client Account";
+                    document.getElementById("inv-modal-window").innerText = `${new Date(inv.cycle_start).toLocaleDateString()} - ${new Date(inv.cycle_end).toLocaleDateString()}`;
+                    document.getElementById("inv-modal-method").innerText = inv.payment_method.replace(/_/g, " ").toUpperCase();
+                    document.getElementById("inv-modal-status").innerText = inv.payment_status.toUpperCase();
+                    document.getElementById("inv-modal-total").innerText = "$" + inv.total_billed_amount.toFixed(2);
+
+                    const tbody = document.getElementById("inv-modal-tbody");
+                    if (tbody) {
+                        tbody.innerHTML = (inv.line_items || []).map(li => `
+                            <tr>
+                                <td class="p-2.5 font-medium text-slate-200">${escapeHtml(li.display_name)}</td>
+                                <td class="p-2.5 font-mono text-slate-400">${li.included_units.toLocaleString()}</td>
+                                <td class="p-2.5 font-mono text-white">${li.consumed_units.toLocaleString()}</td>
+                                <td class="p-2.5 font-mono ${li.overage_units > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${li.overage_units.toLocaleString()}</td>
+                                <td class="p-2.5 font-mono text-slate-400">$${li.unit_overage_rate.toFixed(4)}</td>
+                                <td class="p-2.5 font-mono text-teal-400 font-bold text-right">$${li.subtotal.toFixed(2)}</td>
+                            </tr>
+                        `).join("");
+                    }
+
+                    document.getElementById("modal-metered-invoice-details").classList.remove("hidden");
+                } catch (e) {
+                    alert("Error loading invoice: " + e.message);
+                }
+            }
+
+            function closeMeteredInvoiceModal() {
+                document.getElementById("modal-metered-invoice-details").classList.add("hidden");
             }
 
             // Auto-login default tenant on load

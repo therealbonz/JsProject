@@ -33,7 +33,12 @@ class StripeRecurringService:
             and not str(stripe_key).startswith("sk_mock_")
         )
 
-        contact_email = client.primary_contact.email if client.primary_contact else f"client_{client.id[:8]}@example.com"
+        contact_email = f"client_{client.id[:8]}@example.com"
+        try:
+            if client.primary_contact and client.primary_contact.email:
+                contact_email = client.primary_contact.email
+        except Exception:
+            pass
         account_name = client.account_name
 
         if is_live:

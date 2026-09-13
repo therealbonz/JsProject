@@ -6,6 +6,7 @@ from app.models.conversation import Conversation, Message
 from app.models.hitl import HumanAssistanceRequest, AgentTask, AuditLog, ComplianceDNC
 from app.models.procurement import Supplier, PurchaseOrder, ShipmentTracking, InventoryItem
 from app.models.developer import ApiKey, WebhookSubscription, WebhookDeliveryLog
+from app.models.metered_billing import MeteredUsageRecord, MeteredBillingInvoice
 
 __all__ = [
     "Base",
@@ -41,5 +42,7 @@ __all__ = [
     "ApiKey",
     "WebhookSubscription",
     "WebhookDeliveryLog",
+    "MeteredUsageRecord",
+    "MeteredBillingInvoice",
 ]
 
