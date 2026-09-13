@@ -1,5 +1,6 @@
 import html as html_lib
 import logging
+from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,7 @@ from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
 from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows
 from app.services.gemini_service import gemini_service
+from app.templates.landing_page import render_landing_page
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -1612,9 +1614,36 @@ async def customer_portal_page(token: str):
     safe_token = html_lib.escape(token)
     return HTMLResponse(content=html.replace("{token}", safe_token))
 
+@app.get("/landing", response_class=HTMLResponse)
+@app.get("/JsProject/landing", response_class=HTMLResponse)
+async def saas_landing_page():
+    """
+    Public Commercial SaaS Landing Page
+    Spotlights the 5 Specialized Types of AI Agents and Visual Pipeline Orchestration.
+    """
+    return HTMLResponse(content=render_landing_page(api_prefix="/JsProject"))
+
+@app.get("/console", response_class=HTMLResponse)
+@app.get("/JsProject/console", response_class=HTMLResponse)
+@app.get("/app", response_class=HTMLResponse)
+@app.get("/JsProject/app", response_class=HTMLResponse)
+async def dedicated_console():
+    """Direct route to CRM Management Console."""
+    return await dashboard_home()
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/JsProject", response_class=HTMLResponse)
 @app.get("/JsProject/", response_class=HTMLResponse)
+async def root_entry(view: Optional[str] = None, console: Optional[str] = None):
+    """
+    Root Entry Point:
+    Serves the high-converting SaaS Landing Page by default.
+    If ?view=console or ?console=1 is requested, opens the internal CRM Management Console.
+    """
+    if view in ["console", "app"] or console in ["1", "true", "yes"]:
+        return await dashboard_home()
+    return HTMLResponse(content=render_landing_page(api_prefix="/JsProject"))
+
 async def dashboard_home():
     """
     Local-First Interactive Web Dashboard
@@ -1645,6 +1674,9 @@ async def dashboard_home():
                 </div>
             </div>
             <div class="flex items-center space-x-4">
+                <a href="/JsProject/landing" class="px-3 py-1.5 bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/50 rounded-lg text-xs font-semibold text-indigo-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-globe text-indigo-400"></i> SaaS Landing Page
+                </a>
                 <button onclick="switchCrmMode('settings')" class="px-3 py-1.5 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 border border-purple-500/50 rounded-lg text-xs font-semibold text-purple-200 transition flex items-center gap-1.5 cursor-pointer">
                     <i class="fa-solid fa-palette text-purple-400"></i> White-Label &amp; Stripe
                 </button>
