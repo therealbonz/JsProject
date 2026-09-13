@@ -18,6 +18,40 @@ logger = logging.getLogger(__name__)
 # Pre-Built Enterprise Templates Library
 ENTERPRISE_TEMPLATES: List[Dict[str, Any]] = [
     {
+        "id": "tpl_autonomous_6bot_pipeline",
+        "name": "6-Stage Autonomous AI Sales Pipeline DAG",
+        "category": "Autonomous Sales Workforce",
+        "description": "Sequential 6-agent autonomous pipeline: Lead Dev -> Decision-Maker Voice/Email Discovery -> Cold Outreach SDR -> Appointment Setter -> Executive Closer -> Objection Closer & Expansion.",
+        "trigger_type": "lead_created",
+        "icon": "fa-diagram-project",
+        "canvas_data": {
+            "nodes": [
+                {"id": "node-stage-1", "type": "ai_agent", "label": "1. Lead Developer Agent", "position": {"x": 50, "y": 140}, "config": {"agent_role": "Lead Developer", "stage": "lead_dev", "skills": ["Enrichment", "Intent Scoring"]}},
+                {"id": "node-stage-2", "type": "ai_agent", "label": "2. DM Discovery & Lit Bot", "position": {"x": 280, "y": 140}, "config": {"agent_role": "DM Pathfinder", "stage": "discovery", "skills": ["Voice AI Switchboard", "Collateral Dispatch"]}},
+                {"id": "node-stage-3", "type": "ai_agent", "label": "3. Cold Outreach SDR", "position": {"x": 510, "y": 140}, "config": {"agent_role": "Outreach SDR", "stage": "sdr", "skills": ["1-to-1 Personalization", "Multi-Channel Cadences"]}},
+                {"id": "node-stage-4", "type": "ai_agent", "label": "4. Appointment Setter", "position": {"x": 740, "y": 140}, "config": {"agent_role": "Appointment Setter", "stage": "setter", "skills": ["2-Way Scheduling", "Calendar Sync"]}},
+                {"id": "node-stage-5", "type": "ai_agent", "label": "5. Executive Sales Bot", "position": {"x": 970, "y": 140}, "config": {"agent_role": "Executive Closer", "stage": "exec_closer", "skills": ["Dossier Synthesis", "Commercial Proposal"]}},
+                {"id": "node-stage-6", "type": "ai_agent", "label": "6. Objection Closer", "position": {"x": 1200, "y": 140}, "config": {"agent_role": "Objection Closer", "stage": "closer", "skills": ["Concession Packaging", "Contract Execution"]}}
+            ],
+            "edges": [
+                {"id": "edge-1-2", "source": "node-stage-1", "target": "node-stage-2", "label": "Enriched (94/100)"},
+                {"id": "edge-2-3", "source": "node-stage-2", "target": "node-stage-3", "label": "DM Connected & Lit Dispatched"},
+                {"id": "edge-3-4", "source": "node-stage-3", "target": "node-stage-4", "label": "Prospect Reply Received"},
+                {"id": "edge-4-5", "source": "node-stage-4", "target": "node-stage-5", "label": "Demo Locked on Calendar"},
+                {"id": "edge-5-6", "source": "node-stage-5", "target": "node-stage-6", "label": "Proposal Delivered ($25k)"}
+            ],
+            "zoom": 1.0
+        },
+        "steps": [
+            {"id": "step-1", "node_id": "node-stage-1", "node_type": "ai_agent", "name": "Lead Developer Agent", "config": {"stage": "lead_dev"}},
+            {"id": "step-2", "node_id": "node-stage-2", "node_type": "ai_agent", "name": "DM Discovery & Lit Bot", "config": {"stage": "discovery"}},
+            {"id": "step-3", "node_id": "node-stage-3", "node_type": "ai_agent", "name": "Cold Outreach SDR", "config": {"stage": "sdr"}},
+            {"id": "step-4", "node_id": "node-stage-4", "node_type": "ai_agent", "name": "Appointment Setter", "config": {"stage": "setter"}},
+            {"id": "step-5", "node_id": "node-stage-5", "node_type": "ai_agent", "name": "Executive Sales Bot", "config": {"stage": "exec_closer"}},
+            {"id": "step-6", "node_id": "node-stage-6", "node_type": "ai_agent", "name": "Objection Closer", "config": {"stage": "closer"}}
+        ]
+    },
+    {
         "id": "tpl_vip_lead_enrichment",
         "name": "VIP High-Value Lead Fast-Track & AI Dossier",
         "category": "Sales & Inbound",

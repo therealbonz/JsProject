@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
 from app.templates.signup_page import render_signup_page
@@ -174,6 +174,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(support_copilot.router, prefix=prefix)
     app.include_router(workflows.router, prefix=prefix)
     app.include_router(billing_checkout.router, prefix=prefix)
+    app.include_router(pipeline_dag.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1817,6 +1818,9 @@ async def dashboard_home():
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
+                        <button onclick="triggerAutonomous6BotDAG()" class="px-3.5 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-400/40 transform hover:scale-[1.02]">
+                            <i class="fa-solid fa-robot text-amber-300"></i> Run 6-Bot Autonomous DAG
+                        </button>
                         <button onclick="triggerGatherIntelligence()" class="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-purple-400/40">
                             <i class="fa-solid fa-sitemap"></i> Gather BI &amp; Owners
                         </button>
@@ -12137,6 +12141,35 @@ ${p.ai_drafted_outreach}
 
             function closeWorkflowRunsModal() {
                 document.getElementById("modal-workflow-runs").classList.add("hidden");
+            }
+
+            async function triggerAutonomous6BotDAG() {
+                showToast("🤖 Autonomous 6-Bot Pipeline", "Launching Lead Dev ➔ DM Discovery ➔ SDR ➔ Setter ➔ Exec Closer ➔ Objection Closer sequence...", "info");
+                try {
+                    const token = localStorage.getItem("access_token") || localStorage.getItem("token") || (typeof currentToken !== "undefined" ? currentToken : "");
+                    const orgId = (typeof currentOrgId !== "undefined" ? currentOrgId : "");
+                    const res = await fetch("/api/v1/pipeline/dag/execute", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + token,
+                            "X-Organization-Id": orgId
+                        },
+                        body: JSON.stringify({
+                            company_name: "Titanium Enterprise Cloud",
+                            industry: "Enterprise SaaS & Supply Chain",
+                            target_value: 25000.0
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || "Pipeline run failed");
+
+                    showToast("🎉 6-Bot Pipeline Won!", "Deal Won for " + (data.company_name || "Enterprise Prospect") + "! $25,000 contract executed across all 6 autonomous bots.", "success");
+                    if (typeof fetchLeads === "function") fetchLeads();
+                    if (typeof fetchMetrics === "function") fetchMetrics();
+                } catch (e) {
+                    showToast("Pipeline Execution Error", e.message, "error");
+                }
             }
 
             // Auto-login default tenant on load
