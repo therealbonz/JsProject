@@ -8,10 +8,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router, residential
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
 from app.templates.signup_page import render_signup_page
+from app.templates.residential_portal import render_residential_portal
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -182,6 +183,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(pipeline_dag.router, prefix=prefix)
     app.include_router(voice_collateral.router, prefix=prefix)
     app.include_router(nurture_router.router, prefix=prefix)
+    app.include_router(residential.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -1641,6 +1643,17 @@ async def saas_signup_page(plan: Optional[str] = "growth"):
     Allows instant tier selection and automated tenant/license provisioning.
     """
     return HTMLResponse(content=render_signup_page(api_prefix="/JsProject", default_plan=plan or "growth"))
+
+@app.get("/residential", response_class=HTMLResponse)
+@app.get("/JsProject/residential", response_class=HTMLResponse)
+@app.get("/residential-bot", response_class=HTMLResponse)
+@app.get("/JsProject/residential-bot", response_class=HTMLResponse)
+async def residential_sales_portal():
+    """
+    Public Interactive Residential Home Services Sales Bot & Quoting Portal.
+    Quotes and books appointments across Carpet Cleaning, Lawn Care, and Roofing.
+    """
+    return HTMLResponse(content=render_residential_portal(api_prefix="/JsProject"))
 
 @app.get("/console", response_class=HTMLResponse)
 @app.get("/JsProject/console", response_class=HTMLResponse)
