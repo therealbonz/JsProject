@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
@@ -18,6 +18,7 @@ from app.schemas.residential import (
     ResidentialBookingRequest, ResidentialBookingConfirmation
 )
 from app.services.residential_sales_engine import ResidentialSalesEngine
+from app.services.residential_telephony_service import ResidentialSMSService, ResidentialVoiceService
 
 logger = logging.getLogger(__name__)
 
@@ -324,3 +325,206 @@ async def list_residential_bookings(
             for a in appts
         ]
     }
+
+
+# =========================================================================
+# TELEPHONY & SMS DISPATCH ENDPOINTS (PHASE 2)
+# =========================================================================
+
+@router.post("/sms/webhook")
+async def twilio_sms_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Twilio Inbound SMS Webhook:
+    Receives homeowner text messages, parses trade requirements, calculates quotes,
+    drives conversation, and executes text-to-book directly in CRM.
+    Returns standard TwiML XML.
+    """
+    # Accept either Form-urlencoded (Twilio default) or JSON (simulator/testing)
+    content_type = request.headers.get("content-type", "")
+    from_number = None
+    body_text = None
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+            from_number = data.get("From") or data.get("from_phone")
+            body_text = data.get("Body") or data.get("body") or data.get("message")
+        except Exception:
+            pass
+    else:
+        form = await request.form()
+        from_number = form.get("From")
+        body_text = form.get("Body")
+
+    if not from_number or not body_text:
+        twiml = ResidentialSMSService.generate_twiml_message("Apex Home Services: How can we assist you today with carpet, lawn, or roofing?")
+        return Response(content=twiml, media_type="application/xml")
+
+    result = await ResidentialSMSService.process_inbound_sms(
+        from_phone=str(from_number),
+        body=str(body_text),
+        db=db
+    )
+    return Response(content=result["twiml"], media_type="application/xml")
+
+
+@router.post("/voice/inbound")
+async def twilio_voice_inbound(request: Request):
+    """
+    Twilio Inbound Phone Call Webhook:
+    Answers calls with Polly speech and sets up speech recognition gather.
+    """
+    base_url = str(request.base_url).rstrip("/")
+    # Determine gather callback
+    gather_url = f"{base_url}/api/v1/residential/voice/gather"
+    if "/JsProject" in str(request.url):
+        gather_url = f"{base_url}/JsProject/api/v1/residential/voice/gather"
+
+    twiml = ResidentialVoiceService.generate_inbound_greeting(callback_url=gather_url)
+    return Response(content=twiml, media_type="application/xml")
+
+
+@router.post("/voice/gather")
+async def twilio_voice_gather(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Twilio Speech-to-Text Gather Callback:
+    Processes caller speech transcript, checks for active roof leaks or quotes carpet/lawn,
+    and returns continuing spoken audio instructions.
+    """
+    content_type = request.headers.get("content-type", "")
+    speech_result = ""
+    caller_phone = "+1-800-555-0199"
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+            speech_result = data.get("SpeechResult") or data.get("speech_result") or data.get("transcript") or ""
+            caller_phone = data.get("From") or data.get("caller_phone") or caller_phone
+        except Exception:
+            pass
+    else:
+        form = await request.form()
+        speech_result = form.get("SpeechResult", "")
+        caller_phone = form.get("From", caller_phone)
+
+    base_url = str(request.base_url).rstrip("/")
+    callback_url = f"{base_url}/api/v1/residential/voice/gather"
+
+    twiml, _ = ResidentialVoiceService.process_voice_gather(
+        speech_result=speech_result,
+        caller_phone=caller_phone,
+        callback_url=callback_url,
+        db=db
+    )
+    return Response(content=twiml, media_type="application/xml")
+
+
+@router.post("/voice/status")
+async def twilio_voice_status_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Twilio Call Status Callback (Speed-to-Lead Missed Call Detector):
+    When an incoming call is missed, busy, or unanswered, triggers an immediate SMS within 15 seconds.
+    """
+    form = await request.form()
+    call_status = form.get("CallStatus", "").lower()
+    call_duration = form.get("CallDuration", "0")
+    caller_phone = form.get("From")
+
+    triggered = False
+    if caller_phone and (call_status in ["no-answer", "busy", "canceled", "failed"] or call_duration == "0"):
+        await ResidentialSMSService.trigger_missed_call_textback(
+            caller_phone=caller_phone,
+            db=db
+        )
+        triggered = True
+
+    return {"status": "processed", "missed_call_detected": triggered, "call_status": call_status}
+
+
+# =========================================================================
+# VIRTUAL SMARTPHONE & TELEPHONY SIMULATOR (FOR WEB PORTAL)
+# =========================================================================
+
+@router.post("/simulate/missed_call")
+async def simulate_missed_call(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Simulates a homeowner missed call. Immediately dispatches speed-to-lead qualification SMS.
+    """
+    data = await request.json()
+    caller_phone = data.get("caller_phone", "+13035550199")
+    res = await ResidentialSMSService.trigger_missed_call_textback(
+        caller_phone=caller_phone,
+        db=db
+    )
+    session = ResidentialSMSService.get_session(caller_phone)
+    return {
+        "success": True,
+        "caller_phone": caller_phone,
+        "dispatched_sms": res["message"],
+        "session": session
+    }
+
+
+@router.post("/simulate/sms")
+async def simulate_sms_conversation(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Simulates a 2-way homeowner text message turn inside the web portal virtual phone screen.
+    """
+    data = await request.json()
+    from_phone = data.get("from_phone", "+13035550199")
+    body = data.get("body", "")
+    
+    result = await ResidentialSMSService.process_inbound_sms(
+        from_phone=from_phone,
+        body=body,
+        db=db
+    )
+    session = ResidentialSMSService.get_session(from_phone)
+    return {
+        "reply": result["reply_text"],
+        "trade": result["trade"],
+        "state": result["state"],
+        "booked": result["booked"],
+        "booking_data": result.get("booking_data"),
+        "messages": session.get("messages", [])
+    }
+
+
+@router.post("/simulate/voice")
+async def simulate_voice_turn(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    Simulates an inbound voice phone call with speech-to-text transcript
+    and returns audio text for browser speech synthesis.
+    """
+    data = await request.json()
+    speech = data.get("speech", "I have 3 bedrooms that need steam cleaning")
+    caller_phone = data.get("caller_phone", "+13035550199")
+    
+    twiml, metadata = ResidentialVoiceService.process_voice_gather(
+        speech_result=speech,
+        caller_phone=caller_phone,
+        callback_url="/api/v1/residential/voice/gather",
+        db=db
+    )
+
+    # Extract spoken plain text from TwiML for client-side Web Speech audio playback
+    import re
+    say_matches = re.findall(r"<Say[^>]*>(.*?)</Say>", twiml, re.DOTALL)
+    spoken_text = " ".join(m.strip() for m in say_matches) if say_matches else "Thank you for calling Apex Home Services."
+
+    return {
+        "spoken_text": spoken_text,
+        "metadata": metadata,
+        "twiml": twiml
+    }
+
+
+@router.get("/simulate/messages")
+async def get_simulator_messages(phone: str = Query("+13035550199")):
+    """Returns SMS thread for virtual phone screen."""
+    session = ResidentialSMSService.get_session(phone)
+    return {
+        "phone": session["phone"],
+        "messages": session.get("messages", [])
+    }
+

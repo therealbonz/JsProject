@@ -558,10 +558,10 @@ class ResidentialSalesEngine:
             elif any(k in msg_lower for k in ["estate", "2 acre", "acreage"]):
                 lawn_specs.lot_size_tier = "estate_plus"
 
-            if "weekly" in msg_lower:
-                lawn_specs.cadence = "weekly"
-            elif any(k in msg_lower for k in ["biweekly", "bi-weekly", "every two weeks"]):
+            if any(k in msg_lower for k in ["biweekly", "bi-weekly", "every two weeks"]):
                 lawn_specs.cadence = "biweekly"
+            elif "weekly" in msg_lower:
+                lawn_specs.cadence = "weekly"
             elif "one time" in msg_lower:
                 lawn_specs.cadence = "one_time"
 

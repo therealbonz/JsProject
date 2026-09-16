@@ -78,11 +78,16 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             </div>
 
             <!-- Action Links -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2.5">
+                <button onclick="openPhoneSimulator('sms')" class="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow cursor-pointer">
+                    <i class="fa-solid fa-mobile-screen-button text-indigo-400"></i> 
+                    <span>Phone & SMS Bot</span>
+                    <span class="px-1.5 py-0.2 rounded bg-indigo-500 text-white text-[9px] uppercase font-bold tracking-wider">Phase 2</span>
+                </button>
                 <a href="/" class="text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                     <i class="fa-solid fa-gauge"></i> <span class="hidden sm:inline">CRM Platform</span>
                 </a>
-                <button onclick="openBookingModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center gap-2">
+                <button onclick="openBookingModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-check"></i> Book Crew
                 </button>
             </div>
@@ -110,6 +115,16 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 <span class="font-bold text-slate-300">1-Click Test Scenarios:</span>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+                <button onclick="openPhoneSimulator('sms')" class="px-2.5 py-1 rounded-lg bg-indigo-950/70 hover:bg-indigo-900 text-indigo-200 border border-indigo-700/60 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                    <i class="fa-solid fa-comment-sms text-indigo-400"></i> <span>2-Way SMS</span>
+                </button>
+                <button onclick="openPhoneSimulator('missed')" class="px-2.5 py-1 rounded-lg bg-amber-950/70 hover:bg-amber-900 text-amber-200 border border-amber-700/60 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                    <i class="fa-solid fa-phone-slash text-amber-400"></i> <span>Missed-Call Speed-to-Lead</span>
+                </button>
+                <button onclick="openPhoneSimulator('voice')" class="px-2.5 py-1 rounded-lg bg-emerald-950/70 hover:bg-emerald-900 text-emerald-200 border border-emerald-700/60 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                    <i class="fa-solid fa-headset text-emerald-400"></i> <span>Voice AI Receptionist</span>
+                </button>
+                <span class="text-slate-600 hidden sm:inline">|</span>
                 <button onclick="loadScenario('carpet_sarah')" class="px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 text-xs">
                     <span>🧽 Sarah</span> <span class="text-slate-400 text-[11px]">(3 Beds, Pet Urine Stains)</span>
                 </button>
@@ -428,6 +443,178 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 <button onclick="closeBookingModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition">
                     Done
                 </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Virtual Smartphone & Telephony Simulator Modal (Phase 2) -->
+    <div id="phone-simulator-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
+        <div class="relative bg-slate-950 border-4 border-slate-700/80 rounded-[42px] w-full max-w-[420px] shadow-2xl overflow-hidden flex flex-col h-[740px] ring-1 ring-slate-800">
+            
+            <!-- Phone Notch & Dynamic Island -->
+            <div class="bg-slate-900 px-6 pt-3 pb-2 flex items-center justify-between text-white text-[11px] select-none border-b border-slate-800/80 shrink-0">
+                <span class="font-bold">9:41</span>
+                <div class="h-4 w-24 bg-black rounded-full flex items-center justify-center gap-1.5 border border-slate-800">
+                    <span class="h-2 w-2 rounded-full bg-slate-900"></span>
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500/80"></span>
+                </div>
+                <div class="flex items-center gap-1.5 text-slate-400">
+                    <i class="fa-solid fa-signal text-[10px]"></i>
+                    <i class="fa-solid fa-wifi text-[10px]"></i>
+                    <i class="fa-solid fa-battery-full text-xs text-white"></i>
+                </div>
+            </div>
+
+            <!-- Phone Top Contact Header -->
+            <div class="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-indigo-600 to-fuchsia-600 flex items-center justify-center text-white text-xs font-bold shadow">
+                        A
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-xs text-white">Apex Home Services</span>
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                        </div>
+                        <span class="text-[10px] text-slate-400">(800) 555-APEX • Verified</span>
+                    </div>
+                </div>
+                <button onclick="closePhoneSimulator()" class="h-8 w-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition text-xs cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Simulator Tab Selector -->
+            <div class="bg-slate-900/60 p-1.5 border-b border-slate-800 flex items-center gap-1 text-[11px] font-semibold shrink-0">
+                <button onclick="switchSimTab('sms')" id="sim-tab-sms" class="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white transition text-center flex items-center justify-center gap-1.5 shadow cursor-pointer">
+                    <i class="fa-solid fa-comment-sms"></i> 2-Way SMS
+                </button>
+                <button onclick="switchSimTab('missed')" id="sim-tab-missed" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-center flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-phone-slash"></i> Missed Call
+                </button>
+                <button onclick="switchSimTab('voice')" id="sim-tab-voice" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-center flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-headset"></i> Voice AI
+                </button>
+            </div>
+
+            <!-- Tab 1: 2-Way SMS Container -->
+            <div id="sim-view-sms" class="flex-1 flex flex-col overflow-hidden bg-slate-950">
+                <div class="p-2 bg-slate-900/40 text-center text-[10px] text-slate-500 border-b border-slate-900">
+                    Encrypted 2-Way SMS via Twilio Gateway (+1 303-555-0199)
+                </div>
+                <div id="sim-sms-stream" class="flex-1 p-3 overflow-y-auto space-y-2.5 custom-scrollbar text-xs">
+                    <!-- SMS messages populated here -->
+                </div>
+                <!-- Quick Suggestion Buttons -->
+                <div class="p-2 bg-slate-900/80 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0">
+                    <button onclick="sendSimSMS('Need 3 bedrooms carpet cleaned with pet urine stains')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-[10px] whitespace-nowrap transition cursor-pointer">
+                        🧽 3 Beds + Pet
+                    </button>
+                    <button onclick="sendSimSMS('1428 Elm St, 80202. Book for Saturday morning!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white text-[10px] whitespace-nowrap transition cursor-pointer">
+                        📅 Text-to-Book (Elm St)
+                    </button>
+                    <button onclick="sendSimSMS('I need bi-weekly mowing for 0.5 acre yard')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-[10px] whitespace-nowrap transition cursor-pointer">
+                        🌿 0.5 Acre Lawn
+                    </button>
+                    <button onclick="sendSimSMS('EMERGENCY: Active roof leak in my kitchen right now!')" class="px-2 py-1 rounded-md bg-rose-900/60 hover:bg-rose-700 text-rose-200 text-[10px] whitespace-nowrap transition cursor-pointer">
+                        ⚠️ Roof Leak
+                    </button>
+                </div>
+                <!-- SMS Input Form -->
+                <form onsubmit="handleSimSMSSubmit(event)" class="p-2.5 bg-slate-900 border-t border-slate-800 flex items-center gap-2 shrink-0">
+                    <input type="text" id="sim-sms-input" placeholder="Text message to Apex..." class="flex-1 bg-slate-950 border border-slate-800 rounded-full px-3.5 py-2 text-xs text-white outline-none focus:border-indigo-500">
+                    <button type="submit" class="h-8 w-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition text-xs shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tab 2: Missed-Call Speed-to-Lead Container -->
+            <div id="sim-view-missed" class="flex-1 flex flex-col p-6 items-center justify-between text-center bg-gradient-to-b from-slate-900 to-slate-950 hidden">
+                <div class="space-y-2 mt-4">
+                    <div class="h-16 w-16 mx-auto rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-2xl shadow-lg">
+                        <i class="fa-solid fa-phone-slash"></i>
+                    </div>
+                    <h4 class="font-bold text-base text-white">Speed-to-Lead Missed Call</h4>
+                    <p class="text-xs text-slate-400 max-w-xs">
+                        62% of homeowners hire whichever contractor calls or texts first. Test the instant auto-recovery SMS!
+                    </p>
+                </div>
+
+                <div id="missed-call-status-box" class="w-full p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Caller ID:</span>
+                        <span class="font-mono font-semibold text-slate-200">+1 (303) 555-0199</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Call Status:</span>
+                        <span id="missed-status-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300">Ready to Trigger</span>
+                    </div>
+                    <div id="missed-result-alert" class="hidden p-3 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-left text-xs space-y-1 text-emerald-200">
+                        <span class="font-bold text-white block"><i class="fa-solid fa-bolt text-amber-400"></i> Speed-to-Lead Dispatched!</span>
+                        <p id="missed-result-body" class="text-[11px] text-slate-300 font-mono"></p>
+                    </div>
+                </div>
+
+                <div class="w-full space-y-2">
+                    <button onclick="triggerSimMissedCall()" id="btn-trigger-missed" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-phone-volume"></i>
+                        <span>Simulate Homeowner Missed Call</span>
+                    </button>
+                    <button onclick="switchSimTab('sms')" class="text-xs text-indigo-400 hover:text-indigo-300 transition cursor-pointer">
+                        View resulting 2-way SMS thread →
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 3: Voice AI Caller Container -->
+            <div id="sim-view-voice" class="flex-1 flex flex-col p-5 items-center justify-between text-center bg-gradient-to-b from-slate-900 to-slate-950 hidden">
+                <div class="space-y-1 mt-2">
+                    <div class="h-16 w-16 mx-auto rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-2xl shadow-lg relative">
+                        <i class="fa-solid fa-headset"></i>
+                        <span class="absolute -top-1 -right-1 flex h-4 w-4">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 text-[9px] text-white font-bold items-center justify-center">AI</span>
+                        </span>
+                    </div>
+                    <h4 class="font-bold text-sm text-white">Amber • Voice AI Receptionist</h4>
+                    <p class="text-[11px] text-slate-400">Twilio Speech Recognition + Polly Voice Synthesis</p>
+                </div>
+
+                <!-- Live Voice Speech Box -->
+                <div class="w-full p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 text-left space-y-2 text-xs">
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-slate-800">
+                        <span>Audio Speech Output:</span>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-indigo-200">
+                            <input type="checkbox" id="chk-audio-speak" checked class="rounded bg-slate-800 border-slate-700">
+                            <span class="text-[10px]">🔊 Play Audio</span>
+                        </label>
+                    </div>
+                    <div id="voice-spoken-output" class="p-3 rounded-xl bg-slate-950 text-slate-200 text-xs italic leading-relaxed min-h-[70px] flex items-center">
+                        "Thank you for calling Apex Home Services! I am Amber. Are you calling for carpet cleaning, lawn care, or roofing today?"
+                    </div>
+                </div>
+
+                <!-- Spoken Prompt Buttons -->
+                <div class="w-full space-y-1.5">
+                    <span class="text-[11px] text-slate-400 block font-medium">Say or Click What Homeowner Speaks:</span>
+                    <div class="grid grid-cols-1 gap-1.5 text-xs">
+                        <button onclick="sendSimVoice('Can I get an estimate for 3 rooms carpet cleaning with pet stains?')" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-left transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-microphone text-indigo-400 text-xs"></i>
+                            <span class="truncate">"Estimate for 3 rooms carpet + pets"</span>
+                        </button>
+                        <button onclick="sendSimVoice('How much do you charge for bi-weekly lawn care on a half acre?')" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-left transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-microphone text-emerald-400 text-xs"></i>
+                            <span class="truncate">"How much for bi-weekly half acre lawn?"</span>
+                        </button>
+                        <button onclick="sendSimVoice('EMERGENCY: Water is leaking through my ceiling light fixture right now!')" class="p-2 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-200 border border-rose-800/60 text-left transition flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xs"></i>
+                            <span class="truncate">"EMERGENCY: Water leaking through ceiling!"</span>
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
         </div>
@@ -824,10 +1011,198 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
 
         function formatMarkdown(text) {{
             let res = escapeHtml(text);
-            res = res.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-            res = res.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
+            res = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            res = res.replace(/\*(.*?)\*/g, '<em>$1</em>');
             res = res.replace(/\\n/g, '<br/>');
             return res;
+        }}
+
+        // =========================================================================
+        // VIRTUAL SMARTPHONE & TELEPHONY SIMULATOR JS (PHASE 2)
+        // =========================================================================
+        let simCurrentPhone = "+13035550199";
+
+        function openPhoneSimulator(initialTab = 'sms') {{
+            document.getElementById('phone-simulator-modal').classList.remove('hidden');
+            switchSimTab(initialTab);
+            loadSimMessages();
+        }}
+
+        function closePhoneSimulator() {{
+            document.getElementById('phone-simulator-modal').classList.add('hidden');
+        }}
+
+        function switchSimTab(tab) {{
+            ['sms', 'missed', 'voice'].forEach(t => {{
+                const btn = document.getElementById('sim-tab-' + t);
+                const view = document.getElementById('sim-view-' + t);
+                if (t === tab) {{
+                    btn.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white transition text-center flex items-center justify-center gap-1.5 shadow cursor-pointer";
+                    view.classList.remove('hidden');
+                }} else {{
+                    btn.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-center flex items-center justify-center gap-1.5 cursor-pointer";
+                    view.classList.add('hidden');
+                }}
+            }});
+        }}
+
+        async function loadSimMessages() {{
+            try {{
+                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/messages?phone=${{encodeURIComponent(simCurrentPhone)}}`);
+                const data = await res.json();
+                renderSimSMS(data.messages || []);
+            }} catch (err) {{
+                console.error("Load sim error", err);
+            }}
+        }}
+
+        function renderSimSMS(messages) {{
+            const stream = document.getElementById('sim-sms-stream');
+            stream.innerHTML = "";
+
+            if (!messages || messages.length === 0) {{
+                stream.innerHTML = `
+                    <div class="text-center text-slate-500 py-8 space-y-1">
+                        <i class="fa-solid fa-comments text-2xl text-slate-600"></i>
+                        <p class="text-xs">No text messages yet.</p>
+                        <p class="text-[11px] text-slate-600">Use the quick chips below or trigger a missed call!</p>
+                    </div>
+                `;
+                return;
+            }}
+
+            messages.forEach(m => {{
+                const row = document.createElement('div');
+                if (m.sender === 'homeowner') {{
+                    row.className = "flex justify-end";
+                    row.innerHTML = `
+                        <div class="bg-indigo-600 text-white px-3.5 py-2 rounded-2xl rounded-tr-sm max-w-[80%] text-[11px] leading-relaxed shadow">
+                            ${{escapeHtml(m.text)}}
+                        </div>
+                    `;
+                }} else {{
+                    row.className = "flex justify-start";
+                    row.innerHTML = `
+                        <div class="bg-slate-800 text-slate-200 px-3.5 py-2 rounded-2xl rounded-tl-sm max-w-[82%] text-[11px] leading-relaxed shadow border border-slate-700/60">
+                            ${{formatMarkdown(m.text)}}
+                        </div>
+                    `;
+                }}
+                stream.appendChild(row);
+            }});
+            stream.scrollTop = stream.scrollHeight;
+        }}
+
+        function sendSimSMS(text) {{
+            document.getElementById('sim-sms-input').value = text;
+            handleSimSMSSubmit();
+        }}
+
+        async function handleSimSMSSubmit(e) {{
+            if (e) e.preventDefault();
+            const input = document.getElementById('sim-sms-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = "";
+            const stream = document.getElementById('sim-sms-stream');
+
+            const userRow = document.createElement('div');
+            userRow.className = "flex justify-end";
+            userRow.innerHTML = `
+                <div class="bg-indigo-600 text-white px-3.5 py-2 rounded-2xl rounded-tr-sm max-w-[80%] text-[11px] leading-relaxed shadow">
+                    ${{escapeHtml(text)}}
+                </div>
+            `;
+            stream.appendChild(userRow);
+            stream.scrollTop = stream.scrollHeight;
+
+            try {{
+                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/sms`, {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{
+                        from_phone: simCurrentPhone,
+                        body: text
+                    }})
+                }});
+                const data = await res.json();
+                renderSimSMS(data.messages);
+
+                if (data.booked) {{
+                    fetchBaselineQuote();
+                }}
+            }} catch (err) {{
+                console.error("SMS simulate error", err);
+            }}
+        }}
+
+        async function triggerSimMissedCall() {{
+            const btn = document.getElementById('btn-trigger-missed');
+            const badge = document.getElementById('missed-status-badge');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Inbound Call Ringing (00:04)...`;
+            badge.innerText = "Phone Ringing Unanswered";
+            badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 animate-pulse";
+
+            try {{
+                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/missed_call`, {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ caller_phone: simCurrentPhone }})
+                }});
+                const data = await res.json();
+
+                badge.innerText = "Missed Call (Speed-to-Lead Fired)";
+                badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300";
+
+                const alertBox = document.getElementById('missed-result-alert');
+                alertBox.classList.remove('hidden');
+                document.getElementById('missed-result-body').innerText = `"${{data.dispatched_sms}}"`;
+
+                setTimeout(() => {{
+                    switchSimTab('sms');
+                    renderSimSMS(data.session.messages);
+                }}, 1500);
+
+            }} catch (err) {{
+                alert("Missed call error: " + err.message);
+            }} finally {{
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-phone-volume"></i> <span>Simulate Homeowner Missed Call</span>`;
+            }}
+        }}
+
+        async function sendSimVoice(speechText) {{
+            const outBox = document.getElementById('voice-spoken-output');
+            outBox.innerHTML = `<span class="italic text-slate-400"><i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> Amber is analyzing spoken speech...</span>`;
+
+            try {{
+                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/voice`, {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{
+                        speech: speechText,
+                        caller_phone: simCurrentPhone
+                    }})
+                }});
+                const data = await res.json();
+
+                outBox.innerHTML = `"${{formatMarkdown(data.spoken_text)}}"`;
+
+                const shouldSpeak = document.getElementById('chk-audio-speak').checked;
+                if (shouldSpeak && 'speechSynthesis' in window) {{
+                    window.speechSynthesis.cancel();
+                    const cleanUtterance = data.spoken_text.replace(/[*#]/g, '');
+                    const utterance = new SpeechSynthesisUtterance(cleanUtterance);
+                    utterance.rate = 1.05;
+                    utterance.pitch = 1.1;
+                    window.speechSynthesis.speak(utterance);
+                }}
+
+            }} catch (err) {{
+                console.error("Voice simulate error", err);
+            }}
         }}
     </script>
 </body>
