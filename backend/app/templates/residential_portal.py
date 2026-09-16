@@ -3,28 +3,117 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
     Renders the modern, interactive Residential Home Services Sales Bot & Quoting Web Portal.
     Allows testing conversational quoting and instant booking across Carpet Cleaning, Lawn Care, and Roofing.
     """
-    return f"""<!DOCTYPE html>
+    html = """<!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-950 text-slate-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apex Home Services • Instant Quotes & Online Booking</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+        // =========================================================================
+        // FSM & CALENDAR DISPATCH JS (PHASE 3)
+        // =========================================================================
+        let lastBookedAppointmentId = null;
+
+        function openFSMModal() {
+            document.getElementById('fsm-modal').classList.remove('hidden');
+            loadFSMFleet();
+        }
+
+        function closeFSMModal() {
+            document.getElementById('fsm-modal').classList.add('hidden');
+        }
+
+        async function loadFSMFleet() {
+            const container = document.getElementById('fsm-fleet-list');
+            container.innerHTML = `<span class="text-slate-400 italic">Loading fleet roster...</span>`;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/crews`);
+                const data = await res.json();
+                container.innerHTML = "";
+                (data.crews || []).forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = "p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white">${escapeHtml(c.name)}</span>
+                            <span class="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                                <i class="fa-solid fa-star text-[9px]"></i> ${c.rating}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-400">Lead: <span class="text-slate-300">${escapeHtml(c.lead)}</span> • ${escapeHtml(c.vehicle)}</p>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-900">
+                            <span>Trade: ${escapeHtml(c.trade.replace('_', ' ').toUpperCase())}</span>
+                            <span class="text-emerald-400 font-semibold">${c.completed_jobs} Jobs Completed</span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Fleet error", err);
+            }
+        }
+
+        async function simulateEnRouteAlert() {
+            const apptId = lastBookedAppointmentId || "demo_appointment";
+            const resBox = document.getElementById('fsm-alert-response');
+            resBox.classList.remove('hidden');
+            resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-400"></i> Dispatching 30-min en-route SMS...`;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/en_route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appointment_id: apptId, eta_minutes: 25 })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    resBox.innerHTML = `<strong>Sent:</strong> "${escapeHtml(data.message)}"`;
+                } else {
+                    resBox.innerHTML = `<strong>Simulated En Route SMS:</strong> "🚚 Apex Dispatch Heads-Up: Your service crew (Lead: Dave Miller) is now en route to your address! ETA: 25 minutes."`;
+                }
+            } catch (err) {
+                resBox.innerHTML = `<strong>Simulated En Route SMS:</strong> "🚚 Apex Dispatch Heads-Up: Your service crew (Lead: Dave Miller) is now en route to your address! ETA: 25 minutes."`;
+            }
+        }
+
+        async function simulateCompleteAlert() {
+            const apptId = lastBookedAppointmentId || "demo_appointment";
+            const resBox = document.getElementById('fsm-alert-response');
+            resBox.classList.remove('hidden');
+            resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> Dispatching completion SMS...`;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/complete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appointment_id: apptId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    resBox.innerHTML = `<strong>Sent:</strong> "${escapeHtml(data.message)}"`;
+                } else {
+                    resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
+                }
+            } catch (err) {
+                resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
+            }
+        }
+
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
-        code, .font-mono {{ font-family: 'JetBrains Mono', monospace; }}
-        .custom-scrollbar::-webkit-scrollbar {{ width: 6px; }}
-        .custom-scrollbar::-webkit-scrollbar-track {{ background: rgba(15, 23, 42, 0.6); }}
-        .custom-scrollbar::-webkit-scrollbar-thumb {{ background: rgba(51, 65, 85, 0.6); border-radius: 9999px; }}
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {{ background: rgba(71, 85, 105, 0.8); }}
-        @keyframes pulse-glow {{
-            0%, 100% {{ box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }}
-            50% {{ box-shadow: 0 0 25px rgba(99, 102, 241, 0.6); }}
-        }}
-        .glow-active {{ animation: pulse-glow 2.5s infinite; }}
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        code, .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.6); border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(71, 85, 105, 0.8); }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(99, 102, 241, 0.6); }
+        }
+        .glow-active { animation: pulse-glow 2.5s infinite; }
     </style>
 </head>
 <body class="h-full flex flex-col antialiased selection:bg-indigo-500 selection:text-white bg-slate-950">
@@ -78,16 +167,21 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             </div>
 
             <!-- Action Links -->
-            <div class="flex items-center gap-2.5">
-                <button onclick="openPhoneSimulator('sms')" class="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow cursor-pointer">
+            <div class="flex items-center gap-2">
+                <button onclick="openPhoneSimulator('sms')" class="px-2.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow cursor-pointer">
                     <i class="fa-solid fa-mobile-screen-button text-indigo-400"></i> 
-                    <span>Phone & SMS Bot</span>
-                    <span class="px-1.5 py-0.2 rounded bg-indigo-500 text-white text-[9px] uppercase font-bold tracking-wider">Phase 2</span>
+                    <span>Phone & SMS</span>
+                    <span class="px-1 py-0.2 rounded bg-indigo-500 text-white text-[9px] uppercase font-bold">P2</span>
+                </button>
+                <button onclick="openFSMModal()" class="px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow cursor-pointer">
+                    <i class="fa-solid fa-truck-ramp-box text-purple-400"></i>
+                    <span>Fleet & FSM</span>
+                    <span class="px-1 py-0.2 rounded bg-purple-500 text-white text-[9px] uppercase font-bold">P3</span>
                 </button>
                 <a href="/" class="text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-gauge"></i> <span class="hidden sm:inline">CRM Platform</span>
+                    <i class="fa-solid fa-gauge"></i> <span class="hidden sm:inline">CRM</span>
                 </a>
-                <button onclick="openBookingModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer">
+                <button onclick="openBookingModal()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-check"></i> Book Crew
                 </button>
             </div>
@@ -436,11 +530,19 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                         <span class="text-slate-400">Guaranteed Amount:</span>
                         <span class="font-mono font-bold text-emerald-400" id="success-price">$135.00</span>
                     </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <a id="btn-add-google-cal" href="#" target="_blank" class="py-2.5 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow">
+                        <i class="fa-brands fa-google text-indigo-400"></i> Google Calendar
+                    </a>
+                    <a id="btn-download-ics" href="#" download class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-slate-700">
+                        <i class="fa-solid fa-calendar-arrow-down text-slate-400"></i> Apple / iCal (.ics)
+                    </a>
                 </div>
+
                 <p class="text-[11px] text-slate-400">
                     A confirmation SMS has been dispatched. Our technician will send you a 30-minute arrival heads-up text.
                 </p>
-                <button onclick="closeBookingModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition">
+                <button onclick="closeBookingModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition cursor-pointer">
                     Done
                 </button>
             </div>
@@ -448,7 +550,107 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
         </div>
     </div>
 
-    <!-- Virtual Smartphone & Telephony Simulator Modal (Phase 2) -->
+        <!-- Field Service Management (FSM) & Fleet Dispatch Modal (Phase 3) -->
+    <div id="fsm-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-fade-in flex flex-col max-h-[85vh]">
+            
+            <div class="p-5 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-xl bg-purple-600/20 border border-purple-500/40 text-purple-400 flex items-center justify-center text-lg shadow">
+                        <i class="fa-solid fa-truck-ramp-box"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-white text-base">Fleet Dispatch & FSM Bridge</h3>
+                            <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold uppercase">Phase 3</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Technician Crew Routing, Jobber/Housecall Pro Sync & Universal Calendar Feeds</p>
+                    </div>
+                </div>
+                <button onclick="closeFSMModal()" class="text-slate-400 hover:text-white transition text-lg cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-5 custom-scrollbar text-xs">
+                
+                <!-- Live Fleet Roster -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <i class="fa-solid fa-users text-purple-400"></i> Active Service Fleet
+                        </span>
+                        <span class="text-[11px] text-emerald-400 font-semibold">5 Crews Ready / GPS Dispatched</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="fsm-fleet-list">
+                        <!-- Fleet crews injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Technician Real-Time Alerts Simulator -->
+                <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                    <span class="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <i class="fa-solid fa-bell text-amber-400"></i> Technician Dispatch Notification Triggers
+                    </span>
+                    <p class="text-slate-400 text-xs">
+                        Trigger real-time automated SMS notifications from technicians to homeowners:
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button onclick="simulateEnRouteAlert()" id="btn-fsm-enroute" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-left transition flex items-center gap-2.5 cursor-pointer">
+                            <i class="fa-solid fa-truck-fast text-indigo-400 text-base"></i>
+                            <div>
+                                <span class="font-bold block">30-Min En Route SMS</span>
+                                <span class="text-[10px] text-slate-400">"Technician Dave is 25 mins away..."</span>
+                            </div>
+                        </button>
+                        <button onclick="simulateCompleteAlert()" id="btn-fsm-complete" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-left transition flex items-center gap-2.5 cursor-pointer">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+                            <div>
+                                <span class="font-bold block">Service Completed Alert</span>
+                                <span class="text-[10px] text-slate-400">"Job done! View receipt & review..."</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div id="fsm-alert-response" class="hidden p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/80 text-emerald-200 text-xs font-mono"></div>
+                </div>
+
+                <!-- Third-Party FSM Connectors -->
+                <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-300 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-network-wired text-indigo-400"></i> Field Service Management (FSM) Connectors
+                        </span>
+                        <span class="text-[10px] text-emerald-400 font-bold bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">Webhook Sync Active</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="font-bold text-white block">Jobber</span>
+                            <span class="text-[10px] text-emerald-400">Jobs & Quotes Sync</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="font-bold text-white block">Housecall Pro</span>
+                            <span class="text-[10px] text-emerald-400">Customer & Schedule</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="font-bold text-white block">ServiceTitan</span>
+                            <span class="text-[10px] text-emerald-400">Enterprise Dispatch</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="p-4 border-t border-slate-800 bg-slate-950/60 text-right shrink-0">
+                <button onclick="closeFSMModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition cursor-pointer">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+<!-- Virtual Smartphone & Telephony Simulator Modal (Phase 2) -->
     <div id="phone-simulator-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
         <div class="relative bg-slate-950 border-4 border-slate-700/80 rounded-[42px] w-full max-w-[420px] shadow-2xl overflow-hidden flex flex-col h-[740px] ring-1 ring-slate-800">
             
@@ -626,7 +828,7 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
         let conversationId = "conv_" + Math.random().toString(36).substring(2, 10);
         let conversationHistory = [];
         let currentQuote = null;
-        let homeownerInfo = {{}};
+        let homeownerInfo = {};
         let activePromoCode = "";
 
         // Set default booking date to tomorrow
@@ -635,39 +837,39 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
         document.getElementById('book-date').value = tomorrow.toISOString().split('T')[0];
 
         // Initial greet
-        window.addEventListener('DOMContentLoaded', () => {{
+        window.addEventListener('DOMContentLoaded', () => {
             switchTrade('carpet_cleaning');
-        }});
+        });
 
-        function switchTrade(trade) {{
+        function switchTrade(trade) {
             currentTrade = trade;
             
             // Update Tab UI
-            ['carpet_cleaning', 'lawn_care', 'roofing'].forEach(t => {{
+            ['carpet_cleaning', 'lawn_care', 'roofing'].forEach(t => {
                 const tab = document.getElementById('tab-' + t);
                 const mTab = document.getElementById('m-tab-' + t);
-                if (t === trade) {{
-                    if (tab) {{
+                if (t === trade) {
+                    if (tab) {
                         tab.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow";
-                    }}
-                    if (mTab) {{
+                    }
+                    if (mTab) {
                         mTab.className = "font-semibold text-indigo-400 flex items-center gap-1";
-                    }}
-                }} else {{
-                    if (tab) {{
+                    }
+                } else {
+                    if (tab) {
                         tab.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/60";
-                    }}
-                    if (mTab) {{
+                    }
+                    if (mTab) {
                         mTab.className = "font-semibold text-slate-400 flex items-center gap-1";
-                    }}
-                }}
-            }});
+                    }
+                }
+            });
 
-            const titles = {{
+            const titles = {
                 carpet_cleaning: "Master Carpet & Upholstery Care",
                 lawn_care: "Turf & Estate Lawn Maintenance",
                 roofing: "Elite Roofing & Exterior Defense"
-            }};
+            };
             document.getElementById('agent-current-trade-desc').innerText = titles[trade] || "Home Services";
 
             // Recalculate baseline quote
@@ -677,89 +879,89 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             document.getElementById('chat-stream').innerHTML = "";
             conversationHistory = [];
 
-            if (trade === 'carpet_cleaning') {{
+            if (trade === 'carpet_cleaning') {
                 appendAssistantMessage(
                     "Hello! I'm Amber with Apex Carpet Care. 🧽 How many rooms or hallways would you like deep steam cleaned? (Be sure to let me know if you have any pets or high-traffic stains!)",
                     ["3 Bedrooms + Hallway", "Add Pet Urine / Odor Treatment", "Need Stairs Cleaned", "What is your dry time?"]
                 );
-            }} else if (trade === 'lawn_care') {{
+            } else if (trade === 'lawn_care') {
                 appendAssistantMessage(
                     "Hi there! Welcome to Apex Lawn Care. 🌿 What size is your yard, and would you prefer weekly maintenance (15% off) or bi-weekly mowing? We include crisp driveway edging and blow-off with every visit!",
                     ["Quarter Acre (< 0.25)", "Half Acre (0.25 - 0.50)", "Full Acre Yard", "Add Core Aeration & Overseed"]
                 );
-            }} else {{
+            } else {
                 appendAssistantMessage(
                     "Hello! I'm Amber with Apex Roofing & Exterior Defense. 🏠 Are you noticing an active ceiling leak, checking on storm/hail damage, or interested in our Complimentary 21-Point Roof & Attic Health Inspection?",
                     ["Schedule Free Inspection", "⚠️ Active Leak / Emergency", "Hail / Wind Damage Claim", "Full Roof Replacement Estimate"]
                 );
-            }}
-        }}
+            }
+        }
 
-        async function fetchBaselineQuote() {{
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/quote`, {{
+        async function fetchBaselineQuote() {
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/quote`, {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         trade: currentTrade,
                         promo_code: activePromoCode
-                    }})
-                }});
+                    })
+                });
                 const data = await res.json();
                 updateQuoteDisplay(data);
-            }} catch (err) {{
+            } catch (err) {
                 console.error("Quote fetch error", err);
-            }}
-        }}
+            }
+        }
 
-        function updateQuoteDisplay(quote) {{
+        function updateQuoteDisplay(quote) {
             currentQuote = quote;
             document.getElementById('quote-card-title').innerText = quote.trade_title || "Upfront Estimate";
-            document.getElementById('quote-subtotal').innerText = `$${{quote.subtotal.toFixed(2)}}`;
+            document.getElementById('quote-subtotal').innerText = `$${quote.subtotal.toFixed(2)}`;
             
-            if (quote.discount_amount > 0) {{
+            if (quote.discount_amount > 0) {
                 document.getElementById('quote-discount-row').classList.remove('hidden');
                 document.getElementById('quote-discount-label').innerText = quote.discount_label || "Discount:";
-                document.getElementById('quote-discount').innerText = `-$${{quote.discount_amount.toFixed(2)}}`;
-            }} else {{
+                document.getElementById('quote-discount').innerText = `-$${quote.discount_amount.toFixed(2)}`;
+            } else {
                 document.getElementById('quote-discount-row').classList.add('hidden');
-            }}
+            }
 
-            if (quote.is_range && quote.range_low && quote.range_high) {{
-                document.getElementById('quote-total').innerText = `$${{quote.range_low.toLocaleString()}} - $${{quote.range_high.toLocaleString()}}`;
-            }} else {{
-                document.getElementById('quote-total').innerText = `$${{quote.total_estimate.toFixed(2)}}`;
-            }}
+            if (quote.is_range && quote.range_low && quote.range_high) {
+                document.getElementById('quote-total').innerText = `$${quote.range_low.toLocaleString()} - $${quote.range_high.toLocaleString()}`;
+            } else {
+                document.getElementById('quote-total').innerText = `$${quote.total_estimate.toFixed(2)}`;
+            }
 
             document.getElementById('modal-price-display').innerText = document.getElementById('quote-total').innerText;
 
             // Render line items
             const container = document.getElementById('quote-line-items');
             container.innerHTML = "";
-            quote.line_items.forEach(item => {{
+            quote.line_items.forEach(item => {
                 const row = document.createElement('div');
                 row.className = "flex items-start justify-between gap-2 p-2 rounded-lg bg-slate-950/40 border border-slate-800/40";
                 row.innerHTML = `
                     <div class="flex-1">
-                        <span class="font-semibold text-slate-200 block">${{item.title}}</span>
-                        <span class="text-[11px] text-slate-400">${{item.description}}</span>
+                        <span class="font-semibold text-slate-200 block">${item.title}</span>
+                        <span class="text-[11px] text-slate-400">${item.description}</span>
                     </div>
-                    <span class="font-mono font-bold text-slate-200 shrink-0">${{item.total > 0 ? '$' + item.total.toFixed(2) : 'FREE'}}</span>
+                    <span class="font-mono font-bold text-slate-200 shrink-0">${item.total > 0 ? '$' + item.total.toFixed(2) : 'FREE'}</span>
                 `;
                 container.appendChild(row);
-            }});
+            });
 
             // Emergency Banner
             const emergencyBanner = document.getElementById('emergency-banner');
-            if (quote.emergency_flag) {{
+            if (quote.emergency_flag) {
                 emergencyBanner.classList.remove('hidden');
                 document.getElementById('emergency-banner-text').innerText = quote.emergency_message || "Active leak priority flagged!";
-            }} else {{
+            } else {
                 emergencyBanner.classList.add('hidden');
-            }}
-        }}
+            }
+        }
 
-        async function handleUserSubmit(e) {{
+        async function handleUserSubmit(e) {
             if (e) e.preventDefault();
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
@@ -771,61 +973,61 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             // Show typing indicator
             const typingId = appendTypingIndicator();
 
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/chat`, {{
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/chat`, {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         message: message,
                         conversation_id: conversationId,
                         trade: currentTrade,
                         history: conversationHistory,
                         current_quote: currentQuote,
                         homeowner_info: homeownerInfo
-                    }})
-                }});
+                    })
+                });
                 const data = await res.json();
                 removeTypingIndicator(typingId);
 
                 // Update state
-                if (data.homeowner_info) {{
+                if (data.homeowner_info) {
                     homeownerInfo = data.homeowner_info;
                     if (homeownerInfo.phone) document.getElementById('book-phone').value = homeownerInfo.phone;
                     if (homeownerInfo.zip_code) document.getElementById('book-zip').value = homeownerInfo.zip_code;
-                }}
+                }
 
-                if (data.current_quote) {{
+                if (data.current_quote) {
                     updateQuoteDisplay(data.current_quote);
-                }}
+                }
 
                 appendAssistantMessage(data.reply, data.quick_replies || []);
 
-                if (data.suggested_action === 'open_booking_modal' || data.suggested_action === 'open_emergency_booking') {{
+                if (data.suggested_action === 'open_booking_modal' || data.suggested_action === 'open_emergency_booking') {
                     setTimeout(() => openBookingModal(), 1200);
-                }}
-            }} catch (err) {{
+                }
+            } catch (err) {
                 console.error("Chat error", err);
                 removeTypingIndicator(typingId);
                 appendAssistantMessage("I'm having trouble connecting right now, but you can book directly using the green 'Book Crew' button above!");
-            }}
-        }}
+            }
+        }
 
-        function appendUserMessage(text) {{
-            conversationHistory.push({{ role: "user", content: text }});
+        function appendUserMessage(text) {
+            conversationHistory.push({ role: "user", content: text });
             const stream = document.getElementById('chat-stream');
             const msg = document.createElement('div');
             msg.className = "flex justify-end";
             msg.innerHTML = `
                 <div class="bg-indigo-600 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-[85%] sm:max-w-[75%] shadow-md leading-relaxed">
-                    ${{escapeHtml(text)}}
+                    ${escapeHtml(text)}
                 </div>
             `;
             stream.appendChild(msg);
             stream.scrollTop = stream.scrollHeight;
-        }}
+        }
 
-        function appendAssistantMessage(text, quickReplies = []) {{
-            conversationHistory.push({{ role: "assistant", content: text }});
+        function appendAssistantMessage(text, quickReplies = []) {
+            conversationHistory.push({ role: "assistant", content: text });
             const stream = document.getElementById('chat-stream');
             const msg = document.createElement('div');
             msg.className = "flex items-start gap-2.5";
@@ -834,7 +1036,7 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                     A
                 </div>
                 <div class="bg-slate-800 text-slate-100 text-xs px-4 py-3 rounded-2xl rounded-tl-sm max-w-[88%] sm:max-w-[80%] shadow border border-slate-700/60 leading-relaxed">
-                    ${{formatMarkdown(text)}}
+                    ${formatMarkdown(text)}
                 </div>
             `;
             stream.appendChild(msg);
@@ -843,21 +1045,21 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             // Render quick replies
             const qrContainer = document.getElementById('quick-replies-container');
             qrContainer.innerHTML = "";
-            if (quickReplies && quickReplies.length > 0) {{
-                quickReplies.forEach(qr => {{
+            if (quickReplies && quickReplies.length > 0) {
+                quickReplies.forEach(qr => {
                     const btn = document.createElement('button');
                     btn.className = "px-3 py-1.5 rounded-full bg-slate-800 hover:bg-indigo-600/30 hover:border-indigo-500 text-slate-300 hover:text-white border border-slate-700 text-xs whitespace-nowrap transition cursor-pointer shrink-0";
                     btn.innerText = qr;
-                    btn.onclick = () => {{
+                    btn.onclick = () => {
                         document.getElementById('chat-input').value = qr;
                         handleUserSubmit();
-                    }};
+                    };
                     qrContainer.appendChild(btn);
-                }});
-            }}
-        }}
+                });
+            }
+        }
 
-        function appendTypingIndicator() {{
+        function appendTypingIndicator() {
             const stream = document.getElementById('chat-stream');
             const id = "typing-" + Date.now();
             const msg = document.createElement('div');
@@ -870,15 +1072,15 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             stream.appendChild(msg);
             stream.scrollTop = stream.scrollHeight;
             return id;
-        }}
+        }
 
-        function removeTypingIndicator(id) {{
+        function removeTypingIndicator(id) {
             const el = document.getElementById(id);
             if (el) el.remove();
-        }}
+        }
 
-        function loadScenario(type) {{
-            if (type === 'carpet_sarah') {{
+        function loadScenario(type) {
+            if (type === 'carpet_sarah') {
                 switchTrade('carpet_cleaning');
                 document.getElementById('chat-input').value = "Hi! I have 3 bedrooms and a hallway that need steam cleaning. We have 2 dogs so there are pet urine spots that need deep enzyme odor removal. Can you do Saturday morning?";
                 document.getElementById('book-name').value = "Sarah Jenkins";
@@ -886,7 +1088,7 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 document.getElementById('book-address').value = "4182 Ridgeview Dr";
                 document.getElementById('book-zip').value = "80202";
                 setTimeout(() => handleUserSubmit(), 300);
-            }} else if (type === 'lawn_marcus') {{
+            } else if (type === 'lawn_marcus') {
                 switchTrade('lawn_care');
                 document.getElementById('chat-input').value = "Looking to start regular lawn mowing for our 0.5 acre yard on a bi-weekly schedule. We also want to add core aeration and overseeding this month.";
                 document.getElementById('book-name').value = "Marcus Vance";
@@ -894,7 +1096,7 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 document.getElementById('book-address').value = "819 Willowbrook Lane";
                 document.getElementById('book-zip').value = "80014";
                 setTimeout(() => handleUserSubmit(), 300);
-            }} else if (type === 'roof_dave') {{
+            } else if (type === 'roof_dave') {
                 switchTrade('roofing');
                 document.getElementById('chat-input').value = "EMERGENCY: We had heavy rain yesterday and now have water dripping actively through our kitchen ceiling light fixture! We need someone out today to tarp and inspect.";
                 document.getElementById('book-name').value = "Dave Robinson";
@@ -902,57 +1104,57 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 document.getElementById('book-address').value = "1042 Evergreen Terrace";
                 document.getElementById('book-zip').value = "80123";
                 setTimeout(() => handleUserSubmit(), 300);
-            }}
-        }}
+            }
+        }
 
-        function resetConversation() {{
+        function resetConversation() {
             conversationId = "conv_" + Math.random().toString(36).substring(2, 10);
-            homeownerInfo = {{}};
+            homeownerInfo = {};
             switchTrade(currentTrade);
-        }}
+        }
 
-        function applyPromoCode() {{
+        function applyPromoCode() {
             const code = document.getElementById('promo-input').value.trim().toUpperCase();
             if (!code) return;
             activePromoCode = code;
-            fetchBaselineQuote().then(() => {{
+            fetchBaselineQuote().then(() => {
                 const status = document.getElementById('promo-status');
-                if (currentQuote && currentQuote.discount_amount > 0) {{
-                    status.innerText = `Promo code '${{code}}' applied successfully!`;
+                if (currentQuote && currentQuote.discount_amount > 0) {
+                    status.innerText = `Promo code '${code}' applied successfully!`;
                     status.className = "text-[11px] mt-1 text-emerald-400";
                     status.classList.remove('hidden');
-                }} else {{
+                } else {
                     status.innerText = "Invalid promo code. Try 'SPRING20' or 'NEIGHBOR10'";
                     status.className = "text-[11px] mt-1 text-rose-400";
                     status.classList.remove('hidden');
-                }}
-            }});
-        }}
+                }
+            });
+        }
 
-        function openBookingModal() {{
+        function openBookingModal() {
             document.getElementById('booking-modal').classList.remove('hidden');
             document.getElementById('booking-form').classList.remove('hidden');
             document.getElementById('booking-success-view').classList.add('hidden');
             document.getElementById('modal-price-display').innerText = document.getElementById('quote-total').innerText;
-            const titles = {{
+            const titles = {
                 carpet_cleaning: "Master Carpet Steam Extraction",
                 lawn_care: "Turf Maintenance & Precision Mowing",
                 roofing: "Exterior Defense & Roof Inspection"
-            }};
+            };
             document.getElementById('modal-service-desc').innerText = titles[currentTrade] || "Residential Service";
-        }}
+        }
 
-        function closeBookingModal() {{
+        function closeBookingModal() {
             document.getElementById('booking-modal').classList.add('hidden');
-        }}
+        }
 
-        async function handleBookingSubmit(e) {{
+        async function handleBookingSubmit(e) {
             e.preventDefault();
             const btn = document.getElementById('modal-submit-btn');
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Reserving Technician Slot...`;
 
-            const bookingPayload = {{
+            const bookingPayload = {
                 conversation_id: conversationId,
                 trade: currentTrade,
                 service_summary: document.getElementById('quote-card-title').innerText,
@@ -964,23 +1166,23 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 time_window: document.getElementById('book-window').value,
                 estimated_total: currentQuote ? currentQuote.total_estimate : 120.0,
                 special_instructions: document.getElementById('book-notes').value.trim()
-            }};
+            };
 
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/book`, {{
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/book`, {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(bookingPayload)
-                }});
+                });
                 const data = await res.json();
                 
                 // Show success view
                 document.getElementById('booking-form').classList.add('hidden');
                 document.getElementById('booking-success-view').classList.remove('hidden');
-                document.getElementById('success-confirmation-code').innerText = `Confirmation #: ${{data.confirmation_number}}`;
+                document.getElementById('success-confirmation-code').innerText = `Confirmation #: ${data.confirmation_number}`;
                 document.getElementById('success-window').innerText = data.time_window;
                 document.getElementById('success-address').innerText = data.address;
-                document.getElementById('success-price').innerText = `$${{data.estimated_total.toFixed(2)}}`;
+                document.getElementById('success-price').innerText = `$${data.estimated_total.toFixed(2)}`;
 
                 // Add to recent bookings widget
                 const recentList = document.getElementById('recent-bookings-list');
@@ -988,79 +1190,79 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                 newCard.className = "p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 flex items-center justify-between animate-fade-in";
                 newCard.innerHTML = `
                     <div>
-                        <span class="font-semibold text-emerald-200 block">${{data.homeowner_name}} • ${{data.trade.replace('_', ' ').toUpperCase()}}</span>
-                        <span class="text-[11px] text-slate-400">${{data.scheduled_at}} (${{data.time_window}})</span>
+                        <span class="font-semibold text-emerald-200 block">${data.homeowner_name} • ${data.trade.replace('_', ' ').toUpperCase()}</span>
+                        <span class="text-[11px] text-slate-400">${data.scheduled_at} (${data.time_window})</span>
                     </div>
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/30 text-emerald-300">Just Booked</span>
                 `;
                 recentList.prepend(newCard);
 
-            }} catch (err) {{
+            } catch (err) {
                 alert("Booking error: " + err.message);
-            }} finally {{
+            } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Confirm & Schedule Dispatch</span>`;
-            }}
-        }}
+            }
+        }
 
-        function escapeHtml(text) {{
+        function escapeHtml(text) {
             const div = document.createElement('div');
             div.innerText = text;
             return div.innerHTML;
-        }}
+        }
 
-        function formatMarkdown(text) {{
+        function formatMarkdown(text) {
             let res = escapeHtml(text);
             res = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             res = res.replace(/\*(.*?)\*/g, '<em>$1</em>');
             res = res.replace(/\\n/g, '<br/>');
             return res;
-        }}
+        }
 
         // =========================================================================
         // VIRTUAL SMARTPHONE & TELEPHONY SIMULATOR JS (PHASE 2)
         // =========================================================================
         let simCurrentPhone = "+13035550199";
 
-        function openPhoneSimulator(initialTab = 'sms') {{
+        function openPhoneSimulator(initialTab = 'sms') {
             document.getElementById('phone-simulator-modal').classList.remove('hidden');
             switchSimTab(initialTab);
             loadSimMessages();
-        }}
+        }
 
-        function closePhoneSimulator() {{
+        function closePhoneSimulator() {
             document.getElementById('phone-simulator-modal').classList.add('hidden');
-        }}
+        }
 
-        function switchSimTab(tab) {{
-            ['sms', 'missed', 'voice'].forEach(t => {{
+        function switchSimTab(tab) {
+            ['sms', 'missed', 'voice'].forEach(t => {
                 const btn = document.getElementById('sim-tab-' + t);
                 const view = document.getElementById('sim-view-' + t);
-                if (t === tab) {{
+                if (t === tab) {
                     btn.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white transition text-center flex items-center justify-center gap-1.5 shadow cursor-pointer";
                     view.classList.remove('hidden');
-                }} else {{
+                } else {
                     btn.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-center flex items-center justify-center gap-1.5 cursor-pointer";
                     view.classList.add('hidden');
-                }}
-            }});
-        }}
+                }
+            });
+        }
 
-        async function loadSimMessages() {{
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/messages?phone=${{encodeURIComponent(simCurrentPhone)}}`);
+        async function loadSimMessages() {
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/simulate/messages?phone=${encodeURIComponent(simCurrentPhone)}`);
                 const data = await res.json();
                 renderSimSMS(data.messages || []);
-            }} catch (err) {{
+            } catch (err) {
                 console.error("Load sim error", err);
-            }}
-        }}
+            }
+        }
 
-        function renderSimSMS(messages) {{
+        function renderSimSMS(messages) {
             const stream = document.getElementById('sim-sms-stream');
             stream.innerHTML = "";
 
-            if (!messages || messages.length === 0) {{
+            if (!messages || messages.length === 0) {
                 stream.innerHTML = `
                     <div class="text-center text-slate-500 py-8 space-y-1">
                         <i class="fa-solid fa-comments text-2xl text-slate-600"></i>
@@ -1069,36 +1271,36 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                     </div>
                 `;
                 return;
-            }}
+            }
 
-            messages.forEach(m => {{
+            messages.forEach(m => {
                 const row = document.createElement('div');
-                if (m.sender === 'homeowner') {{
+                if (m.sender === 'homeowner') {
                     row.className = "flex justify-end";
                     row.innerHTML = `
                         <div class="bg-indigo-600 text-white px-3.5 py-2 rounded-2xl rounded-tr-sm max-w-[80%] text-[11px] leading-relaxed shadow">
-                            ${{escapeHtml(m.text)}}
+                            ${escapeHtml(m.text)}
                         </div>
                     `;
-                }} else {{
+                } else {
                     row.className = "flex justify-start";
                     row.innerHTML = `
                         <div class="bg-slate-800 text-slate-200 px-3.5 py-2 rounded-2xl rounded-tl-sm max-w-[82%] text-[11px] leading-relaxed shadow border border-slate-700/60">
-                            ${{formatMarkdown(m.text)}}
+                            ${formatMarkdown(m.text)}
                         </div>
                     `;
-                }}
+                }
                 stream.appendChild(row);
-            }});
+            });
             stream.scrollTop = stream.scrollHeight;
-        }}
+        }
 
-        function sendSimSMS(text) {{
+        function sendSimSMS(text) {
             document.getElementById('sim-sms-input').value = text;
             handleSimSMSSubmit();
-        }}
+        }
 
-        async function handleSimSMSSubmit(e) {{
+        async function handleSimSMSSubmit(e) {
             if (e) e.preventDefault();
             const input = document.getElementById('sim-sms-input');
             const text = input.value.trim();
@@ -1111,33 +1313,33 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             userRow.className = "flex justify-end";
             userRow.innerHTML = `
                 <div class="bg-indigo-600 text-white px-3.5 py-2 rounded-2xl rounded-tr-sm max-w-[80%] text-[11px] leading-relaxed shadow">
-                    ${{escapeHtml(text)}}
+                    ${escapeHtml(text)}
                 </div>
             `;
             stream.appendChild(userRow);
             stream.scrollTop = stream.scrollHeight;
 
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/sms`, {{
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/simulate/sms`, {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         from_phone: simCurrentPhone,
                         body: text
-                    }})
-                }});
+                    })
+                });
                 const data = await res.json();
                 renderSimSMS(data.messages);
 
-                if (data.booked) {{
+                if (data.booked) {
                     fetchBaselineQuote();
-                }}
-            }} catch (err) {{
+                }
+            } catch (err) {
                 console.error("SMS simulate error", err);
-            }}
-        }}
+            }
+        }
 
-        async function triggerSimMissedCall() {{
+        async function triggerSimMissedCall() {
             const btn = document.getElementById('btn-trigger-missed');
             const badge = document.getElementById('missed-status-badge');
             btn.disabled = true;
@@ -1145,12 +1347,12 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             badge.innerText = "Phone Ringing Unanswered";
             badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 animate-pulse";
 
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/missed_call`, {{
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/simulate/missed_call`, {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ caller_phone: simCurrentPhone }})
-                }});
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ caller_phone: simCurrentPhone })
+                });
                 const data = await res.json();
 
                 badge.innerText = "Missed Call (Speed-to-Lead Fired)";
@@ -1158,53 +1360,144 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
 
                 const alertBox = document.getElementById('missed-result-alert');
                 alertBox.classList.remove('hidden');
-                document.getElementById('missed-result-body').innerText = `"${{data.dispatched_sms}}"`;
+                document.getElementById('missed-result-body').innerText = `"${data.dispatched_sms}"`;
 
-                setTimeout(() => {{
+                setTimeout(() => {
                     switchSimTab('sms');
                     renderSimSMS(data.session.messages);
-                }}, 1500);
+                }, 1500);
 
-            }} catch (err) {{
+            } catch (err) {
                 alert("Missed call error: " + err.message);
-            }} finally {{
+            } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-phone-volume"></i> <span>Simulate Homeowner Missed Call</span>`;
-            }}
-        }}
+            }
+        }
 
-        async function sendSimVoice(speechText) {{
+        async function sendSimVoice(speechText) {
             const outBox = document.getElementById('voice-spoken-output');
             outBox.innerHTML = `<span class="italic text-slate-400"><i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> Amber is analyzing spoken speech...</span>`;
 
-            try {{
-                const res = await fetch(`${{API_PREFIX}}/api/v1/residential/simulate/voice`, {{
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/simulate/voice`, {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         speech: speechText,
                         caller_phone: simCurrentPhone
-                    }})
-                }});
+                    })
+                });
                 const data = await res.json();
 
-                outBox.innerHTML = `"${{formatMarkdown(data.spoken_text)}}"`;
+                outBox.innerHTML = `"${formatMarkdown(data.spoken_text)}"`;
 
                 const shouldSpeak = document.getElementById('chk-audio-speak').checked;
-                if (shouldSpeak && 'speechSynthesis' in window) {{
+                if (shouldSpeak && 'speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
                     const cleanUtterance = data.spoken_text.replace(/[*#]/g, '');
                     const utterance = new SpeechSynthesisUtterance(cleanUtterance);
                     utterance.rate = 1.05;
                     utterance.pitch = 1.1;
                     window.speechSynthesis.speak(utterance);
-                }}
+                }
 
-            }} catch (err) {{
+            } catch (err) {
                 console.error("Voice simulate error", err);
-            }}
-        }}
+            }
+        }
+    
+        // =========================================================================
+        // FSM & CALENDAR DISPATCH JS (PHASE 3)
+        // =========================================================================
+        let lastBookedAppointmentId = null;
+
+        function openFSMModal() {
+            document.getElementById('fsm-modal').classList.remove('hidden');
+            loadFSMFleet();
+        }
+
+        function closeFSMModal() {
+            document.getElementById('fsm-modal').classList.add('hidden');
+        }
+
+        async function loadFSMFleet() {
+            const container = document.getElementById('fsm-fleet-list');
+            container.innerHTML = `<span class="text-slate-400 italic">Loading fleet roster...</span>`;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/crews`);
+                const data = await res.json();
+                container.innerHTML = "";
+                (data.crews || []).forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = "p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white">${escapeHtml(c.name)}</span>
+                            <span class="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                                <i class="fa-solid fa-star text-[9px]"></i> ${c.rating}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-400">Lead: <span class="text-slate-300">${escapeHtml(c.lead)}</span> • ${escapeHtml(c.vehicle)}</p>
+                        <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-900">
+                            <span>Trade: ${escapeHtml(c.trade.replace('_', ' ').toUpperCase())}</span>
+                            <span class="text-emerald-400 font-semibold">${c.completed_jobs} Jobs Completed</span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Fleet error", err);
+            }
+        }
+
+        async function simulateEnRouteAlert() {
+            const apptId = lastBookedAppointmentId || "demo_appointment";
+            const resBox = document.getElementById('fsm-alert-response');
+            resBox.classList.remove('hidden');
+            resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-400"></i> Dispatching 30-min en-route SMS...`;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/en_route`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appointment_id: apptId, eta_minutes: 25 })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    resBox.innerHTML = `<strong>Sent:</strong> "${escapeHtml(data.message)}"`;
+                } else {
+                    resBox.innerHTML = `<strong>Simulated En Route SMS:</strong> "🚚 Apex Dispatch Heads-Up: Your service crew (Lead: Dave Miller) is now en route to your address! ETA: 25 minutes."`;
+                }
+            } catch (err) {
+                resBox.innerHTML = `<strong>Simulated En Route SMS:</strong> "🚚 Apex Dispatch Heads-Up: Your service crew (Lead: Dave Miller) is now en route to your address! ETA: 25 minutes."`;
+            }
+        }
+
+        async function simulateCompleteAlert() {
+            const apptId = lastBookedAppointmentId || "demo_appointment";
+            const resBox = document.getElementById('fsm-alert-response');
+            resBox.classList.remove('hidden');
+            resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> Dispatching completion SMS...`;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/complete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appointment_id: apptId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    resBox.innerHTML = `<strong>Sent:</strong> "${escapeHtml(data.message)}"`;
+                } else {
+                    resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
+                }
+            } catch (err) {
+                resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
+            }
+        }
+
     </script>
 </body>
 </html>
+
 """
+    return html.replace("{api_prefix}", api_prefix)

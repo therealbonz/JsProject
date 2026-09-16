@@ -19,6 +19,7 @@ from app.schemas.residential import (
 )
 from app.services.residential_sales_engine import ResidentialSalesEngine
 from app.services.residential_telephony_service import ResidentialSMSService, ResidentialVoiceService
+from app.services.residential_fsm_service import ResidentialFSMService
 
 logger = logging.getLogger(__name__)
 
@@ -527,4 +528,173 @@ async def get_simulator_messages(phone: str = Query("+13035550199")):
         "phone": session["phone"],
         "messages": session.get("messages", [])
     }
+
+
+# =========================================================================
+# FIELD SERVICE MANAGEMENT (FSM) & CALENDAR INTEGRATION (PHASE 3)
+# =========================================================================
+
+@router.get("/calendar/{appointment_id}.ics")
+async def download_appointment_ics(appointment_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Universal iCalendar (.ics) export:
+    Provides an RFC 5545 compliant calendar file to add the appointment directly to
+    Apple Calendar, Microsoft Outlook, or Google Calendar with pre-filled address and technician crew notes.
+    """
+    stmt = (
+        select(Appointment)
+        .options(
+            selectinload(Appointment.company),
+            selectinload(Appointment.contact)
+        )
+        .where(Appointment.id == appointment_id)
+    )
+    res = await db.execute(stmt)
+    appointment = res.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+
+    ics_text = ResidentialFSMService.generate_ics_calendar(
+        appointment=appointment,
+        company=appointment.company,
+        contact=appointment.contact
+    )
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="Apex_Appointment_{appointment.id[:8]}.ics"'
+    }
+    return Response(content=ics_text, media_type="text/calendar", headers=headers)
+
+
+@router.get("/calendar/{appointment_id}/google")
+async def get_google_calendar_link(appointment_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Returns direct 1-click Google Calendar Add URL with arrival window and address pre-filled.
+    """
+    stmt = (
+        select(Appointment)
+        .options(selectinload(Appointment.company))
+        .where(Appointment.id == appointment_id)
+    )
+    res = await db.execute(stmt)
+    appointment = res.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+
+    google_url = ResidentialFSMService.generate_google_calendar_url(
+        appointment=appointment,
+        company=appointment.company
+    )
+    return {
+        "appointment_id": appointment_id,
+        "title": appointment.title,
+        "google_calendar_url": google_url
+    }
+
+
+@router.get("/fsm/crews")
+async def get_fsm_crews(trade: Optional[str] = Query(None, description="Filter by trade")):
+    """
+    Returns active technician crew roster, vehicle types, leads, and customer satisfaction ratings.
+    """
+    return {
+        "crews": ResidentialFSMService.get_fleet_crews(trade=trade)
+    }
+
+
+@router.post("/fsm/sync/{appointment_id}")
+async def sync_appointment_to_fsm(
+    appointment_id: str,
+    platform: str = Query("jobber", description="Target platform: jobber, housecall_pro, servicetitan"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Outbound FSM Sync:
+    Compiles standard Jobber / Housecall Pro / ServiceTitan payload and fires webhook event.
+    """
+    stmt = (
+        select(Appointment)
+        .options(
+            selectinload(Appointment.company),
+            selectinload(Appointment.contact)
+        )
+        .where(Appointment.id == appointment_id)
+    )
+    res = await db.execute(stmt)
+    appointment = res.scalar_one_or_none()
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+
+    payload = ResidentialFSMService.build_fsm_payload(
+        appointment=appointment,
+        company=appointment.company,
+        contact=appointment.contact,
+        platform=platform
+    )
+
+    # Dispatches event via WebhookService
+    org_id = appointment.organization_id
+    if org_id:
+        try:
+            await WebhookService.dispatch_event(
+                org_id=org_id,
+                event_type="residential.fsm.job_created",
+                data=payload,
+                db=db
+            )
+        except Exception as e:
+            logger.warning(f"Outbound webhook dispatch notice: {e}")
+
+    return {
+        "success": True,
+        "platform": platform,
+        "appointment_id": appointment_id,
+        "payload": payload
+    }
+
+
+@router.post("/fsm/en_route")
+async def trigger_en_route_alert(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Sends automated 30-minute pre-arrival SMS alert to homeowner:
+    'Apex Dispatch Heads-Up: Crew is en route to your address! ETA: 25 minutes.'
+    """
+    data = await request.json()
+    appointment_id = data.get("appointment_id")
+    eta_minutes = int(data.get("eta_minutes", 25))
+
+    if not appointment_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="appointment_id is required")
+
+    result = await ResidentialFSMService.send_en_route_alert(
+        appointment_id=appointment_id,
+        eta_minutes=eta_minutes,
+        db=db
+    )
+    return result
+
+
+@router.post("/fsm/complete")
+async def trigger_completion_alert(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Marks appointment as completed, updates CRM opportunity to won, and sends satisfaction/review SMS.
+    """
+    data = await request.json()
+    appointment_id = data.get("appointment_id")
+
+    if not appointment_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="appointment_id is required")
+
+    result = await ResidentialFSMService.send_completion_alert(
+        appointment_id=appointment_id,
+        db=db
+    )
+    return result
+
 
