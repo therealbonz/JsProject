@@ -45,6 +45,7 @@ class Lead(Base, CommonMixin, TenantMixin):
 
     company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
     contact_id = Column(String(36), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
+    campaign_id = Column(String(36), ForeignKey("prospect_campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
 
     lead_score = Column(Integer, default=50, nullable=False)  # 0 to 100
     pipeline_stage = Column(String(50), default="new", nullable=False, index=True)  
@@ -71,6 +72,7 @@ class Lead(Base, CommonMixin, TenantMixin):
     organization = relationship("Organization", back_populates="leads")
     company = relationship("Company", back_populates="leads")
     contact = relationship("Contact", back_populates="leads")
+    campaign = relationship("ProspectCampaign", back_populates="leads")
     conversations = relationship("Conversation", back_populates="lead", cascade="all, delete-orphan")
     opportunities = relationship("Opportunity", back_populates="lead", cascade="all, delete-orphan")
     call_logs = relationship("CallLog", back_populates="lead", cascade="all, delete-orphan", order_by=lambda: desc(CallLog.called_at))
@@ -337,5 +339,27 @@ class SaaSExpansionProposal(Base, CommonMixin, TenantMixin):
 
     # Relationships
     license = relationship("SaaSLicense", back_populates="expansion_proposals")
+
+
+class ProspectCampaign(Base, CommonMixin, TenantMixin):
+    __tablename__ = "prospect_campaigns"
+
+    name = Column(String(255), nullable=False, index=True)
+    trade_service = Column(String(100), default="general", nullable=False)  # carpet_cleaning, lawn_care, roofing, commercial, general
+    source_filename = Column(String(255), nullable=True)
+    status = Column(String(50), default="ready", nullable=False, index=True)  # draft, ready, in_progress, paused, completed
+    total_rows = Column(Integer, default=0, nullable=False)
+    valid_count = Column(Integer, default=0, nullable=False)
+    duplicate_count = Column(Integer, default=0, nullable=False)
+    error_count = Column(Integer, default=0, nullable=False)
+    dialed_count = Column(Integer, default=0, nullable=False)
+    connected_count = Column(Integer, default=0, nullable=False)
+    booked_count = Column(Integer, default=0, nullable=False)
+    column_mappings = Column(JSON, default=dict, nullable=False)
+    notes = Column(Text, nullable=True)
+
+    # Relationships
+    organization = relationship("Organization", back_populates="prospect_campaigns")
+    leads = relationship("Lead", back_populates="campaign", cascade="all, delete-orphan", order_by="desc(Lead.created_at)")
 
 
