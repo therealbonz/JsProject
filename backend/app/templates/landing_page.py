@@ -1,13 +1,14 @@
 """
 SaaS Marketing Landing Page Template
 Renders a modern, responsive, high-converting product showcase
-spotlighting the 6 Specialized Types of AI Sales Agents available for SaaS clients:
+spotlighting the 7 Specialized Types of AI Sales Agents available for SaaS clients:
 1. The Lead Developer Agent
 2. The Decision-Maker Pathfinder & Literature Bot
 3. The Appointment Setter Agent
 4. The Cold Outreach SDR Agent
 5. The Executive Sales Bot
 6. The Objection Handler & Account Expansion Bot
+7. The Outbound Campaign Power Dialer Bot
 """
 
 def render_landing_page(api_prefix: str = "") -> str:
@@ -93,7 +94,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="font-extrabold text-xl tracking-tight text-white">NexFlow<span class="text-indigo-400">.ai</span></span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">6 SALES AI BOTS</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50">7 SALES AI BOTS</span>
                     </div>
                     <span class="text-[11px] text-slate-400">Autonomous Sales Pipeline Workforce for SaaS</span>
                 </div>
@@ -102,7 +103,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             <!-- Desktop Nav Links -->
             <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
                 <a href="#agents" class="hover:text-indigo-400 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-users-gear text-indigo-400 text-xs"></i> 6 Sales Bots
+                    <i class="fa-solid fa-users-gear text-indigo-400 text-xs"></i> 7 Sales Bots
                 </a>
                 <a href="#pipeline" class="hover:text-indigo-400 transition flex items-center gap-1.5">
                     <i class="fa-solid fa-diagram-project text-purple-400 text-xs"></i> Pipeline Architecture
@@ -147,13 +148,13 @@ def render_landing_page(api_prefix: str = "") -> str:
             <!-- Main Heading -->
             <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight max-w-5xl mx-auto leading-[1.1]">
                 Hire an Autonomous AI Sales Team: <br>
-                <span class="gradient-text">The 6 Specialized Sales Bots</span> <br>
+                <span class="gradient-text">The 7 Specialized Sales Bots</span> <br>
                 Built to Scale SaaS Revenue
             </h1>
 
             <!-- Subtitle -->
             <p class="text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-normal">
-                Replace fragmented sales software with a dedicated team of <strong class="text-white font-semibold">6 specialized AI sales bots</strong>. From automated <strong class="text-indigo-400">Lead Development</strong> and phone/email <strong class="text-cyan-400">Decision-Maker Discovery &amp; Literature Dispatch</strong> to <strong class="text-pink-400">Appointment Setting</strong> and high-touch <strong class="text-purple-400">Executive Sales Closers</strong>, your SaaS sales pipeline runs 24/7 without burning out reps.
+                Replace fragmented sales software with a dedicated team of <strong class="text-white font-semibold">7 specialized AI sales bots</strong>. From automated <strong class="text-indigo-400">Lead Development</strong> and phone/email <strong class="text-cyan-400">Decision-Maker Discovery &amp; Literature Dispatch</strong> to <strong class="text-teal-400">Outbound Campaign Power Dialing</strong>, <strong class="text-pink-400">Appointment Setting</strong>, and high-touch <strong class="text-purple-400">Executive Sales Closers</strong>, your SaaS sales pipeline runs 24/7 without burning out reps.
             </p>
 
             <!-- Primary CTAs -->
@@ -164,7 +165,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 </a>
                 <a href="#stack-configurator" class="px-7 py-4 rounded-2xl text-sm font-bold text-slate-200 bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/80 shadow-xl transition flex items-center gap-2.5">
                     <i class="fa-solid fa-sliders text-indigo-400"></i>
-                    <span>Configure Your 6-Bot Stack</span>
+                    <span>Configure Your 7-Bot Stack</span>
                 </a>
                 <a href="{console_url}" class="px-6 py-4 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
                     <i class="fa-solid fa-desktop text-xs text-indigo-400"></i>
@@ -200,7 +201,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         </div>
     </section>
 
-    <!-- THE 6 SPECIALIZED SALES AI BOTS OPTIONS -->
+    <!-- THE 7 SPECIALIZED SALES AI BOTS OPTIONS -->
     <section id="agents" class="py-24 relative border-t border-slate-900 bg-slate-950/70">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
@@ -209,11 +210,11 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span>SaaS Client Sales Agent Portfolio</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    The 6 Types of AI Sales Bots <br>
+                    The 7 Types of AI Sales Bots <br>
                     <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Available For Your SaaS Pipeline</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Choose individual bots or deploy all six together. Each bot is pre-trained on high-converting B2B SaaS sales playbooks, objection frameworks, phone switchboard discovery, and appointment booking cadences.
+                    Choose individual bots or deploy all seven together. Each bot is pre-trained on high-converting B2B SaaS sales playbooks, objection frameworks, phone switchboard discovery, and appointment booking cadences.
                 </p>
             </div>
 
@@ -243,6 +244,10 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <i class="fa-solid fa-handshake-angle text-amber-400"></i>
                     <span>6. The Objection Closer</span>
                 </button>
+                <button onclick="switchAgentTab('dialer')" id="tab-btn-dialer" class="px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-headset text-teal-400"></i>
+                    <span>7. Outbound Campaign Power Dialer</span>
+                </button>
             </div>
 
             <!-- Dynamic Agent Focus Viewport -->
@@ -251,7 +256,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             </div>
 
             <!-- Comprehensive Agent Cards Matrix -->
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 pt-6">
                 <!-- Card 1 -->
                 <div onclick="switchAgentTab('lead_dev')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-indigo-500/50 transition cursor-pointer group">
                     <div class="h-9 w-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-base group-hover:scale-110 transition">
@@ -262,7 +267,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <div class="text-[10px] font-mono text-indigo-400 font-semibold">1k+ Accounts/Day</div>
                 </div>
 
-                <!-- Card 2 (NEW: Decision-Maker Pathfinder & Literature Bot) -->
+                <!-- Card 2 (Decision-Maker Pathfinder & Literature Bot) -->
                 <div onclick="switchAgentTab('discovery')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-cyan-500/50 transition cursor-pointer group">
                     <div class="h-9 w-9 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center text-base group-hover:scale-110 transition">
                         <i class="fa-solid fa-phone-volume"></i>
@@ -311,6 +316,16 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <p class="text-[11px] text-slate-400 leading-relaxed">Overcomes pricing friction, stalls, and recovers stuck negotiations.</p>
                     <div class="text-[10px] font-mono text-amber-400 font-semibold">Recovers 35% Stalls</div>
                 </div>
+
+                <!-- Card 7 (Outbound Campaign Power Dialer) -->
+                <div onclick="switchAgentTab('dialer')" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2.5 hover:border-teal-500/50 transition cursor-pointer group">
+                    <div class="h-9 w-9 rounded-xl bg-teal-600/20 text-teal-400 flex items-center justify-center text-base group-hover:scale-110 transition">
+                        <i class="fa-solid fa-headset"></i>
+                    </div>
+                    <div class="font-bold text-xs text-white">7. Outbound Power Dialer</div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">Uploads prospect CSVs, executes voice AI queue, voicemail drops &amp; SMS.</p>
+                    <div class="text-[10px] font-mono text-teal-400 font-semibold">300+ Dials/Day</div>
+                </div>
             </div>
         </div>
     </section>
@@ -324,7 +339,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span>Autonomous Handoff Architecture</span>
                 </div>
                 <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                    How The 6 Autonomous Sales Bots <br>
+                    How The 7 Autonomous Sales Bots <br>
                     <span class="gradient-text">Build Your Complete Pipeline</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
@@ -332,9 +347,9 @@ def render_landing_page(api_prefix: str = "") -> str:
                 </p>
             </div>
 
-            <!-- Pipeline Visual Stepper (6-Stage Autonomous Flow) -->
+            <!-- Pipeline Visual Stepper (7-Stage Autonomous Flow) -->
             <div class="glass-panel rounded-3xl p-8 border border-slate-800 relative overflow-hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 relative z-10">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 relative z-10">
                     <!-- Stage 1 -->
                     <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2.5 relative">
                         <div class="h-7 w-7 rounded-lg bg-indigo-600/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-xs">01</div>
@@ -344,7 +359,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                         <div class="text-[9px] font-mono text-emerald-400 bg-emerald-950/40 p-1.5 rounded border border-emerald-800/40">✓ Enriched ICP Account</div>
                     </div>
 
-                    <!-- Stage 2: NEW Decision-Maker Discovery & Literature Dispatch -->
+                    <!-- Stage 2: Decision-Maker Discovery & Literature Dispatch -->
                     <div class="bg-slate-900/90 border border-cyan-500/50 rounded-2xl p-4 space-y-2.5 relative">
                         <div class="h-7 w-7 rounded-lg bg-cyan-600/20 text-cyan-400 font-mono font-bold flex items-center justify-center text-xs">02</div>
                         <div class="font-bold text-[10px] text-white uppercase tracking-wider text-cyan-400">DM Discovery &amp; Literature</div>
@@ -387,6 +402,15 @@ def render_landing_page(api_prefix: str = "") -> str:
                         <h4 class="font-bold text-xs text-slate-200">The Objection Closer</h4>
                         <p class="text-[11px] text-slate-400">Neutralizes pricing friction &amp; contract stalls.</p>
                         <div class="text-[9px] font-mono text-amber-400 bg-amber-950/40 p-1.5 rounded border border-amber-800/40">✓ Deal Signed &amp; Renewed</div>
+                    </div>
+
+                    <!-- Stage 7: Autonomous Outbound Campaign Power Dialer -->
+                    <div class="bg-slate-900/90 border border-teal-500/50 rounded-2xl p-4 space-y-2.5 relative">
+                        <div class="h-7 w-7 rounded-lg bg-teal-600/20 text-teal-400 font-mono font-bold flex items-center justify-center text-xs">07</div>
+                        <div class="font-bold text-[10px] text-white uppercase tracking-wider text-teal-400">Outbound Campaigns</div>
+                        <h4 class="font-bold text-xs text-slate-200">Power Dialer Bot</h4>
+                        <p class="text-[11px] text-slate-400">Bulk CSV dialing, voicemail drops &amp; SMS speed-to-lead.</p>
+                        <div class="text-[9px] font-mono text-teal-400 bg-teal-950/40 p-1.5 rounded border border-teal-800/40">✓ Campaign Dialed &amp; Booked</div>
                     </div>
                 </div>
             </div>
@@ -432,6 +456,9 @@ def render_landing_page(api_prefix: str = "") -> str:
                     </button>
                     <button type="button" onclick="selectTesterAgent('closer')" id="btn-test-closer" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
                         <i class="fa-solid fa-handshake-angle text-amber-400"></i> Objection Closer
+                    </button>
+                    <button type="button" onclick="selectTesterAgent('dialer')" id="btn-test-dialer" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-slate-400 hover:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-headset text-teal-400"></i> Outbound Power Dialer
                     </button>
                 </div>
 
@@ -672,7 +699,7 @@ def render_landing_page(api_prefix: str = "") -> str:
         </div>
     </section>
 
-    <!-- INTERACTIVE 6-BOT STACK CONFIGURATOR -->
+    <!-- INTERACTIVE 7-BOT STACK CONFIGURATOR -->
     <section id="stack-configurator" class="py-24 relative border-t border-slate-900 bg-slate-950/60">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             <div class="text-center space-y-4 max-w-3xl mx-auto">
@@ -685,7 +712,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span class="gradient-text">&amp; Project Monthly Revenue Added</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    Select which of the 6 AI Sales Bots you want on your team. Watch your pipeline projections update live.
+                    Select which of the 7 AI Sales Bots you want on your team. Watch your pipeline projections update live.
                 </p>
             </div>
 
@@ -775,13 +802,27 @@ def render_landing_page(api_prefix: str = "") -> str:
                         </div>
                         <span class="text-xs font-mono font-bold text-amber-400">+35% Stalled Deals Won</span>
                     </label>
+
+                    <label class="flex items-center justify-between p-4 bg-slate-900/80 hover:bg-slate-900 rounded-2xl border border-slate-800 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="chk-dialer" checked onchange="recalculateStack()" class="w-4 h-4 accent-teal-500 rounded">
+                            <div>
+                                <div class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>7. The Outbound Campaign Power Dialer Bot</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-teal-950 text-teal-300">OUTBOUND POWER DIALER</span>
+                                </div>
+                                <div class="text-xs text-slate-400">Uploads prospect CSVs, cleans E.164 phones, drops voicemails &amp; books appointments</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-mono font-bold text-teal-400">+300 Dials &amp; +18 Bookings</span>
+                    </label>
                 </div>
 
                 <!-- Live Calculated Totals -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-800 text-center">
                     <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
                         <div class="text-slate-400 text-[10px] uppercase font-bold">Active Agents</div>
-                        <div class="text-2xl font-black font-mono text-indigo-400" id="stack-count">6 Agents</div>
+                        <div class="text-2xl font-black font-mono text-indigo-400" id="stack-count">7 Agents</div>
                     </div>
                     <div class="p-4 bg-slate-900/90 rounded-2xl border border-slate-800">
                         <div class="text-slate-400 text-[10px] uppercase font-bold">Monthly Demos</div>
@@ -813,7 +854,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                     <span class="gradient-text">Your AI Sales Workforce</span>
                 </h2>
                 <p class="text-slate-400 text-sm sm:text-base">
-                    From single-bot appointment setting to an entire 6-agent autonomous enterprise workforce.
+                    From single-bot appointment setting to an entire 7-agent autonomous enterprise workforce.
                 </p>
             </div>
 
@@ -870,7 +911,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 <!-- Full Executive Workforce Tier (Highlighted) -->
                 <div class="glass-panel rounded-3xl p-6 border-2 border-indigo-500 flex flex-col justify-between space-y-6 glow-indigo relative">
                     <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-[10px] tracking-wider uppercase shadow-lg">
-                        Full 6-Agent Suite
+                        Full 7-Agent Suite
                     </div>
                     <div class="space-y-4 pt-1">
                         <div class="space-y-1">
@@ -880,18 +921,19 @@ def render_landing_page(api_prefix: str = "") -> str:
                                 <span class="text-xs text-slate-400">/ month</span>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-300">All 6 AI Sales Bots deployed with decision-maker phone/email discovery, executive proposal generation, and objection closing.</p>
+                        <p class="text-xs text-slate-300">All 7 AI Sales Bots deployed with decision-maker phone/email discovery, outbound power dialing, executive proposal generation, and objection closing.</p>
                         <div class="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-200">
-                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> All 6 AI Sales Bots Included</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> All 7 AI Sales Bots Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 25,000 Pipeline Touches/mo</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Decision-Maker &amp; Literature Dispatch Included</div>
+                            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Outbound Campaign Power Dialer Bot Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> The Executive Sales Bot Included</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> 20 Seats + Custom Domain</div>
                             <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i> Dedicated HITL Takeover Queue</div>
                         </div>
                     </div>
                     <a href="{signup_url}?plan=executive" class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 shadow-lg shadow-indigo-600/40 transition text-center block">
-                        Deploy All 6 Agents
+                        Deploy All 7 Agents
                     </a>
                 </div>
 
@@ -956,7 +998,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                 </div>
                 <div class="flex items-center gap-6 text-xs">
                     <a href="{console_url}" class="hover:text-white transition">Launch Console</a>
-                    <a href="#agents" class="hover:text-white transition">6 Sales Bots</a>
+                    <a href="#agents" class="hover:text-white transition">7 Sales Bots</a>
                     <a href="#pipeline" class="hover:text-white transition">Pipeline Funnel</a>
                     <a href="#pricing" class="hover:text-white transition">Pricing Plans</a>
                     <a href="{prefix}/docs" target="_blank" class="hover:text-white transition flex items-center gap-1">
@@ -1096,6 +1138,26 @@ def render_landing_page(api_prefix: str = "") -> str:
                 sampleOutput: `{{"rebuttal_strategy": "Highlight automated replenishment SLA + offer quarterly billing concession", "status": "counter_sent"}}`,
                 impactMetric: "35% Stalled Deals Won",
                 badge: "OBJECTION CLOSER"
+            }},
+            dialer: {{
+                id: "dialer",
+                number: "7",
+                name: "The Outbound Campaign Power Dialer Bot",
+                subtitle: "Smart Prospect Ingestion & Conversational Voice AI Campaign Queue",
+                icon: "fa-headset",
+                color: "teal",
+                description: "Empowers clients to upload bulk CSV/Excel prospect lists with instant fuzzy header mapping and E.164 phone deduplication. Autonomously dials targeted outreach campaigns with dynamic trade-specific pitch personalization, intelligent answering machine voicemail drops, speed-to-lead SMS follow-ups, and calendar booking.",
+                skills: [
+                    "Smart CSV/Excel Contact Ingestion & Fuzzy Mapping",
+                    "E.164 Phone Normalization & CRM Deduplication",
+                    "Trade-Specific Conversational Pitch Personalization",
+                    "15-Second Voicemail Drop & Speed-to-Lead SMS Follow-up",
+                    "Automated Calendar Slot Booking & Disposition Logging"
+                ],
+                sampleInput: `{{"campaign_name": "Q3 Target Accounts", "file_type": "CSV", "total_prospects": 250, "vertical": "Commercial & Residential Services"}}`,
+                sampleOutput: `{{"status": "campaign_running", "dialed": 184, "connected": 76, "booked_appointments": 14, "voicemail_sms_drops": 62, "dnc_optouts": 2}}`,
+                impactMetric: "300+ Automated Outbound Dials/Day",
+                badge: "OUTBOUND POWER DIALER"
             }}
         }};
 
@@ -1104,7 +1166,7 @@ def render_landing_page(api_prefix: str = "") -> str:
             if (!agent) return;
 
             // Highlight Tab Buttons
-            const tabs = ['lead_dev', 'discovery', 'setter', 'sdr', 'exec_bot', 'closer'];
+            const tabs = ['lead_dev', 'discovery', 'setter', 'sdr', 'exec_bot', 'closer', 'dialer'];
             tabs.forEach(t => {{
                 const btn = document.getElementById(`tab-btn-${{t}}`);
                 if (btn) {{
@@ -1191,7 +1253,8 @@ def render_landing_page(api_prefix: str = "") -> str:
                 lead_dev: document.getElementById("btn-test-dev"),
                 sdr: document.getElementById("btn-test-sdr"),
                 setter: document.getElementById("btn-test-setter"),
-                closer: document.getElementById("btn-test-closer")
+                closer: document.getElementById("btn-test-closer"),
+                dialer: document.getElementById("btn-test-dialer")
             }};
             const activeColors = {{
                 discovery: "bg-cyan-600 shadow-cyan-600/30",
@@ -1199,7 +1262,8 @@ def render_landing_page(api_prefix: str = "") -> str:
                 lead_dev: "bg-indigo-600 shadow-indigo-600/30",
                 sdr: "bg-emerald-600 shadow-emerald-600/30",
                 setter: "bg-pink-600 shadow-pink-600/30",
-                closer: "bg-amber-600 shadow-amber-600/30"
+                closer: "bg-amber-600 shadow-amber-600/30",
+                dialer: "bg-teal-600 shadow-teal-600/30"
             }};
             Object.keys(btns).forEach(k => {{
                 if (btns[k]) {{
@@ -1217,7 +1281,8 @@ def render_landing_page(api_prefix: str = "") -> str:
                 lead_dev: "The Lead Developer is scraping domain firmographics and scoring buyer readiness...",
                 sdr: "The Cold Outreach SDR is generating hyper-personalized 1-to-1 multi-channel cadences...",
                 setter: "The Appointment Setter is negotiating calendar slots and formatting demo invite...",
-                closer: "The Objection Closer is analyzing pricing friction and packaging contract concessions..."
+                closer: "The Objection Closer is analyzing pricing friction and packaging contract concessions...",
+                dialer: "The Outbound Campaign Power Dialer is ingesting prospect lists, personalizing trade scripts, and queuing autonomous outbound voice calls..."
             }};
             document.getElementById("tester-loading-text").innerText = descText[agentId] || descText.discovery;
         }}
@@ -1321,6 +1386,15 @@ def render_landing_page(api_prefix: str = "") -> str:
                     document.getElementById("out-box-desc-2").innerText = 
                         `Drafted executive concession response with SLA renewal guarantees to neutralize hesitation and accelerate contract signing.`;
                     document.getElementById("out-next-step").innerText = "Issue Revised Master Services Agreement & Lock Closing Signature";
+                }} else if (currentTesterAgent === "dialer") {{
+                    document.getElementById("out-agent-badge").innerText = "AGENT 7: OUTBOUND POWER DIALER";
+                    document.getElementById("out-box-title-1").innerText = "Smart Prospect Ingestion & Deduplication";
+                    document.getElementById("out-box-desc-1").innerText = 
+                        `Ingested prospect campaign list for ${{comp}}. E.164 normalized phone numbers, removed duplicate contacts, and queued 48 high-intent leads with custom trade-specific value propositions.`;
+                    document.getElementById("out-box-title-2").innerText = "Autonomous Voice AI & Voicemail Drop";
+                    document.getElementById("out-box-desc-2").innerText = 
+                        `Dialed queue with personalized voice AI pitch. Detected answering machines, left 15-second voicemails with instant speed-to-lead SMS follow-up, and secured 8 live booked consultations.`;
+                    document.getElementById("out-next-step").innerText = "Sync Booked Appointments to CRM & Schedule Automatic Follow-Up Sequences";
                 }} else {{
                     // Default Executive Sales Bot
                     document.getElementById("out-agent-badge").innerText = "AGENT 5: THE EXECUTIVE SALES BOT";
@@ -1329,7 +1403,7 @@ def render_landing_page(api_prefix: str = "") -> str:
                         `High-intent enterprise organization operating in ${{ind}}. Primary operational bottleneck is fragmented sales tools and pipeline latency.`;
                     document.getElementById("out-box-title-2").innerText = "Recommended Closing Strategy";
                     document.getElementById("out-box-desc-2").innerText = 
-                        `Package Full 6-Agent Workforce with SLA-guaranteed demo velocity. Position multi-agent DAG orchestration to integrate existing enterprise stack.`;
+                        `Package Full 7-Agent Workforce with SLA-guaranteed demo velocity. Position multi-agent DAG orchestration to integrate existing enterprise stack.`;
                     document.getElementById("out-next-step").innerText = "Prepare Custom Proposal & Staged Commercial Pilot Contract";
                 }}
             }}, 650);
@@ -1343,9 +1417,10 @@ def render_landing_page(api_prefix: str = "") -> str:
             const setter = document.getElementById("chk-setter").checked;
             const exec = document.getElementById("chk-exec").checked;
             const closer = document.getElementById("chk-closer").checked;
+            const dialer = document.getElementById("chk-dialer") ? document.getElementById("chk-dialer").checked : true;
 
-            let count = (dev ? 1 : 0) + (discovery ? 1 : 0) + (sdr ? 1 : 0) + (setter ? 1 : 0) + (exec ? 1 : 0) + (closer ? 1 : 0);
-            let demos = (dev ? 10 : 0) + (discovery ? 12 : 0) + (sdr ? 16 : 0) + (setter ? 22 : 0);
+            let count = (dev ? 1 : 0) + (discovery ? 1 : 0) + (sdr ? 1 : 0) + (setter ? 1 : 0) + (exec ? 1 : 0) + (closer ? 1 : 0) + (dialer ? 1 : 0);
+            let demos = (dev ? 10 : 0) + (discovery ? 12 : 0) + (sdr ? 16 : 0) + (setter ? 22 : 0) + (dialer ? 18 : 0);
             let deals = Math.round(demos * 0.22) + (exec ? 5 : 0) + (closer ? 4 : 0);
             let pipeline = deals * 12000;
 

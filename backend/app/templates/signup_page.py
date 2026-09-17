@@ -205,7 +205,7 @@ def render_signup_page(api_prefix: str = "", default_plan: str = "growth") -> st
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h3 class="font-bold text-white text-base">Executive Workforce</h3>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-800">ALL 6 BOTS</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-800">ALL 7 BOTS</span>
                                 </div>
                                 <p class="text-xs text-slate-400 pt-0.5">Autonomous VP of Sales &amp; enterprise closers handling multi-stakeholder deals.</p>
                             </div>
@@ -216,7 +216,7 @@ def render_signup_page(api_prefix: str = "", default_plan: str = "growth") -> st
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
-                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> Complete 6-Bot Workforce Deployed</span>
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> Complete 7-Bot Workforce Deployed</span>
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> 25,000 Pipeline Touches/mo</span>
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> Executive Sales Bot &amp; Objection Closer</span>
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400 text-[11px]"></i> 20 Seats + Dedicated HITL Queue</span>
@@ -377,7 +377,8 @@ def render_signup_page(api_prefix: str = "", default_plan: str = "growth") -> st
                     {{ name: "3. The Appointment Setter", icon: "fa-calendar-check", color: "pink" }},
                     {{ name: "4. The Cold Outreach SDR", icon: "fa-paper-plane", color: "emerald" }},
                     {{ name: "5. The Executive Sales Bot", icon: "fa-chess-king", color: "purple" }},
-                    {{ name: "6. The Objection Closer", icon: "fa-handshake-angle", color: "amber" }}
+                    {{ name: "6. The Objection Closer", icon: "fa-handshake-angle", color: "amber" }},
+                    {{ name: "7. Outbound Campaign Power Dialer", icon: "fa-headset", color: "teal" }}
                 ]
             }}
         }};

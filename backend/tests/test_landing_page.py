@@ -22,7 +22,7 @@ async def test_landing_page_routes():
         assert res.status_code == 200
         assert "text/html" in res.headers["content-type"]
         assert "NexFlow" in res.text
-        assert "6 Specialized Sales Bots" in res.text
+        assert "7 Specialized Sales Bots" in res.text
 
         # 2. Test /JsProject/landing route
         res_sub = await client.get("/JsProject/landing")
@@ -37,7 +37,7 @@ async def test_landing_page_spotlights_sales_ai_bots():
         assert res.status_code == 200
         html = res.text
 
-        # Verify all Sales AI Agents (including Decision-Maker Pathfinder & Literature Bot) are documented in the page
+        # Verify all 7 Sales AI Agents are documented in the page
         assert "The Lead Developer" in html
         assert "Decision-Maker" in html
         assert "Literature" in html
@@ -45,9 +45,12 @@ async def test_landing_page_spotlights_sales_ai_bots():
         assert "Cold Outreach SDR" in html
         assert "The Executive Sales Bot" in html
         assert "The Objection Closer" in html
+        assert "Outbound Campaign Power Dialer" in html
         assert "btn-test-discovery" in html
+        assert "btn-test-dialer" in html
         assert "chk-discovery" in html
-        assert "6 Specialized Sales Bots" in html
+        assert "chk-dialer" in html
+        assert "7 Specialized Sales Bots" in html
 
         # Verify agent capabilities and business impacts
         assert "Autonomous Sales Skills" in html
@@ -81,7 +84,7 @@ async def test_console_routes_and_navigation_toggle():
         root_res = await client.get("/")
         assert root_res.status_code == 200
         assert "NexFlow" in root_res.text
-        assert "6 Specialized Sales Bots" in root_res.text
+        assert "7 Specialized Sales Bots" in root_res.text
 
         # ?view=console parameter should switch to CRM Management Console
         console_view_res = await client.get("/?view=console")
