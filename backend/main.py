@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router, residential, prospect_imports
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router, residential, prospect_imports, campaign_dialer
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
 from app.templates.signup_page import render_signup_page
@@ -186,6 +186,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(nurture_router.router, prefix=prefix)
     app.include_router(residential.router, prefix=prefix)
     app.include_router(prospect_imports.router, prefix=prefix)
+    app.include_router(campaign_dialer.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
