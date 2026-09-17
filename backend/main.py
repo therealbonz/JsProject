@@ -1698,43 +1698,21 @@ async def dashboard_home():
         <!-- Global Notification Toast Container -->
         <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-md pointer-events-none"></div>
 
-        <!-- Top Persistent View Switcher Bar -->
-        <div class="bg-gradient-to-r from-indigo-950 via-slate-900 to-purple-950 border-b border-indigo-500/40 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
-            <div class="flex items-center gap-2 text-xs">
-                <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-slate-300 font-medium">Currently viewing: <strong class="text-white">CRM Management Dashboard</strong></span>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="/JsProject/landing" class="px-4 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-500/40 border border-indigo-300 flex items-center gap-2 transition transform hover:scale-105 active:scale-95">
-                    <i class="fa-solid fa-globe text-cyan-300 text-base"></i>
-                    <span>🌐 SWITCH TO WEBSITE</span>
-                    <span class="text-indigo-200 text-xs font-semibold hidden md:inline">(SaaS Landing Page)</span>
-                    <i class="fa-solid fa-arrow-right text-xs"></i>
-                </a>
-                <a href="/JsProject/residential" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/40 flex items-center gap-1.5 transition">
-                    <i class="fa-solid fa-house"></i>
-                    <span>Residential Bot &amp; Dialer</span>
-                </a>
-            </div>
-        </div>
-
         <nav class="border-b border-slate-800 bg-slate-950 px-6 py-4 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
-                    <i class="fa-solid fa-network-wired"></i>
+                    <i class="fa-solid fa-brain"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-base leading-tight">AI Autonomous Sales Pipeline</h1>
+                    <h1 class="font-bold text-lg leading-tight">AI Sales Automation Platform</h1>
                     <p class="text-xs text-slate-400">Multi-Tenant SaaS • Powered by Google Gemini & PostgreSQL</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <a href="/JsProject/landing" class="px-4 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-xl shadow-indigo-600/40 border-2 border-indigo-300 flex items-center gap-2 transition transform hover:scale-105 active:scale-95" title="SaaS Landing Page">
-                    <i class="fa-solid fa-arrow-up-right-from-square text-cyan-200"></i>
-                    <span>VIEW WEBSITE</span>
-                    <span class="text-xs text-indigo-200 font-semibold hidden lg:inline">• SaaS Landing Page</span>
+            <div class="flex items-center space-x-4">
+                <a href="/JsProject/landing" class="px-3 py-1.5 bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 border border-indigo-500/50 rounded-lg text-xs font-semibold text-indigo-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-globe text-indigo-400"></i> SaaS Landing Page
                 </a>
-                <button onclick="switchCrmMode('settings')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-semibold text-purple-200 transition flex items-center gap-1.5 cursor-pointer">
+                <button onclick="switchCrmMode('settings')" class="px-3 py-1.5 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 border border-purple-500/50 rounded-lg text-xs font-semibold text-purple-200 transition flex items-center gap-1.5 cursor-pointer">
                     <i class="fa-solid fa-palette text-purple-400"></i> White-Label &amp; Stripe
                 </button>
                 <span id="gemini-badge" class="px-3 py-1 text-xs rounded-full bg-emerald-950 border border-emerald-700/50 text-emerald-400 flex items-center gap-2">

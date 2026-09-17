@@ -29,24 +29,6 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
 </head>
 <body class="h-full flex flex-col antialiased selection:bg-indigo-500 selection:text-white bg-slate-950">
 
-    <!-- Top Persistent Platform Switcher Bar -->
-    <div class="bg-gradient-to-r from-indigo-950 via-slate-900 to-purple-950 border-b border-indigo-500/40 px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg z-50 relative">
-        <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-            <span class="text-slate-300 font-medium">Currently Viewing: <strong class="text-white">Residential Sales Bot &amp; Power Dialer</strong></span>
-        </div>
-        <div class="flex items-center gap-3">
-            <a href="{api_prefix}/landing" class="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 font-bold rounded-lg border border-cyan-500/40 flex items-center gap-2 transition transform hover:scale-105">
-                <i class="fa-solid fa-globe text-cyan-400"></i>
-                <span>Public Website ➔</span>
-            </a>
-            <a href="{api_prefix}/console" class="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-lg shadow-md shadow-indigo-600/40 border border-indigo-300 flex items-center gap-2 transition transform hover:scale-105 active:scale-95">
-                <i class="fa-solid fa-sliders text-cyan-200"></i>
-                <span>SWITCH TO CRM DASHBOARD ➔</span>
-            </a>
-        </div>
-    </div>
-
     <!-- Top Announcement Bar -->
     <header class="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border-b border-indigo-900/40 text-xs py-2 px-4 shadow-md">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
@@ -112,9 +94,8 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                     <span>Upload & Dial</span>
                     <span class="px-1 py-0.2 rounded bg-amber-500 text-slate-950 text-[9px] uppercase font-bold">Bot</span>
                 </button>
-                <a href="{api_prefix}/console" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs border border-indigo-300 shadow-md shadow-indigo-600/40 transition flex items-center gap-1.5 transform hover:scale-105 active:scale-95">
-                    <i class="fa-solid fa-sliders text-cyan-200"></i>
-                    <span>CRM DASHBOARD</span>
+                <a href="/" class="text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-gauge"></i> <span class="hidden sm:inline">CRM</span>
                 </a>
                 <button onclick="openBookingModal()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-calendar-check"></i> Book Crew

@@ -27,7 +27,6 @@ async def test_landing_page_routes():
         # 2. Test /JsProject/landing route
         res_sub = await client.get("/JsProject/landing")
         assert res_sub.status_code == 200
-        assert "CRM DASHBOARD" in res_sub.text
         assert "Management Console" in res_sub.text
 
 @pytest.mark.asyncio
@@ -91,7 +90,6 @@ async def test_console_routes_and_navigation_toggle():
         console_view_res = await client.get("/?view=console")
         assert console_view_res.status_code == 200
         assert "CRM 1: Prospects & Pipeline" in console_view_res.text
-        assert "VIEW WEBSITE" in console_view_res.text
         assert "SaaS Landing Page" in console_view_res.text
 
         # ?console=1 parameter should switch to CRM Management Console
