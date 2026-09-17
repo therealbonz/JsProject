@@ -84,6 +84,24 @@ def render_landing_page(api_prefix: str = "") -> str:
     <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[480px] bg-gradient-to-b from-indigo-600/20 via-purple-600/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
     <div class="absolute top-[650px] right-0 w-[550px] h-[550px] bg-emerald-600/10 blur-3xl pointer-events-none -z-10"></div>
 
+    <!-- Top Persistent Platform Switcher Bar -->
+    <div class="bg-gradient-to-r from-indigo-950 via-slate-900 to-purple-950 border-b border-indigo-500/40 px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg z-50 relative">
+        <div class="flex items-center gap-2">
+            <span class="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="text-slate-300 font-medium">Currently Viewing: <strong class="text-white">Public Marketing Website</strong></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{console_url}" class="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-lg shadow-md shadow-indigo-600/40 border border-indigo-300 flex items-center gap-2 transition transform hover:scale-105 active:scale-95">
+                <i class="fa-solid fa-sliders text-cyan-200"></i>
+                <span>SWITCH TO CRM DASHBOARD ➔</span>
+            </a>
+            <a href="{prefix}/residential" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold rounded-lg border border-amber-500/40 flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-house"></i>
+                <span class="hidden sm:inline">Residential Bot &amp; Dialer</span>
+            </a>
+        </div>
+    </div>
+
     <!-- Navigation Bar -->
     <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -123,11 +141,13 @@ def render_landing_page(api_prefix: str = "") -> str:
             </nav>
 
             <!-- Actions -->
-            <div class="flex items-center gap-3">
-                <a href="{console_url}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 transition">
-                    <i class="fa-solid fa-shield-halved text-slate-400"></i> Management Console
+            <div class="flex items-center gap-2 sm:gap-3">
+                <a href="{console_url}" class="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-2 border-indigo-300 shadow-xl shadow-indigo-600/40 transition transform hover:scale-105 active:scale-95" title="Management Console">
+                    <i class="fa-solid fa-sliders text-cyan-200 text-sm"></i>
+                    <span>CRM DASHBOARD</span>
+                    <span class="text-xs text-indigo-200 font-semibold hidden md:inline">• Management Console</span>
                 </a>
-                <a href="{signup_url}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
+                <a href="{signup_url}" class="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
                     <span>Deploy Sales Bots</span>
                     <i class="fa-solid fa-arrow-right"></i>
                 </a>
