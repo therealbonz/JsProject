@@ -9,96 +9,7 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apex Home Services • Instant Quotes & Online Booking</title>
-    <script src="https://cdn.tailwindcss.com">
-        // =========================================================================
-        // FSM & CALENDAR DISPATCH JS (PHASE 3)
-        // =========================================================================
-        let lastBookedAppointmentId = null;
-
-        function openFSMModal() {
-            document.getElementById('fsm-modal').classList.remove('hidden');
-            loadFSMFleet();
-        }
-
-        function closeFSMModal() {
-            document.getElementById('fsm-modal').classList.add('hidden');
-        }
-
-        async function loadFSMFleet() {
-            const container = document.getElementById('fsm-fleet-list');
-            container.innerHTML = `<span class="text-slate-400 italic">Loading fleet roster...</span>`;
-            try {
-                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/crews`);
-                const data = await res.json();
-                container.innerHTML = "";
-                (data.crews || []).forEach(c => {
-                    const card = document.createElement('div');
-                    card.className = "p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1";
-                    card.innerHTML = `
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-white">${escapeHtml(c.name)}</span>
-                            <span class="text-[10px] font-bold text-amber-400 flex items-center gap-1">
-                                <i class="fa-solid fa-star text-[9px]"></i> ${c.rating}
-                            </span>
-                        </div>
-                        <p class="text-[11px] text-slate-400">Lead: <span class="text-slate-300">${escapeHtml(c.lead)}</span> • ${escapeHtml(c.vehicle)}</p>
-                        <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-900">
-                            <span>Trade: ${escapeHtml(c.trade.replace('_', ' ').toUpperCase())}</span>
-                            <span class="text-emerald-400 font-semibold">${c.completed_jobs} Jobs Completed</span>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (err) {
-                console.error("Fleet error", err);
-            }
-        }
-
-        async function simulateEnRouteAlert() {
-            const apptId = lastBookedAppointmentId || "demo_appointment";
-            const resBox = document.getElementById('fsm-alert-response');
-            resBox.classList.remove('hidden');
-            resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-400"></i> Dispatching 30-min en-route SMS...`;
-            try {
-                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/en_route`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ appointment_id: apptId, eta_minutes: 25 })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    resBox.innerHTML = `<strong>Sent:</strong> "${escapeHtml(data.message)}"`;
-                } else {
-                    resBox.innerHTML = `<strong>Simulated En Route SMS:</strong> "🚚 Apex Dispatch Heads-Up: Your service crew (Lead: Dave Miller) is now en route to your address! ETA: 25 minutes."`;
-                }
-            } catch (err) {
-                resBox.innerHTML = `<strong>Simulated En Route SMS:</strong> "🚚 Apex Dispatch Heads-Up: Your service crew (Lead: Dave Miller) is now en route to your address! ETA: 25 minutes."`;
-            }
-        }
-
-        async function simulateCompleteAlert() {
-            const apptId = lastBookedAppointmentId || "demo_appointment";
-            const resBox = document.getElementById('fsm-alert-response');
-            resBox.classList.remove('hidden');
-            resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> Dispatching completion SMS...`;
-            try {
-                const res = await fetch(`${API_PREFIX}/api/v1/residential/fsm/complete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ appointment_id: apptId })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    resBox.innerHTML = `<strong>Sent:</strong> "${escapeHtml(data.message)}"`;
-                } else {
-                    resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
-                }
-            } catch (err) {
-                resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
-            }
-        }
-
-    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -177,6 +88,11 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
                     <i class="fa-solid fa-truck-ramp-box text-purple-400"></i>
                     <span>Fleet & FSM</span>
                     <span class="px-1 py-0.2 rounded bg-purple-500 text-white text-[9px] uppercase font-bold">P3</span>
+                </button>
+                <button onclick="openUploadModal()" class="px-2.5 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/40 text-amber-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow cursor-pointer">
+                    <i class="fa-solid fa-cloud-arrow-up text-amber-400"></i>
+                    <span>Upload & Dial</span>
+                    <span class="px-1 py-0.2 rounded bg-amber-500 text-slate-950 text-[9px] uppercase font-bold">Bot</span>
                 </button>
                 <a href="/" class="text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                     <i class="fa-solid fa-gauge"></i> <span class="hidden sm:inline">CRM</span>
@@ -643,6 +559,204 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             
             <div class="p-4 border-t border-slate-800 bg-slate-950/60 text-right shrink-0">
                 <button onclick="closeFSMModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition cursor-pointer">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- SaaS Prospect List Upload & Campaign Power Dialer Modal (Step 1-3) -->
+    <div id="prospect-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl animate-fade-in flex flex-col max-h-[90vh]">
+            
+            <!-- Header -->
+            <div class="p-5 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-xl bg-amber-600/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-lg shadow">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-white text-base">Prospect Uploader & Power Dialer</h3>
+                            <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase">SaaS Suite</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Bulk CSV List Ingestion, Fuzzy Header Mapping & Autonomous Outbound Calling Queue</p>
+                    </div>
+                </div>
+                <button onclick="closeUploadModal()" class="text-slate-400 hover:text-white transition text-lg cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (3 Step Flow) -->
+            <div class="p-5 overflow-y-auto space-y-6 custom-scrollbar text-xs">
+                
+                <!-- Step 1: Upload & Configure -->
+                <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv text-amber-400"></i> Step 1: Upload Prospect CSV or Text List
+                        </span>
+                        <a href="{api_prefix}/api/v1/crm/prospects/template" download class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-download"></i> Download Sample CSV
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Campaign Name</label>
+                            <input type="text" id="ui-campaign-name" value="Denver Spring Outreach" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-xs focus:border-amber-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Target Trade / Vertical</label>
+                            <select id="ui-campaign-trade" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-xs focus:border-amber-500 outline-none">
+                                <option value="carpet_cleaning">Carpet Cleaning ($45/room special)</option>
+                                <option value="lawn_care">Lawn Care (15% weekly mowing)</option>
+                                <option value="roofing">Roofing & Gutters (Free 21-pt drone check)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Drag & Drop Zone -->
+                    <div id="drop-zone" onclick="document.getElementById('prospect-file-input').click()" class="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-6 text-center transition cursor-pointer bg-slate-900/40">
+                        <input type="file" id="prospect-file-input" accept=".csv,.txt" class="hidden" onchange="handleFileSelected(event)">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 mb-2 block"></i>
+                        <p class="text-slate-300 font-semibold text-xs" id="file-label">Click or drag & drop prospect CSV file here</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Supports UTF-8, Excel CSV, and standard commas or semicolons</p>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="flex items-center gap-2 text-slate-400 text-xs cursor-pointer">
+                            <input type="checkbox" id="ui-skip-duplicates" checked class="accent-amber-500">
+                            <span>Skip duplicate phone numbers</span>
+                        </label>
+                        <button onclick="previewProspectUpload()" id="btn-preview" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-magnifying-glass text-amber-400"></i> Preview Mapping
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Preview & Confirmation (Hidden until previewed) -->
+                <div id="prospect-preview-box" class="hidden p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <i class="fa-solid fa-table-list text-indigo-400"></i> Step 2: Auto-Detected Columns & Row Preview
+                        </span>
+                        <div class="flex items-center gap-2" id="preview-badges">
+                            <!-- Badges injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Detected Header Tags -->
+                    <div id="detected-headers-chips" class="flex flex-wrap gap-1.5 text-[10px]">
+                        <!-- Mapping badges injected here -->
+                    </div>
+
+                    <!-- Sample Rows Table -->
+                    <div class="overflow-x-auto rounded-xl border border-slate-900">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead>
+                                <tr class="bg-slate-900/80 text-slate-400 border-b border-slate-800">
+                                    <th class="p-2">Name</th>
+                                    <th class="p-2">Phone</th>
+                                    <th class="p-2">Address</th>
+                                    <th class="p-2">Service</th>
+                                    <th class="p-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-table-body" class="divide-y divide-slate-900 text-slate-300">
+                                <!-- Rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <span class="text-slate-400 text-[11px]" id="preview-summary-text">Ready to ingest prospects into CRM</span>
+                        <button onclick="executeProspectIngestion()" id="btn-ingest" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Import & Queue for Bot
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Outbound Calling Queue Dashboard -->
+                <div id="campaign-dialer-box" class="hidden p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-white text-xs flex items-center gap-1.5" id="dialer-campaign-title">
+                                <i class="fa-solid fa-robot text-amber-400"></i> Autonomous Outbound Calling Queue
+                            </span>
+                            <span class="text-[10px] text-slate-400" id="dialer-trade-label">Carpet Cleaning Campaign</span>
+                        </div>
+                        <span id="dialer-status-badge" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase">Ready</span>
+                    </div>
+
+                    <!-- Progress Metrics Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                        <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="text-slate-400 text-[10px] block">Pending Queue</span>
+                            <span class="font-black text-lg text-amber-400" id="stat-pending">0</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="text-slate-400 text-[10px] block">Calls Dialed</span>
+                            <span class="font-black text-lg text-indigo-400" id="stat-dialed">0</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="text-slate-400 text-[10px] block">Booked Deals</span>
+                            <span class="font-black text-lg text-emerald-400" id="stat-booked">0</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                            <span class="text-slate-400 text-[10px] block">Voicemails Dropped</span>
+                            <span class="font-black text-lg text-sky-400" id="stat-voicemail">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Dialer Controls -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="dialNextCampaignLead()" id="btn-dial-next" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition shadow flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-phone-volume text-emerald-400 animate-pulse"></i> Dial Next Prospect
+                        </button>
+                        <button onclick="autoDialCampaignBatch()" id="btn-dial-batch" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs transition shadow flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-bolt text-amber-300"></i> Auto-Dial Batch
+                        </button>
+                    </div>
+
+                    <!-- Live Spoken Dialogue Transcript Box -->
+                    <div id="dialer-transcript-card" class="hidden p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span class="font-bold text-slate-200" id="call-contact-display">Call in progress...</span>
+                            </div>
+                            <button onclick="replayLastCallAudio()" id="btn-replay-audio" class="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 text-[10px] font-semibold transition flex items-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-volume-high"></i> Listen to Audio
+                            </button>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-slate-950 text-slate-300 text-[11px] font-mono leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar" id="call-transcript-text">
+                            <!-- Live transcript -->
+                        </div>
+                        <div id="call-appointment-banner" class="hidden p-2 rounded-lg bg-emerald-950/70 border border-emerald-800 text-emerald-200 text-xs flex items-center justify-between">
+                            <span class="font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-calendar-check text-emerald-400"></i> Appointment Booked!
+                            </span>
+                            <div class="flex items-center gap-1.5">
+                                <a id="link-google-cal" href="#" target="_blank" class="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-bold">
+                                    Google Cal
+                                </a>
+                                <a id="link-ics-cal" href="#" download class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold">
+                                    .ICS
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/60 text-right shrink-0">
+                <button onclick="closeUploadModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition cursor-pointer">
                     Close
                 </button>
             </div>
@@ -1213,8 +1327,8 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
 
         function formatMarkdown(text) {
             let res = escapeHtml(text);
-            res = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            res = res.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            res = res.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+            res = res.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
             res = res.replace(/\\n/g, '<br/>');
             return res;
         }
@@ -1493,6 +1607,288 @@ def render_residential_portal(api_prefix: str = "/JsProject") -> str:
             } catch (err) {
                 resBox.innerHTML = `<strong>Simulated Completion SMS:</strong> "⭐ Thank you for choosing Apex Home Services! Your service is now complete. We back all work with our 100% Satisfaction Guarantee."`;
             }
+        // =========================================================================
+        // PROSPECT UPLOAD & CAMPAIGN POWER DIALER JS (STEP 1-3)
+        // =========================================================================
+        let currentSelectedProspectFile = null;
+        let activeCampaignId = null;
+        let lastDialedTranscript = "";
+
+        function openUploadModal() {
+            document.getElementById('prospect-modal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('prospect-modal').classList.add('hidden');
+        }
+
+        function handleFileSelected(event) {
+            const file = event.target.files[0];
+            if (file) {
+                currentSelectedProspectFile = file;
+                document.getElementById('file-label').innerHTML = `<span class="text-amber-400 font-bold"><i class="fa-solid fa-file-check"></i> ${escapeHtml(file.name)}</span> (${(file.size / 1024).toFixed(1)} KB)`;
+            }
+        }
+
+        async function previewProspectUpload() {
+            if (!currentSelectedProspectFile) {
+                alert("Please select or drop a CSV file first!");
+                return;
+            }
+
+            const btn = document.getElementById('btn-preview');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-400"></i> Parsing...`;
+            btn.disabled = true;
+
+            const campaignName = document.getElementById('ui-campaign-name').value.trim();
+            const trade = document.getElementById('ui-campaign-trade').value;
+            const skipDuplicates = document.getElementById('ui-skip-duplicates').checked;
+
+            const formData = new FormData();
+            formData.append('file', currentSelectedProspectFile);
+            formData.append('campaign_name', campaignName);
+            formData.append('trade_service', trade);
+            formData.append('skip_duplicates', skipDuplicates ? 'true' : 'false');
+            formData.append('dry_run', 'true');
+
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/prospects/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                btn.innerHTML = `<i class="fa-solid fa-magnifying-glass text-amber-400"></i> Preview Mapping`;
+                btn.disabled = false;
+
+                if (!res.ok) {
+                    alert(data.detail || "Error previewing CSV file.");
+                    return;
+                }
+
+                // Render badges
+                const badgeBox = document.getElementById('preview-badges');
+                badgeBox.innerHTML = `
+                    <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">${data.valid_count} Valid</span>
+                    <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">${data.duplicate_count} Duplicates</span>
+                    <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold">${data.invalid_count} Errors</span>
+                `;
+
+                // Render header chips
+                const chipsBox = document.getElementById('detected-headers-chips');
+                chipsBox.innerHTML = "";
+                for (const [raw, canonical] of Object.entries(data.detected_columns || {})) {
+                    chipsBox.innerHTML += `
+                        <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                            <strong class="text-slate-400">${escapeHtml(raw)}</strong> &rarr; <span class="text-amber-400">${escapeHtml(canonical)}</span>
+                        </span>
+                    `;
+                }
+
+                // Render sample rows
+                const tbody = document.getElementById('preview-table-body');
+                tbody.innerHTML = "";
+                (data.sample_rows || []).forEach(r => {
+                    const statusBadge = r.is_valid 
+                        ? (r.is_duplicate ? `<span class="text-amber-400 font-bold">Duplicate</span>` : `<span class="text-emerald-400 font-bold">Valid</span>`)
+                        : `<span class="text-rose-400 font-bold">Invalid</span>`;
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-900/40">
+                            <td class="p-2 font-medium text-white">${escapeHtml(r.first_name || "")} ${escapeHtml(r.last_name || "")}</td>
+                            <td class="p-2 font-mono text-slate-300">${escapeHtml(r.clean_phone || r.phone || "Missing")}</td>
+                            <td class="p-2 text-slate-400">${escapeHtml(r.address || "")}</td>
+                            <td class="p-2 text-slate-400">${escapeHtml(r.trade_service || trade)}</td>
+                            <td class="p-2">${statusBadge}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('preview-summary-text').innerText = `Detected ${data.total_rows_detected} total prospects. ${data.valid_count} ready for autonomous calling.`;
+                document.getElementById('prospect-preview-box').classList.remove('hidden');
+
+            } catch (err) {
+                btn.innerHTML = `<i class="fa-solid fa-magnifying-glass text-amber-400"></i> Preview Mapping`;
+                btn.disabled = false;
+                console.error("Preview error", err);
+                alert("Failed to connect to prospect preview endpoint.");
+            }
+        }
+
+        async function executeProspectIngestion() {
+            if (!currentSelectedProspectFile) return;
+
+            const btn = document.getElementById('btn-ingest');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-white"></i> Ingesting into CRM...`;
+            btn.disabled = true;
+
+            const campaignName = document.getElementById('ui-campaign-name').value.trim();
+            const trade = document.getElementById('ui-campaign-trade').value;
+            const skipDuplicates = document.getElementById('ui-skip-duplicates').checked;
+
+            const formData = new FormData();
+            formData.append('file', currentSelectedProspectFile);
+            formData.append('campaign_name', campaignName);
+            formData.append('trade_service', trade);
+            formData.append('skip_duplicates', skipDuplicates ? 'true' : 'false');
+            formData.append('dry_run', 'false');
+
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/prospects/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Import & Queue for Bot`;
+                btn.disabled = false;
+
+                if (!res.ok || !data.success) {
+                    alert(data.detail || "Error importing prospects.");
+                    return;
+                }
+
+                activeCampaignId = data.campaign_id;
+                document.getElementById('dialer-campaign-title').innerHTML = `<i class="fa-solid fa-robot text-amber-400"></i> Campaign: ${escapeHtml(data.campaign_name)}`;
+                document.getElementById('dialer-trade-label').innerText = `Vertical: ${data.trade_service.replace('_', ' ').toUpperCase()} • ${data.leads_created} Prospects Queued`;
+
+                await refreshCampaignDialerProgress();
+                document.getElementById('campaign-dialer-box').classList.remove('hidden');
+                document.getElementById('campaign-dialer-box').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Import & Queue for Bot`;
+                btn.disabled = false;
+                console.error("Ingest error", err);
+                alert("Failed to ingest prospects into CRM.");
+            }
+        }
+
+        async function refreshCampaignDialerProgress() {
+            if (!activeCampaignId) return;
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/campaigns/${activeCampaignId}/progress`);
+                const data = await res.json();
+                document.getElementById('stat-pending').innerText = data.pending_leads;
+                document.getElementById('stat-dialed').innerText = data.dialed_count;
+                document.getElementById('stat-booked').innerText = data.booked_count;
+                document.getElementById('stat-voicemail').innerText = data.voicemail_count;
+                document.getElementById('dialer-status-badge').innerText = data.status.toUpperCase();
+
+                if (data.status === 'completed') {
+                    document.getElementById('dialer-status-badge').className = "px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase";
+                }
+            } catch (err) {
+                console.error("Progress fetch error", err);
+            }
+        }
+
+        async function dialNextCampaignLead() {
+            if (!activeCampaignId) {
+                alert("No active campaign. Please upload a prospect list first.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-dial-next');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-white"></i> Calling...`;
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/campaigns/${activeCampaignId}/dial_next`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ simulate: true })
+                });
+                const data = await res.json();
+                btn.innerHTML = `<i class="fa-solid fa-phone-volume text-emerald-400 animate-pulse"></i> Dial Next Prospect`;
+                btn.disabled = false;
+
+                if (!res.ok) {
+                    alert(data.detail || "Failed to dial next lead.");
+                    return;
+                }
+
+                // Display transcript card
+                const transcriptCard = document.getElementById('dialer-transcript-card');
+                transcriptCard.classList.remove('hidden');
+                document.getElementById('call-contact-display').innerText = `${data.contact_name} (${data.phone}) • Outcome: ${data.outcome.toUpperCase()}`;
+                document.getElementById('call-transcript-text').innerText = data.transcript;
+                lastDialedTranscript = data.transcript;
+
+                // Appointment banner
+                const apptBanner = document.getElementById('call-appointment-banner');
+                if (data.appointment_id) {
+                    apptBanner.classList.remove('hidden');
+                    document.getElementById('link-google-cal').href = `${API_PREFIX}/api/v1/residential/calendar/${data.appointment_id}/google`;
+                    document.getElementById('link-ics-cal').href = `${API_PREFIX}/api/v1/residential/calendar/${data.appointment_id}.ics`;
+                } else {
+                    apptBanner.classList.add('hidden');
+                }
+
+                await refreshCampaignDialerProgress();
+
+                // Automatically speak transcript
+                replayLastCallAudio();
+
+            } catch (err) {
+                btn.innerHTML = `<i class="fa-solid fa-phone-volume text-emerald-400 animate-pulse"></i> Dial Next Prospect`;
+                btn.disabled = false;
+                console.error("Dial next error", err);
+            }
+        }
+
+        async function autoDialCampaignBatch() {
+            if (!activeCampaignId) {
+                alert("No active campaign. Please upload a prospect list first.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-dial-batch');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-white"></i> Auto-Dialing...`;
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_PREFIX}/api/v1/residential/campaigns/${activeCampaignId}/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ batch_size: 10, simulate: true })
+                });
+                const data = await res.json();
+                btn.innerHTML = `<i class="fa-solid fa-bolt text-amber-300"></i> Auto-Dial Batch`;
+                btn.disabled = false;
+
+                if (!res.ok) {
+                    alert(data.detail || "Auto-dial failed.");
+                    return;
+                }
+
+                await refreshCampaignDialerProgress();
+                if (data.results && data.results.length > 0) {
+                    const lastResult = data.results[data.results.length - 1];
+                    const transcriptCard = document.getElementById('dialer-transcript-card');
+                    transcriptCard.classList.remove('hidden');
+                    document.getElementById('call-contact-display').innerText = `Batch Complete (${data.results.length} called) • Last: ${lastResult.contact_name}`;
+                    document.getElementById('call-transcript-text').innerText = lastResult.transcript;
+                    lastDialedTranscript = lastResult.transcript;
+                }
+
+            } catch (err) {
+                btn.innerHTML = `<i class="fa-solid fa-bolt text-amber-300"></i> Auto-Dial Batch`;
+                btn.disabled = false;
+                console.error("Auto dial batch error", err);
+            }
+        }
+
+        function replayLastCallAudio() {
+            if (!window.speechSynthesis || !lastDialedTranscript) return;
+            window.speechSynthesis.cancel();
+            // Clean out headers like Bot: and Homeowner: for smoother spoken speech
+            const spokenLines = lastDialedTranscript
+                .replace(/System:[^\n]*/g, '')
+                .replace(/Bot:/g, '')
+                .replace(/Homeowner:/g, '')
+                .trim();
+            const utterance = new SpeechSynthesisUtterance(spokenLines.substring(0, 350));
+            utterance.rate = 1.05;
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
         }
 
     </script>
