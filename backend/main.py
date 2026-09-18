@@ -1726,7 +1726,7 @@ async def dashboard_home():
 
         <!-- Dual CRM Switcher Header Bar -->
         <div class="border-b border-slate-800 bg-slate-950/80 px-6 py-3 sticky top-0 z-30 backdrop-blur">
-            <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="max-w-[1600px] w-full mx-auto flex flex-wrap items-center justify-between gap-4">
                 <!-- Switcher Tabs (4 Modes) -->
                 <div class="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
                     <button id="tab-prospects" onclick="switchCrmMode('prospects')" class="px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-md">
@@ -1823,46 +1823,54 @@ async def dashboard_home():
         <!-- View 1: Prospects & Pipeline CRM -->
         <div id="view-prospects">
             <!-- Active Convert Won Lead Action Bar -->
-            <div class="max-w-7xl mx-auto px-6 pt-6">
-                <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-emerald-950/80 border-2 border-amber-500/70 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 ring-1 ring-amber-400/20">
-                    <div class="flex items-center gap-3.5">
-                        <div class="h-12 w-12 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/50 flex items-center justify-center text-2xl shadow-inner shrink-0">
-                            <i class="fa-solid fa-trophy animate-pulse"></i>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-700/50">Deal Closer Action Bar</span>
-                                <h3 class="font-bold text-sm md:text-base text-white">Convert Won Lead &amp; Transfer to Client CRM (CRM 2)</h3>
+            <div class="max-w-[1600px] w-full mx-auto px-6 pt-6">
+                <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-emerald-950/80 border-2 border-amber-500/70 shadow-2xl flex flex-col gap-4 ring-1 ring-amber-400/20 w-full">
+                    <!-- Top row: Header & Target Account Details -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
+                        <div class="flex items-center gap-3.5 min-w-0">
+                            <div class="h-11 w-11 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/50 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                <i class="fa-solid fa-trophy animate-pulse"></i>
                             </div>
-                            <p class="text-xs text-slate-300 mt-0.5">
-                                Target Account: <strong id="action-bar-lead-name" class="text-amber-300 font-mono font-bold">Titan Logistics &amp; Distribution</strong>
-                                <span class="text-slate-400 text-[11px] ml-1.5">• 1-click transfers company, contact details, notes, and records initial sales order in Client CRM.</span>
-                            </p>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-900/60 px-2 py-0.5 rounded border border-amber-700/50">Deal Closer Action Bar</span>
+                                    <h3 class="font-bold text-sm sm:text-base text-white">Convert Won Lead &amp; Transfer to Client CRM (CRM 2)</h3>
+                                </div>
+                                <p class="text-xs text-slate-300 mt-0.5">
+                                    Target Account: <strong id="action-bar-lead-name" class="text-amber-300 font-mono font-bold">Titan Logistics &amp; Distribution</strong>
+                                    <span class="text-slate-400 text-[11px] ml-1.5 hidden sm:inline">• 1-click transfers company, contact details, notes, and records initial sales order in Client CRM.</span>
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
-                        <button onclick="triggerAutonomous6BotDAG()" class="px-3.5 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-400/40 transform hover:scale-[1.02]">
-                            <i class="fa-solid fa-robot text-amber-300"></i> Run 6-Bot Autonomous DAG
-                        </button>
-                        <button onclick="triggerGatherIntelligence()" class="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-purple-400/40">
-                            <i class="fa-solid fa-sitemap"></i> Gather BI &amp; Owners
-                        </button>
-                        <button onclick="triggerBookAppointment()" class="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-teal-400/40">
-                            <i class="fa-solid fa-calendar-check"></i> AI Book Closer Call
-                        </button>
-                        <button onclick="triggerExecutiveSalesProgram()" class="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-blue-400/40">
-                            <i class="fa-solid fa-briefcase"></i> Executive Sales Program
-                        </button>
-                        <button id="btn-action-fast-convert" onclick="executeFastConversion()" class="flex-1 md:flex-none px-4 py-2.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] border border-amber-300/40">
-                            <i class="fa-solid fa-bolt text-slate-950"></i> Transfer to Client CRM
-                        </button>
-                        <button onclick="openConvertModal()" class="px-3 py-2.5 bg-slate-800/90 hover:bg-slate-700 border border-amber-500/40 text-amber-300 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-sliders"></i> Customize Order
-                        </button>
+                    <!-- Bottom row: Autonomous Actions & Client CRM Conversion Capsule -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 w-full">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="triggerAutonomous6BotDAG()" class="px-3.5 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-extrabold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer border border-indigo-400/40 transform hover:scale-[1.02]">
+                                <i class="fa-solid fa-robot text-amber-300"></i> Run 6-Bot Autonomous DAG
+                            </button>
+                            <button onclick="triggerGatherIntelligence()" class="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-purple-400/40">
+                                <i class="fa-solid fa-sitemap"></i> Gather BI &amp; Owners
+                            </button>
+                            <button onclick="triggerBookAppointment()" class="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-teal-400/40">
+                                <i class="fa-solid fa-calendar-check"></i> AI Book Closer Call
+                            </button>
+                            <button onclick="triggerExecutiveSalesProgram()" class="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer border border-blue-400/40">
+                                <i class="fa-solid fa-briefcase"></i> Executive Sales Program
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 p-1.5 bg-slate-950/85 border border-amber-500/50 rounded-xl shadow-inner">
+                            <button id="btn-action-fast-convert" onclick="executeFastConversion()" class="px-4 py-2.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold rounded-lg text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer transform hover:scale-[1.02] border border-amber-300/40">
+                                <i class="fa-solid fa-bolt text-slate-950"></i> Transfer to Client CRM
+                            </button>
+                            <button onclick="openConvertModal()" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-amber-500/50 text-amber-300 hover:text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer shadow">
+                                <i class="fa-solid fa-sliders text-amber-400"></i> Customize Order
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <main class="max-w-[1600px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left Column: Tenant Auth & CRM Leads -->
             <div class="space-y-6">
                 <!-- Auth & Organization Card -->
