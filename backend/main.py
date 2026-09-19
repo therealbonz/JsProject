@@ -9024,7 +9024,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 try {
                     showToast("Dispatching Postal Collateral...", "Generating print-ready PDF letter & registering with Lob.com / USPS...", "fa-envelopes-bulk", "info");
                     // Fetch existing leads to find one to attach to
-                    const leadRes = await fetch("/api/v1/leads?limit=1", {
+                    const leadRes = await fetch(API_BASE + "/crm/leads?limit=1", {
                         headers: { "Authorization": "Bearer " + authToken, "X-Organization-Id": currentOrgId }
                     });
                     const leads = await leadRes.json();
@@ -9034,7 +9034,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     }
                     const targetLead = leads[0];
 
-                    const res = await fetch("/api/v1/collateral/dispatch-postal", {
+                    const res = await fetch(API_BASE + "/collateral/dispatch-postal", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -12436,9 +12436,9 @@ ${p.ai_drafted_outreach}
             async function triggerAutonomous6BotDAG() {
                 showToast("🤖 Autonomous 6-Bot Pipeline", "Launching Lead Dev ➔ DM Discovery ➔ SDR ➔ Setter ➔ Exec Closer ➔ Objection Closer sequence...", "info");
                 try {
-                    const token = localStorage.getItem("access_token") || localStorage.getItem("token") || (typeof currentToken !== "undefined" ? currentToken : "");
-                    const orgId = (typeof currentOrgId !== "undefined" ? currentOrgId : "");
-                    const res = await fetch("/api/v1/pipeline/dag/execute", {
+                    const token = authToken || localStorage.getItem("access_token") || localStorage.getItem("token") || "";
+                    const orgId = currentOrgId || "";
+                    const res = await fetch(API_BASE + "/pipeline/dag/execute", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
