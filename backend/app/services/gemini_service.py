@@ -28,6 +28,67 @@ class GeminiService:
     def is_live(self) -> bool:
         return self._client is not None
 
+    def configure(self, api_key: str, model: Optional[str] = None) -> bool:
+        """Dynamically reconfigures the Gemini client in memory."""
+        self.api_key = api_key.strip() if api_key else ""
+        if model:
+            self.model = model.strip()
+        
+        if not self.api_key:
+            self._client = None
+            logger.info("Gemini API key cleared; reverted to local simulation.")
+            return False
+
+        try:
+            from google import genai
+            self._client = genai.Client(api_key=self.api_key)
+            logger.info(f"Dynamically configured Google GenAI client with model: {self.model}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to dynamically initialize Google GenAI client: {e}")
+            self._client = None
+            return False
+
+    async def test_connection(self, api_key: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
+        """Tests live connectivity to Google GenAI with latency measurement."""
+        test_key = (api_key.strip() if api_key else self.api_key) or ""
+        test_model = (model.strip() if model else self.model) or "gemini-2.5-flash"
+        
+        if not test_key:
+            return {
+                "success": False,
+                "error": "No API key provided or configured.",
+                "is_live": False,
+                "latency_ms": 0
+            }
+        
+        import time
+        t0 = time.time()
+        try:
+            from google import genai
+            client = genai.Client(api_key=test_key)
+            resp = client.models.generate_content(
+                model=test_model,
+                contents="Ping. Respond with exactly the word 'OK'."
+            )
+            elapsed_ms = round((time.time() - t0) * 1000, 2)
+            return {
+                "success": True,
+                "model": test_model,
+                "response": resp.text.strip() if resp.text else "OK",
+                "latency_ms": elapsed_ms,
+                "is_live": True
+            }
+        except Exception as e:
+            elapsed_ms = round((time.time() - t0) * 1000, 2)
+            logger.error(f"Gemini connection test failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "is_live": False,
+                "latency_ms": elapsed_ms
+            }
+
     async def _call_gemini(self, system_instruction: str, prompt: str) -> str:
         """Helper to invoke Gemini with system instruction."""
         if not self._client:

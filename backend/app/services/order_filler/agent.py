@@ -12,6 +12,8 @@ from app.models.crm import ClientSale
 from app.services.order_filler.amazon_adapter import AmazonBusinessAdapter
 from app.services.order_filler.grainger_adapter import GraingerAdapter
 from app.services.order_filler.digikey_adapter import DigiKeyAdapter
+from app.services.order_filler.uline_adapter import UlineAdapter
+from app.services.order_filler.mcmaster_adapter import McMasterCarrAdapter
 from app.services.order_filler.generic_web_adapter import GenericWebStoreAdapter
 from app.services.order_filler.base_adapter import BaseSupplierAdapter
 from app.services.gemini_service import gemini_service
@@ -29,6 +31,8 @@ class OrderFillerAgent:
             "amazon_business": AmazonBusinessAdapter(),
             "grainger": GraingerAdapter(),
             "digikey": DigiKeyAdapter(),
+            "uline": UlineAdapter(),
+            "mcmaster": McMasterCarrAdapter(),
         }
 
     def get_adapter_for_supplier(self, supplier: Supplier) -> BaseSupplierAdapter:
@@ -85,11 +89,22 @@ class OrderFillerAgent:
                     name="McMaster-Carr Supply Co.",
                     code="mcmaster",
                     website_url="https://www.mcmaster.com",
-                    adapter_type="web_automation",
+                    adapter_type="api",
                     status="active",
                     category="Hardware & Raw Materials",
                     lead_days_estimate=1,
                     notes="Same-day freight and CAD-grounded hardware parts."
+                ),
+                Supplier(
+                    organization_id=org_id,
+                    name="Uline Shipping Supplies",
+                    code="uline",
+                    website_url="https://www.uline.com",
+                    adapter_type="api",
+                    status="active",
+                    category="Packaging & Shipping Supplies",
+                    lead_days_estimate=1,
+                    notes="Premier packaging, double-wall corrugated cartons, and warehouse tape."
                 ),
             ]
             db.add_all(defaults)
@@ -131,8 +146,10 @@ class OrderFillerAgent:
                 target_supplier = next((s for s in suppliers if s.code == "digikey"), suppliers[0])
             elif any(w in p_lower for w in ["filter", "mro", "pallet truck", "degreaser", "sling", "motor", "tool"]):
                 target_supplier = next((s for s in suppliers if s.code == "grainger"), suppliers[0])
-            elif any(w in p_lower for w in ["mcmaster", "bolt", "screw", "shaft", "fitting"]):
+            elif any(w in p_lower for w in ["mcmaster", "bolt", "screw", "shaft", "fitting", "aluminum", "fastener", "hose", "o-ring", "caster"]):
                 target_supplier = next((s for s in suppliers if s.code == "mcmaster"), suppliers[0])
+            elif any(w in p_lower for w in ["uline", "packaging", "carton", "bubble wrap", "poly mailer", "corrugated", "stretch wrap", "bag sealer"]):
+                target_supplier = next((s for s in suppliers if s.code == "uline"), suppliers[0])
             else:
                 target_supplier = next((s for s in suppliers if s.code == "amazon_business"), suppliers[0])
 

@@ -1257,3 +1257,143 @@ async def delete_appointment(
     await db.delete(appointment)
     await db.commit()
     return {"status": "deleted", "id": appointment_id}
+
+@router.post("/clients/{client_id}/trigger-restock")
+async def trigger_client_restock(
+    client_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    1-Click Automated Client Restock.
+    Calculates replenishment requirements based on client consumption history,
+    dispatches an autonomous Purchase Order via the AI Order Filler,
+    advances the next replenishment cycle date, and records audit telemetry.
+    """
+    user, org, _ = tenant_context
+    stmt = select(ClientAccount).options(
+        selectinload(ClientAccount.company),
+        selectinload(ClientAccount.primary_contact),
+        selectinload(ClientAccount.sales)
+    ).where(ClientAccount.id == client_id, ClientAccount.organization_id == org.id)
+    res = await db.execute(stmt)
+    client = res.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client account not found")
+
+    recent_sale = client.sales[0] if client.sales else None
+    items_desc = recent_sale.items_summary if recent_sale and recent_sale.items_summary else "Commercial Restock Kit (Corrugated Packaging & Facility Disinfectant Supplies)"
+    
+    prompt = f"Replenish 25 cases of {items_desc} for customer warehouse dispatch"
+    dest_address = client.company.address if client.company and client.company.address else f"{client.account_name} Distribution Facility"
+
+    from app.services.order_filler.agent import order_filler_agent
+    po_result = await order_filler_agent.auto_fill_order(
+        db=db,
+        org_id=org.id,
+        prompt=prompt,
+        preferred_supplier_code="auto",
+        destination_type="client_warehouse",
+        destination_address=dest_address,
+        client_sale_id=recent_sale.id if recent_sale else None,
+        max_budget_limit=3000.0
+    )
+
+    cadence = client.reorder_cadence_days or 30
+    now = datetime.now(timezone.utc)
+    client.next_reorder_date = now + timedelta(days=cadence)
+
+    audit = AuditLog(
+        organization_id=org.id,
+        actor_type="human_rep",
+        actor_id=user.id,
+        action="client_automated_restock_triggered",
+        target_entity="client_account",
+        target_id=client.id,
+        payload={
+            "po_number": po_result.get("po_number"),
+            "supplier": po_result.get("supplier"),
+            "total_cost": po_result.get("total_cost"),
+            "next_reorder_date": client.next_reorder_date.isoformat()
+        }
+    )
+    db.add(audit)
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Automated replenishment purchase order dispatched for {client.account_name}.",
+        "client_id": client.id,
+        "account_name": client.account_name,
+        "next_reorder_date": client.next_reorder_date.isoformat(),
+        "purchase_order": po_result
+    }
+
+@router.get("/clients/{client_id}/quote")
+async def get_client_proforma_quote(
+    client_id: str,
+    tenant_context: tuple[User, Organization, str] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generates a formal, itemized B2B proforma quotation for a client account.
+    """
+    user, org, _ = tenant_context
+    stmt = select(ClientAccount).options(
+        selectinload(ClientAccount.company),
+        selectinload(ClientAccount.primary_contact),
+        selectinload(ClientAccount.sales)
+    ).where(ClientAccount.id == client_id, ClientAccount.organization_id == org.id)
+    res = await db.execute(stmt)
+    client = res.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client account not found")
+
+    now = datetime.now(timezone.utc)
+    quote_number = f"QT-{now.strftime('%Y%m%d')}-{client.id[:6].upper()}"
+    valid_until = (now + timedelta(days=30)).strftime("%B %d, %Y")
+
+    tier_discount = 0.15 if client.account_tier == "enterprise" else (0.10 if client.account_tier == "gold" else 0.05)
+    
+    quote_items = [
+        {"item_name": "Industrial Packaging & Shipping Master Pack (Pallet of 50 Bundles)", "sku": "UL-S-4122-PLT", "qty": 2, "unit_price": 485.00, "total": 970.00},
+        {"item_name": "Commercial Grade Surface Disinfectant (Case of 12x32oz Spray)", "sku": "AB-JAN-LYSOL-CS", "qty": 4, "unit_price": 84.50, "total": 338.00},
+        {"item_name": "Heavy-Duty Cast Stretch Wrap Film 80 Gauge (16 Rolls)", "sku": "UL-S-2849-BULK", "qty": 2, "unit_price": 145.00, "total": 290.00},
+        {"item_name": "Priority Next-Day Logistics & Scheduled Restocking SLA", "sku": "SLA-RESTOCK-ND", "qty": 1, "unit_price": 0.00, "total": 0.00}
+    ]
+    subtotal = sum(it["total"] for it in quote_items)
+    discount_amount = round(subtotal * tier_discount, 2)
+    grand_total = round(subtotal - discount_amount, 2)
+
+    return {
+        "quote_number": quote_number,
+        "date_issued": now.strftime("%B %d, %Y"),
+        "valid_until": valid_until,
+        "account": {
+            "id": client.id,
+            "account_name": client.account_name,
+            "tier": client.account_tier,
+            "account_manager": client.account_manager,
+            "contact_name": f"{client.primary_contact.first_name} {client.primary_contact.last_name}" if client.primary_contact else "Procurement Officer",
+            "contact_email": client.primary_contact.email if client.primary_contact else None,
+            "address": client.company.address if client.company else "On File"
+        },
+        "organization": {
+            "name": org.brand_name or org.name,
+            "support_email": org.support_email,
+            "support_phone": org.support_phone
+        },
+        "commercial_terms": {
+            "payment_terms": "Net-30 Commercial Terms",
+            "shipping_terms": "FOB Destination / Next-Day Scheduled Restock",
+            "tier_volume_discount_pct": f"{int(tier_discount * 100)}%"
+        },
+        "items": quote_items,
+        "financials": {
+            "subtotal": subtotal,
+            "discount_amount": discount_amount,
+            "estimated_tax": 0.0,
+            "grand_total": grand_total,
+            "currency": "USD"
+        }
+    }

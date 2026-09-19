@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.middleware import TenantHostMiddleware
-from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router, residential, prospect_imports, campaign_dialer
+from app.api.v1 import auth, crm, agent, hitl, conversations, fulfillment, payments, public_tracking, replenishments, organization_settings, documents, customer_portal, forecasting, saas_licenses, team, executive_analytics, developer, metered_billing, custom_domains, support_copilot, workflows, billing_checkout, pipeline_dag, voice_collateral, nurture_router, residential, prospect_imports, campaign_dialer, ai_settings
 from app.services.gemini_service import gemini_service
 from app.templates.landing_page import render_landing_page
 from app.templates.signup_page import render_signup_page
@@ -187,6 +187,7 @@ for prefix in ["/api/v1", "/JsProject/api/v1"]:
     app.include_router(residential.router, prefix=prefix)
     app.include_router(prospect_imports.router, prefix=prefix)
     app.include_router(campaign_dialer.router, prefix=prefix)
+    app.include_router(ai_settings.router, prefix=prefix)
 
 @app.get("/health")
 @app.get("/JsProject/health")
@@ -2461,7 +2462,13 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                 </div>
                                 <p id="detail-client-contact" class="text-xs text-slate-400 mt-0.5">Click an account on the left to review contracts, notes, and log sales transactions.</p>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button id="btn-instant-auto-restock" onclick="triggerFastAutoRestock()" disabled class="py-2 px-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-md cursor-pointer" title="Dispatch automated warehouse replenishment PO via AI Order Filler">
+                                    <i class="fa-solid fa-truck-fast text-purple-200"></i> Auto-Restock PO
+                                </button>
+                                <button id="btn-view-proforma-quote" onclick="viewClientProformaQuote()" disabled class="py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-600/70 disabled:bg-slate-800 disabled:text-slate-600 text-slate-200 rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-md cursor-pointer" title="Generate itemized proforma quotation">
+                                    <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Proforma Quote
+                                </button>
                                 <button id="btn-trigger-replenishment" onclick="triggerClientReplenishmentProposal()" disabled class="py-2 px-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-md cursor-pointer" title="Generate an autonomous restock proposal with Stripe checkout link">
                                     <i class="fa-solid fa-rotate text-amber-200"></i> Restock Proposal
                                 </button>
@@ -2469,7 +2476,7 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                                     <i class="fa-solid fa-arrow-up-right-from-square text-cyan-300"></i> Customer Portal
                                 </button>
                                 <button id="btn-toggle-sale" onclick="toggleLogSaleForm()" disabled class="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded text-xs font-semibold transition flex items-center gap-2 shadow-md">
-                                    <i class="fa-solid fa-plus-circle"></i> Log New Sale / Order
+                                    <i class="fa-solid fa-plus-circle"></i> Log Sale
                                 </button>
                             </div>
                         </div>
@@ -3257,6 +3264,60 @@ Select a lead from the left to trigger autonomous research or outreach email dra
                             <div>
                                 <label class="block text-slate-400 mb-1.5 font-semibold">Custom Invoicing &amp; Portal Footer Note</label>
                                 <input type="text" id="setting-custom-footer" placeholder="Thank you for partnering with Acme Supply Co. Direct B2B Distribution Division." oninput="updateLiveBrandPreview()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-purple-500 text-xs">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Google Gemini AI Engine Configuration Section -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <div class="h-6 w-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">
+                                    <i class="fa-solid fa-brain"></i>
+                                </div>
+                                <h2 class="font-bold text-sm text-slate-200">Google Gemini AI Engine &amp; Generative Models</h2>
+                            </div>
+                            <span id="badge-gemini-status" class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-700/50 flex items-center gap-1">
+                                <i class="fa-solid fa-bolt"></i> Local Guardrail Engine
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-400">
+                            Configure your Google Gemini API key to activate live generative AI across the 6-Bot Autonomous Revenue DAG, executive sales dossier generation, and inbound reply triage. If unconfigured or rate-limited, the platform falls back seamlessly to deterministic local-first guardrails.
+                        </p>
+
+                        <div class="space-y-4 text-xs">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="block text-slate-400 mb-1.5 font-semibold flex items-center justify-between">
+                                        <span>Google Gemini API Key</span>
+                                        <span class="text-[10px] text-slate-500 font-normal">Begins with AIzaSy...</span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="password" id="setting-gemini-key" placeholder="AIzaSy••••••••••••••••••••••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono focus:outline-none focus:border-purple-500 text-xs pr-10">
+                                        <button type="button" onclick="toggleGeminiKeyVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer">
+                                            <i class="fa-solid fa-eye" id="icon-toggle-gemini-key"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1.5 font-semibold">Model Identifier</label>
+                                    <select id="setting-gemini-model" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono focus:outline-none focus:border-purple-500 text-xs">
+                                        <option value="gemini-2.5-flash">gemini-2.5-flash (Fast &amp; Recommended)</option>
+                                        <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Reasoning)</option>
+                                        <option value="gemini-1.5-flash">gemini-1.5-flash (Legacy Lightweight)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 pt-1">
+                                <button type="button" onclick="testGeminiConnection()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700">
+                                    <i class="fa-solid fa-satellite-dish text-purple-400"></i> Test Connection
+                                </button>
+                                <button type="button" onclick="saveGeminiSettings()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg shadow-purple-900/30">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save &amp; Activate AI Key
+                                </button>
+                                <span id="label-gemini-test-result" class="text-xs text-slate-400 font-mono"></span>
                             </div>
                         </div>
                     </div>
@@ -7134,6 +7195,10 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 if (btnReplenish) btnReplenish.disabled = false;
                 const btnPortal = document.getElementById("btn-portal-link");
                 if (btnPortal) btnPortal.disabled = false;
+                const btnAutoRestock = document.getElementById("btn-instant-auto-restock");
+                if (btnAutoRestock) btnAutoRestock.disabled = false;
+                const btnQuote = document.getElementById("btn-view-proforma-quote");
+                if (btnQuote) btnQuote.disabled = false;
                 document.getElementById("btn-save-client-notes").disabled = false;
 
                 // Fetch sales for this client
@@ -7414,6 +7479,64 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                     } else {
                         const err = await res.json();
                         alert("Error detaching payment method: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Error: " + e.message);
+                }
+            }
+
+            async function triggerFastAutoRestock() {
+                if (!selectedClient) return;
+                if (!confirm(`Dispatch automated warehouse replenishment PO for ${selectedClient.account_name}?`)) return;
+
+                try {
+                    showToast("Dispatching Restock PO...", `AI Order Filler analyzing consumption history for ${selectedClient.account_name}...`, "fa-truck-fast", "info");
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/trigger-restock`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        const po = data.purchase_order || {};
+                        const cost = po.total_cost ? `$${Number(po.total_cost).toLocaleString(undefined, {minimumFractionDigits: 2})}` : "$0.00";
+                        showToast("Replenishment PO Dispatched!", `PO #${po.po_number || 'UNKNOWN'} issued to ${po.supplier || 'Supplier'} (${cost}). Next cycle advanced.`, "fa-circle-check", "success");
+                        await fetchClients();
+                        if (typeof fetchPurchaseOrders === 'function') await fetchPurchaseOrders();
+                        if (typeof fetchProcurementStats === 'function') await fetchProcurementStats();
+                        if (typeof fetchDueReplenishments === 'function') await fetchDueReplenishments();
+                    } else {
+                        const err = await res.json();
+                        alert("Error triggering auto-restock: " + (err.detail || res.statusText));
+                    }
+                } catch(e) {
+                    alert("Network error: " + e.message);
+                }
+            }
+
+            async function viewClientProformaQuote() {
+                if (!selectedClient) return;
+                try {
+                    showToast("Generating Proforma...", `Computing wholesale volume quotation for ${selectedClient.account_name}...`, "fa-file-invoice-dollar", "info");
+                    const res = await fetch(API_BASE + `/crm/clients/${selectedClient.id}/quote`, {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+
+                    if (res.ok) {
+                        const q = await res.json();
+                        let itemsList = q.items.map(it => `• ${it.item_name} (x${it.qty}) - $${it.total.toFixed(2)}`).join("\n");
+                        const quoteSummary = `=========================================\nPROFORMA COMMERCIAL QUOTE: ${q.quote_number}\n=========================================\nClient: ${q.account.account_name} (${q.account.tier.toUpperCase()} TIER)\nIssued: ${q.date_issued} | Valid Until: ${q.valid_until}\n\nITEMIZED CATALOG PRODUCTS:\n${itemsList}\n\nFINANCIAL SUMMARY:\nSubtotal: $${q.financials.subtotal.toFixed(2)}\nTier Discount (${q.commercial_terms.tier_volume_discount_pct}): -$${q.financials.discount_amount.toFixed(2)}\nGrand Total: $${q.financials.grand_total.toFixed(2)} USD\n\nCommercial Terms: ${q.commercial_terms.payment_terms}\nLogistics: ${q.commercial_terms.shipping_terms}\n=========================================`;
+                        alert(quoteSummary);
+                    } else {
+                        const err = await res.json();
+                        alert("Error generating quote: " + (err.detail || res.statusText));
                     }
                 } catch(e) {
                     alert("Error: " + e.message);
@@ -8871,6 +8994,7 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
 
                     updateLiveBrandPreview();
                     fetchNotificationHistory();
+                    fetchGeminiSettings();
                 } catch(e) {
                     console.error("Error fetching organization settings:", e);
                 } finally {
@@ -8965,6 +9089,138 @@ function verifyJsProjectWebhook(rawBodyBuffer, signatureHeader, secretKey, toler
                 }).catch(() => {
                     prompt("Copy your Stripe Webhook URL:", url);
                 });
+            function toggleGeminiKeyVisibility() {
+                const input = document.getElementById("setting-gemini-key");
+                const icon = document.getElementById("icon-toggle-gemini-key");
+                if (!input || !icon) return;
+                if (input.type === "password") {
+                    input.type = "text";
+                    icon.classList.remove("fa-eye");
+                    icon.classList.add("fa-eye-slash");
+                } else {
+                    input.type = "password";
+                    icon.classList.remove("fa-eye-slash");
+                    icon.classList.add("fa-eye");
+                }
+            }
+
+            async function fetchGeminiSettings() {
+                if (!authToken) return;
+                try {
+                    const res = await fetch(API_BASE + "/settings/ai", {
+                        headers: {
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const keyInput = document.getElementById("setting-gemini-key");
+                        const modelSelect = document.getElementById("setting-gemini-model");
+                        const badge = document.getElementById("badge-gemini-status");
+                        if (keyInput && data.masked_api_key) {
+                            keyInput.value = data.masked_api_key;
+                        }
+                        if (modelSelect && data.model) {
+                            modelSelect.value = data.model;
+                        }
+                        if (badge) {
+                            if (data.is_live) {
+                                badge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Live ${data.model}`;
+                                badge.className = "px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 flex items-center gap-1";
+                            } else {
+                                badge.innerHTML = `<i class="fa-solid fa-bolt text-purple-400"></i> Local Guardrails`;
+                                badge.className = "px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-700/50 flex items-center gap-1";
+                            }
+                        }
+                    }
+                } catch(e) {
+                    console.error("fetchGeminiSettings error:", e);
+                }
+            }
+
+            async function testGeminiConnection() {
+                if (!authToken) return;
+                const keyInput = document.getElementById("setting-gemini-key");
+                const modelSelect = document.getElementById("setting-gemini-model");
+                const resultLabel = document.getElementById("label-gemini-test-result");
+                
+                let rawKey = keyInput?.value?.trim() || "";
+                const testKey = rawKey.includes("••") ? null : (rawKey || null);
+                const testModel = modelSelect?.value || "gemini-2.5-flash";
+
+                if (resultLabel) {
+                    resultLabel.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-purple-400 mr-1"></i> Testing connection to Google Gemini...`;
+                }
+
+                try {
+                    const res = await fetch(API_BASE + "/settings/ai/test", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({ api_key: testKey, model: testModel })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        if (resultLabel) {
+                            resultLabel.innerHTML = `<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i> Connected to ${data.model} (${data.latency_ms}ms)</span>`;
+                        }
+                        showToast("Gemini Connection Successful!", `Verified ${data.model} in ${data.latency_ms}ms`, "fa-brain", "success");
+                    } else {
+                        const errMsg = data.error || (data.detail || "Connection failed");
+                        if (resultLabel) {
+                            resultLabel.innerHTML = `<span class="text-rose-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ${errMsg}</span>`;
+                        }
+                        showToast("Gemini Test Failed", errMsg, "fa-circle-xmark", "error");
+                    }
+                } catch(e) {
+                    if (resultLabel) {
+                        resultLabel.innerHTML = `<span class="text-rose-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Network error: ${e.message}</span>`;
+                    }
+                }
+            }
+
+            async function saveGeminiSettings() {
+                if (!authToken) return;
+                const keyInput = document.getElementById("setting-gemini-key");
+                const modelSelect = document.getElementById("setting-gemini-model");
+                const resultLabel = document.getElementById("label-gemini-test-result");
+
+                let rawKey = keyInput?.value?.trim() || "";
+                const saveKey = rawKey.includes("••") ? undefined : rawKey;
+                const saveModel = modelSelect?.value || "gemini-2.5-flash";
+
+                try {
+                    showToast("Saving AI Settings...", "Testing and updating Google Gemini configuration...", "fa-brain", "info");
+                    const res = await fetch(API_BASE + "/settings/ai", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + authToken,
+                            "X-Organization-Id": currentOrgId
+                        },
+                        body: JSON.stringify({
+                            api_key: saveKey,
+                            model: saveModel,
+                            test_before_save: Boolean(saveKey)
+                        })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        showToast("AI Credentials Activated!", `Active Mode: ${data.mode}`, "fa-check", "success");
+                        if (resultLabel) resultLabel.innerHTML = "";
+                        fetchGeminiSettings();
+                    } else {
+                        const err = await res.json();
+                        alert("Error saving Gemini settings: " + (err.detail || "Verification failed"));
+                    }
+                } catch(e) {
+                    alert("Network error saving Gemini settings: " + e.message);
+                }
             }
 
             async function saveOrganizationSettings() {

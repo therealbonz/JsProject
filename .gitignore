@@ -20,6 +20,8 @@ htmlcov/
 *.db-wal
 *.db-shm
 *.sqlite3
+backups/
+*.sql.gz
 
 # Environment (keep example)
 .env

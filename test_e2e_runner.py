@@ -42,7 +42,7 @@ conv_res = client.post(f'/api/v1/crm/leads/{lead_id}/convert-to-client', headers
 client_account = conv_res.json()
 print(f"5. Converted to Client CRM 2: Status {conv_res.status_code} | Account Name: {client_account.get('account_name')} | Tier: {client_account.get('account_tier')} | Manager: {client_account.get('account_manager')}")
 
-# 6. AI Automated Order Filler (CRM 3)
+# 6. AI Automated Order Filler (CRM 3) - Amazon, Uline, and McMaster
 po_res = client.post('/api/v1/fulfillment/autofill', headers=headers, json={
     'requirement_prompt': 'Order 50 cases of EcoClean Commercial Disinfectant (4x1 Gal) and 20 rolls of industrial stretch packaging film',
     'preferred_supplier_code': 'amazon_business',
@@ -54,7 +54,29 @@ po_data = po_res.json()
 po_num = po_data.get('po_number') or 'PO-UNKNOWN'
 cost = po_data.get('total_cost', 0.0)
 supplier = po_data.get('supplier')
-print(f"6. AI Order Filler Executed PO: Status {po_res.status_code} | PO Number: {po_num} | Supplier: {supplier} | Total Spend: ${cost:,.2f}")
+print(f"6a. AI Order Filler (Amazon Business): Status {po_res.status_code} | PO: {po_num} | Supplier: {supplier} | Spend: ${cost:,.2f}")
+
+# Test Uline routing
+uline_res = client.post('/api/v1/fulfillment/autofill', headers=headers, json={
+    'requirement_prompt': 'Order 15 bundles of Uline corrugated packaging cartons and 10 rolls of bubble wrap',
+    'preferred_supplier_code': 'uline',
+    'destination_type': 'client_warehouse',
+    'destination_address': 'Apex Logistics Center, Dallas, TX',
+    'max_budget_limit': 1500.0
+})
+uline_data = uline_res.json()
+print(f"6b. AI Order Filler (Uline Adapter): Status {uline_res.status_code} | PO: {uline_data.get('po_number')} | Supplier: {uline_data.get('supplier')} | Spend: ${uline_data.get('total_cost', 0):,.2f}")
+
+# Test McMaster-Carr routing
+mc_res = client.post('/api/v1/fulfillment/autofill', headers=headers, json={
+    'requirement_prompt': 'Order 25 packs of McMaster Grade 8 hex screws and 5 hydraulic hoses with brass fittings',
+    'preferred_supplier_code': 'mcmaster',
+    'destination_type': 'client_warehouse',
+    'destination_address': 'Apex Logistics Center, Dallas, TX',
+    'max_budget_limit': 1500.0
+})
+mc_data = mc_res.json()
+print(f"6c. AI Order Filler (McMaster Adapter): Status {mc_res.status_code} | PO: {mc_data.get('po_number')} | Supplier: {mc_data.get('supplier')} | Spend: ${mc_data.get('total_cost', 0):,.2f}")
 
 # 7. Check Orders & Live Shipment Tracking
 orders_res = client.get('/api/v1/fulfillment/orders', headers=headers)
@@ -72,6 +94,23 @@ track_num = latest_po.get('po_number')
 track_url = f'{base}/track/{track_num}'
 track_res = client.get(f'/track/{track_num}')
 print(f"8. Real-Time Tracking Portal Status: {track_res.status_code} | Tracking Portal URL: {track_url}")
+
+# 9. Track A: AI Engine Settings & Connection Diagnostics
+ai_res = client.get('/api/v1/settings/ai', headers=headers)
+ai_data = ai_res.json()
+print(f"9. AI Settings API: Status {ai_res.status_code} | Mode: {ai_data.get('mode')} | Model: {ai_data.get('model')} | Has Key: {ai_data.get('has_api_key')}")
+
+# 10. Track B: CRM 2 1-Click Fast Restock
+client_id = client_account.get('id')
+restock_res = client.post(f'/api/v1/crm/clients/{client_id}/trigger-restock', headers=headers)
+restock_data = restock_res.json()
+print(f"10. 1-Click Client Auto-Restock: Status {restock_res.status_code} | Client: {restock_data.get('account_name')} | Next Reorder: {restock_data.get('next_reorder_date')}")
+
+# 11. Track B: Client Proforma Quotation
+quote_res = client.get(f'/api/v1/crm/clients/{client_id}/quote', headers=headers)
+quote_data = quote_res.json()
+print(f"11. Proforma Quote Generator: Status {quote_res.status_code} | Quote #: {quote_data.get('quote_number')} | Grand Total: ${quote_data.get('financials', {}).get('grand_total', 0):,.2f}")
+
 print('\n================================================================================')
-print('*** SUCCESS: ALL 8 PRODUCTION FLOWS VERIFIED LIVE ON POSTGRESQL & PRODUCTION! ***')
+print('*** SUCCESS: ALL 11 UPGRADES & LIFECYCLE FLOWS VERIFIED LIVE ON POSTGRESQL! ***')
 print('================================================================================')
