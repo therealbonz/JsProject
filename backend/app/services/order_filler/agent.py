@@ -49,65 +49,69 @@ class OrderFillerAgent:
         stmt = select(Supplier).where(Supplier.organization_id == org_id)
         res = await db.execute(stmt)
         existing = res.scalars().all()
-        if not existing:
-            defaults = [
-                Supplier(
-                    organization_id=org_id,
-                    name="Amazon Business",
-                    code="amazon_business",
-                    website_url="https://business.amazon.com",
-                    adapter_type="api",
-                    status="active",
-                    category="Packaging & General",
-                    lead_days_estimate=2,
-                    notes="Enterprise Prime account with 2-day delivery guarantees."
-                ),
-                Supplier(
-                    organization_id=org_id,
-                    name="W.W. Grainger Industrial Supply",
-                    code="grainger",
-                    website_url="https://www.grainger.com",
-                    adapter_type="web_automation",
-                    status="active",
-                    category="Industrial MRO & Safety",
-                    lead_days_estimate=1,
-                    notes="Branch pickup & next-day commercial delivery available."
-                ),
-                Supplier(
-                    organization_id=org_id,
-                    name="DigiKey Electronics",
-                    code="digikey",
-                    website_url="https://www.digikey.com",
-                    adapter_type="api",
-                    status="active",
-                    category="Electronics & Sensors",
-                    lead_days_estimate=2,
-                    notes="Direct manufacturer reels, IoT microcontrollers, and DIN rails."
-                ),
-                Supplier(
-                    organization_id=org_id,
-                    name="McMaster-Carr Supply Co.",
-                    code="mcmaster",
-                    website_url="https://www.mcmaster.com",
-                    adapter_type="api",
-                    status="active",
-                    category="Hardware & Raw Materials",
-                    lead_days_estimate=1,
-                    notes="Same-day freight and CAD-grounded hardware parts."
-                ),
-                Supplier(
-                    organization_id=org_id,
-                    name="Uline Shipping Supplies",
-                    code="uline",
-                    website_url="https://www.uline.com",
-                    adapter_type="api",
-                    status="active",
-                    category="Packaging & Shipping Supplies",
-                    lead_days_estimate=1,
-                    notes="Premier packaging, double-wall corrugated cartons, and warehouse tape."
-                ),
-            ]
-            db.add_all(defaults)
+        existing_codes = {s.code for s in existing}
+
+        defaults = [
+            Supplier(
+                organization_id=org_id,
+                name="Amazon Business",
+                code="amazon_business",
+                website_url="https://business.amazon.com",
+                adapter_type="api",
+                status="active",
+                category="Packaging & General",
+                lead_days_estimate=2,
+                notes="Enterprise Prime account with 2-day delivery guarantees."
+            ),
+            Supplier(
+                organization_id=org_id,
+                name="W.W. Grainger Industrial Supply",
+                code="grainger",
+                website_url="https://www.grainger.com",
+                adapter_type="web_automation",
+                status="active",
+                category="Industrial MRO & Safety",
+                lead_days_estimate=1,
+                notes="Branch pickup & next-day commercial delivery available."
+            ),
+            Supplier(
+                organization_id=org_id,
+                name="DigiKey Electronics",
+                code="digikey",
+                website_url="https://www.digikey.com",
+                adapter_type="api",
+                status="active",
+                category="Electronics & Sensors",
+                lead_days_estimate=2,
+                notes="Direct manufacturer reels, IoT microcontrollers, and DIN rails."
+            ),
+            Supplier(
+                organization_id=org_id,
+                name="McMaster-Carr Supply Co.",
+                code="mcmaster",
+                website_url="https://www.mcmaster.com",
+                adapter_type="api",
+                status="active",
+                category="Hardware & Raw Materials",
+                lead_days_estimate=1,
+                notes="Same-day freight and CAD-grounded hardware parts."
+            ),
+            Supplier(
+                organization_id=org_id,
+                name="Uline Shipping Supplies",
+                code="uline",
+                website_url="https://www.uline.com",
+                adapter_type="api",
+                status="active",
+                category="Packaging & Shipping Supplies",
+                lead_days_estimate=1,
+                notes="Premier packaging, double-wall corrugated cartons, and warehouse tape."
+            ),
+        ]
+
+        to_add = [s for s in defaults if s.code not in existing_codes]
+        if to_add:
+            db.add_all(to_add)
             await db.flush()
 
     async def auto_fill_order(
